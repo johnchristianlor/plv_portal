@@ -240,23 +240,16 @@ body{background-color:var(--bg-body);color:var(--text-main);min-height:100vh;dis
 </nav>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, where, orderBy, limit, doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { initializeApp } from "./supabase-adapter.js";
+import { getSupabase, collection, getDocs, query, where, orderBy, limit, doc, updateDoc, serverTimestamp } from "./supabase-adapter.js";
 
 // ── AUTH GUARD ──
 const user = JSON.parse(localStorage.getItem('loggedInUser'));
 if (!user || user.role !== 'student') window.location.href = 'index.html';
 
 // ── FIREBASE ──
-const app = initializeApp({
-    apiKey: "AIzaSyCM9-ZupC7stf2VSdGD5zWh4AVZH3H7rCI",
-    authDomain: "plv-grades-portal.firebaseapp.com",
-    projectId: "plv-grades-portal",
-    storageBucket: "plv-grades-portal.firebasestorage.app",
-    messagingSenderId: "951401194726",
-    appId: "1:951401194726:web:28ea9972358d0e30fb4727"
-});
-const db = getFirestore(app);
+const app = initializeApp();
+const db = getSupabase(app);
 
 // ─── HEARTBEAT / ONLINE TRACKING ─────────────────────────────────────────────
 // Writes lastActiveAt every 2 min + on interaction.
@@ -480,9 +473,9 @@ window.applyFilter = () => {
 };
 
 // ── LOAD FILES — no composite index required ──
-// Strategy: fetch ALL sharedFiles from Firestore (no orderBy on filtered queries),
+// Strategy: fetch ALL sharedFiles from Supabase (no orderBy on filtered queries),
 // then filter client-side by recipientStudentNo === studentId OR 'all'.
-// This avoids the Firestore composite index error.
+// This avoids the Supabase composite index error.
 async function loadFiles() {
     const g = document.getElementById('filesGrid');
     g.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
@@ -533,9 +526,9 @@ async function loadFiles() {
         console.error('loadFiles error:', e);
         let errMsg = e.message || 'Unknown error';
 
-        // Provide a helpful message for the most common Firestore error
+        // Provide a helpful message for the most common Supabase error
         if (errMsg.includes('index') || errMsg.includes('Index')) {
-            errMsg = 'Firestore index error. Please contact your admin.';
+            errMsg = 'Supabase index error. Please contact your admin.';
         }
 
         g.innerHTML = `

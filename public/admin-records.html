@@ -575,13 +575,13 @@
 </nav>
 
 <script type="module">
-import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import{getFirestore,collection,getDocs,doc,updateDoc,addDoc,getDoc,setDoc}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { initializeApp } from "./supabase-adapter.js";
+import {getSupabase,collection,getDocs,doc,updateDoc,addDoc,getDoc,setDoc} from "./supabase-adapter.js";
 const _u=JSON.parse(localStorage.getItem('loggedInUser'));
 if(!_u||_u.role!=='admin')location.href='index.html';
 window.logout=()=>{localStorage.removeItem('loggedInUser');location.href='index.html';};
-const app=initializeApp({apiKey:"AIzaSyCM9-ZupC7stf2VSdGD5zWh4AVZH3H7rCI",authDomain:"plv-grades-portal.firebaseapp.com",projectId:"plv-grades-portal",storageBucket:"plv-grades-portal.firebasestorage.app",messagingSenderId:"951401194726",appId:"1:951401194726:web:28ea9972358d0e30fb4727"});
-const db=getFirestore(app);
+const app = initializeApp();
+const db=getSupabase(app);
 
 let enrollments=[],activities=[],scores=[];
 let sortCol=null,sortDir='asc',currentView='grid',editCtx=null;

@@ -173,14 +173,14 @@
     </main>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-        import { getFirestore, collection, getDocs, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+        import { initializeApp } from "./supabase-adapter.js";
+        import { getSupabase, collection, getDocs, query, where, onSnapshot } from "./supabase-adapter.js";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
         
-        const app = initializeApp({ apiKey: "AIzaSyCM9-ZupC7stf2VSdGD5zWh4AVZH3H7rCI", authDomain: "plv-grades-portal.firebaseapp.com", projectId: "plv-grades-portal", storageBucket: "plv-grades-portal.firebasestorage.app", messagingSenderId: "951401194726", appId: "1:951401194726:web:28ea9972358d0e30fb4727", measurementId: "G-TKG574DYYB" });
-        const db = getFirestore(app);
+        const app = initializeApp();
+        const db = getSupabase(app);
 
         window.logout = function() {
             localStorage.removeItem('loggedInUser');
@@ -198,7 +198,7 @@
                 const data = d.data();
                 const la = data.lastActiveAt;
                 if (la) {
-                    // Firestore Timestamp — use toMillis()
+                    // Supabase Timestamp — use toMillis()
                     const ms = la.toMillis ? la.toMillis() : Number(la);
                     if (ms >= cutoff) n++;
                 } else if (data.isOnline === true) {
@@ -221,7 +221,7 @@
                 document.getElementById('totalSubjects').textContent = snapSubjects.size;
 
                 // 3. Online Now — real-time listener on all students.
-                //    We filter by lastActiveAt client-side since Firestore can't query
+                //    We filter by lastActiveAt client-side since Supabase can't query
                 //    "timestamp within last N minutes" without Cloud Functions.
                 const qAll = query(collection(db, "users"), where("role", "==", "student"));
 
@@ -230,7 +230,7 @@
                 });
 
                 // Re-check every 60s so stale users drop off automatically even
-                // without a new Firestore change event (covers tab-close / network drop).
+                // without a new Supabase change event (covers tab-close / network drop).
                 setInterval(async () => {
                     try {
                         const fresh = await getDocs(qAll);

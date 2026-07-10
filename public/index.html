@@ -182,14 +182,14 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
     }
 </script>
 
-<!-- FIREBASE INTEGRATION -->
+<!-- SUPABASE INTEGRATION -->
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, getDocs, query, where, doc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { initializeApp } from "./supabase-adapter.js";
+    import { getSupabase, collection, getDocs, query, where, doc, updateDoc, getDoc } from "./supabase-adapter.js";
+    import { getAuth, signInWithEmailAndPassword } from "./supabase-adapter.js";
 
-    const app = initializeApp({ apiKey: "AIzaSyCM9-ZupC7stf2VSdGD5zWh4AVZH3H7rCI", authDomain: "plv-grades-portal.firebaseapp.com", projectId: "plv-grades-portal", storageBucket: "plv-grades-portal.firebasestorage.app", messagingSenderId: "951401194726", appId: "1:951401194726:web:28ea9972358d0e30fb4727", measurementId: "G-TKG574DYYB" });
-    const db = getFirestore(app);
+    const app = initializeApp();
+    const db = getSupabase(app);
     const auth = getAuth(app);
 
     // Temp storage for first-login password change
@@ -210,7 +210,7 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
             const email = identifier.includes('@') ? identifier : `${identifier}@plv.edu.ph`;
             const cred = await signInWithEmailAndPassword(auth, email, password);
 
-            // Look up admin profile in Firestore by their Firebase Auth UID
+            // Look up admin profile in Supabase by their Supabase Auth UID
             const adminDoc = await getDoc(doc(db, 'users', cred.user.uid));
             if (adminDoc.exists() && adminDoc.data().role === 'admin' && adminDoc.data().status !== 'Inactive') {
                 localStorage.setItem('loggedInUser', JSON.stringify({ ...adminDoc.data(), uid: cred.user.uid }));
@@ -219,23 +219,23 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
                 return;
             }
 
-            // Firebase Auth succeeded but not an admin — deny access
+            // Supabase Auth succeeded but not an admin — deny access
             window.showToast('Access denied.', 'error');
             resetLoginBtn();
             return;
 
         } catch (authErr) {
-            // Not a Firebase Auth user — continue to student login below
+            // Not a Supabase Auth user — continue to student login below
             if (!['auth/user-not-found', 'auth/wrong-password', 'auth/invalid-credential', 'auth/invalid-email'].includes(authErr.code)) {
                 // Unexpected error (network, etc.)
                 window.showToast('Login error. Please try again.', 'error');
                 resetLoginBtn();
                 return;
             }
-            // Falls through to student Firestore login
+            // Falls through to student Supabase login
         }
 
-        // ── STUDENTS: Firestore lookup (existing flow, unchanged) ──
+        // ── STUDENTS: Supabase lookup (existing flow, unchanged) ──
         try {
             const usersRef = collection(db, 'users');
             let snapshot = await getDocs(query(usersRef, where('studentNo', '==', identifier), where('password', '==', password)));

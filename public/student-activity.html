@@ -224,14 +224,14 @@
     <div id="toast" class="toast"><i id="toast-icon" class="ph-fill ph-check-circle" style="font-size: 24px;"></i><span id="toast-msg">Action Successful!</span></div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-        import { getFirestore, collection, getDocs, query, where, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+        import { initializeApp } from "./supabase-adapter.js";
+        import { getSupabase, collection, getDocs, query, where, doc, getDoc, updateDoc, serverTimestamp } from "./supabase-adapter.js";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'student') window.location.href = 'index.html';
 
-        const app = initializeApp({ apiKey: "AIzaSyCM9-ZupC7stf2VSdGD5zWh4AVZH3H7rCI", authDomain: "plv-grades-portal.firebaseapp.com", projectId: "plv-grades-portal", storageBucket: "plv-grades-portal.firebasestorage.app", messagingSenderId: "951401194726", appId: "1:951401194726:web:28ea9972358d0e30fb4727", measurementId: "G-TKG574DYYB" });
-        const db = getFirestore(app);
+        const app = initializeApp();
+        const db = getSupabase(app);
 
         // ─── HEARTBEAT / ONLINE TRACKING ─────────────────────────────────────────────
         // Writes lastActiveAt every 2 min + on interaction.
