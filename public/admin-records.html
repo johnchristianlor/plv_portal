@@ -258,6 +258,42 @@
         .empty-msg td,.loading-msg td{text-align:center;padding:60px 20px !important;color:var(--text-muted);font-size:14px;font-weight:600;background:transparent !important;}
         .spin{display:inline-block;width:20px;height:20px;border:2px solid var(--accent-light);border-top-color:var(--accent-primary);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:8px;}
         @keyframes spin{to{transform:rotate(360deg);}}
+
+        /* ===== SPREADSHEET WORKSURFACE IMPROVEMENTS ===== */
+        .records-card{padding:22px;min-height:calc(100vh - 150px);}
+        .btn-ghost{background:var(--input-bg);color:var(--text-muted);border:1px solid var(--input-border);}
+        .btn-ghost:hover{color:var(--accent-primary);border-color:rgba(0,61,165,.28);background:var(--accent-light);}
+        .btn-ghost.active{background:var(--accent-primary);color:#fff;border-color:var(--accent-primary);}
+        .sheet-status-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;padding:8px 12px;border:1px solid var(--input-border);border-radius:10px;background:var(--input-bg);font-size:12px;font-weight:700;color:var(--text-muted);}
+        .sheet-status-bar b{color:var(--text-main);}
+        .sheet-status-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+        .sheet-mini-btn{border:1px solid var(--input-border);background:transparent;color:var(--text-muted);border-radius:8px;padding:5px 9px;font-size:11px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:5px;}
+        .sheet-mini-btn:hover{color:var(--accent-primary);background:var(--accent-light);}
+        .grid-scroll{max-height:calc(100vh - 365px);min-height:430px;background:var(--sticky-odd-bg);scrollbar-width:thin;scrollbar-color:rgba(0,61,165,.45) transparent;}
+        .grid-scroll::-webkit-scrollbar{width:12px;height:12px;display:block;}
+        .grid-scroll::-webkit-scrollbar-thumb{background:rgba(0,61,165,.38);border:3px solid transparent;border-radius:999px;background-clip:content-box;}
+        .grid-scroll::-webkit-scrollbar-track{background:transparent;}
+        .grid-scroll:not(.is-dragging){cursor:default;}
+        .grid-table{border-collapse:separate;border-spacing:0;min-width:max-content;width:max-content;font-variant-numeric:tabular-nums;}
+        .grid-table thead th{top:31px;z-index:5;padding:9px 12px;font-size:10px;font-weight:800;}
+        .grid-table thead .col-rank,.grid-table thead .col-sno,.grid-table thead .col-name{z-index:8;}
+        .group-header th{top:0;z-index:7;}
+        .group-header .col-rank,.group-header .col-sno,.group-header .col-name{z-index:9;}
+        .grid-table tbody td{padding:9px 12px;font-size:12px;}
+        .grid-table tbody tr.row-selected td{background:rgba(0,61,165,.12)!important;}
+        .grid-table tbody tr.row-selected td.col-rank,.grid-table tbody tr.row-selected td.col-sno,.grid-table tbody tr.row-selected td.col-name{background:rgba(0,61,165,.15)!important;}
+        .student-name-text{font-size:12px;max-width:170px;}
+        .sc-cell{min-width:82px;}
+        .sc-num{font-size:12px;font-weight:800;}
+        .gc{min-width:76px;}
+        .gv{font-size:13px;}
+        .btn-edit-row{width:28px;height:28px;}
+        .grid-density-compact .grid-table tbody td{padding:6px 9px;font-size:11px;}
+        .grid-density-compact .grid-table thead th{padding:7px 9px;}
+        .grid-density-compact .student-avatar{width:24px;height:24px;font-size:10px;}
+        .grid-density-compact .rank-badge{width:26px;height:26px;font-size:10px;}
+        .grid-density-compact .sc-bar{display:none;}
+        .grid-density-compact .btn-edit-row{width:24px;height:24px;}
         .table-footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:8px;}
         .table-footer span{font-size:12px;color:var(--text-muted);font-weight:600;}
 
@@ -407,7 +443,7 @@
         </div>
     </header>
 
-    <div class="card glass">
+    <div class="card glass records-card" id="recordsCard">
         <div class="toolbar">
             <div class="search-box">
                 <i class="ph-bold ph-magnifying-glass"></i>
@@ -430,6 +466,8 @@
                 <button class="vt-btn active" id="btnGrid" onclick="window.switchView('grid',this)"><i class="ph-bold ph-table"></i> Grid</button>
                 <button class="vt-btn" id="btnRank" onclick="window.switchView('rank',this)"><i class="ph-bold ph-trophy"></i> Rankings</button>
             </div>
+            <button class="btn btn-ghost" id="densityBtn" onclick="window.toggleGridDensity()"><i class="ph-bold ph-rows"></i> Compact</button>
+            <button class="btn btn-ghost" onclick="window.resetRecordFilters()"><i class="ph-bold ph-funnel-x"></i> Clear</button>
             <button class="btn btn-primary" onclick="window.openExportModal()"><i class="ph-bold ph-download-simple"></i> Export</button>
         </div>
 
@@ -454,6 +492,13 @@
 
         <!-- GRID VIEW -->
         <div id="gridViewWrapper">
+            <div class="sheet-status-bar">
+                <span id="sheetSelection"><b>Ready</b> - select a row or double-click a score cell to edit.</span>
+                <div class="sheet-status-actions">
+                    <button class="sheet-mini-btn" onclick="window.scrollRecordsGrid(-1)"><i class="ph-bold ph-arrow-left"></i> Left</button>
+                    <button class="sheet-mini-btn" onclick="window.scrollRecordsGrid(1)">Right <i class="ph-bold ph-arrow-right"></i></button>
+                </div>
+            </div>
             <div class="grid-scroll-wrapper">
                 <div class="grid-scroll" id="mainGridScroll">
                     <table class="grid-table">
@@ -811,6 +856,36 @@ window.switchView=(view,btn)=>{
     applyFilters();
 };
 
+window.toggleGridDensity=()=>{
+    const card=document.getElementById('recordsCard');
+    const btn=document.getElementById('densityBtn');
+    const compact=!card.classList.contains('grid-density-compact');
+    card.classList.toggle('grid-density-compact',compact);
+    btn.classList.toggle('active',compact);
+    btn.innerHTML=compact?'<i class="ph-bold ph-rows"></i> Comfortable':'<i class="ph-bold ph-rows"></i> Compact';
+};
+
+window.resetRecordFilters=()=>{
+    document.getElementById('searchInput').value='';
+    document.getElementById('filterSection').value='';
+    document.getElementById('filterSubject').value='';
+    document.getElementById('filterTerm').value='';
+    document.getElementById('filterStatus').value='';
+    window.onSectionChange();
+    window.showToast('Filters cleared.');
+};
+
+window.scrollRecordsGrid=(dir)=>{
+    const scroller=document.getElementById('mainGridScroll');
+    scroller.scrollBy({left:dir*Math.max(360,scroller.clientWidth*.72),behavior:'smooth'});
+};
+
+function updateSheetSelection(row){
+    const el=document.getElementById('sheetSelection');
+    if(!el)return;
+    if(!row){el.innerHTML='<b>Ready</b> - select a row or double-click a score cell to edit.';return;}
+    el.innerHTML=`<b>${row.studentName}</b> - ${row.studentNo} / ${row.section} / ${row.subjectCode} / Score ${row.totalMax>0?row.scorePercent.toFixed(1)+'%':'N/A'}`;
+}
 // ========== RENDER GRID ==========
 function renderGrid(rows,acts){
     const midActs=acts.filter(a=>a.term==='midterm');
@@ -917,6 +992,15 @@ function renderGrid(rows,acts){
             </td></tr>`;
     });
     document.getElementById('gridBody').innerHTML=html;
+    const body=document.getElementById('gridBody');
+    body.querySelectorAll('tr').forEach((tr,idx)=>{
+        tr.addEventListener('click',()=>{
+            body.querySelectorAll('tr.row-selected').forEach(x=>x.classList.remove('row-selected'));
+            tr.classList.add('row-selected');
+            updateSheetSelection(rows[idx]);
+        });
+    });
+    updateSheetSelection(null);
     document.getElementById('footLeft').textContent=`${rows.length} rows \u2022 ${acts.length} activity columns`;
 }
 
