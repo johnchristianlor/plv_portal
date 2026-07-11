@@ -227,32 +227,31 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
     }
 
     async function findStudent(identifier, password) {
-        let result = await supabase
-            .from('users')
-            .select('*')
-            .eq('studentNo', identifier)
-            .eq('password', password)
-            .limit(1);
-
-        if (!result.error && result.data && result.data.length > 0) return result.data[0];
-
-        result = await supabase
-            .from('users')
-            .select('*')
-            .eq('email', identifier)
-            .eq('password', password)
-            .limit(1);
-
-        if (result.error) throw result.error;
-        return result.data?.[0] || null;
+        const { data, error } = await supabase.rpc('login_student', {
+            p_identifier: identifier,
+            p_password: password
+        });
+        if (error) throw error;
+        return data || null;
     }
 
     async function updateUserByStudentNo(studentNo, changes) {
-        const { error } = await supabase
-            .from('users')
-            .update(changes)
-            .eq('studentNo', studentNo);
-        if (error) throw error;
+        if (changes.password) {
+            const { data, error } = await supabase.rpc('update_student_password', {
+                p_student_no: studentNo,
+                p_new_password: changes.password
+            });
+            if (error) throw error;
+            return data;
+        }
+
+        if (Object.prototype.hasOwnProperty.call(changes, 'isOnline')) {
+            const { error } = await supabase.rpc('set_student_online', {
+                p_student_no: studentNo,
+                p_is_online: !!changes.isOnline
+            });
+            if (error) throw error;
+        }
     }
 
     async function tryAdminLogin(identifier, password) {
