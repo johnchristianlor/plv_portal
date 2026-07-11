@@ -121,6 +121,8 @@
         .status-chip-A { background:rgba(225,29,72,0.12); color:var(--danger); }
         .status-chip-L { background:rgba(245,158,11,0.12); color:var(--warning); }
         .status-chip-E { background:var(--accent-light); color:var(--accent-primary); }
+        .status-chip-empty { background:rgba(100,116,139,0.12); color:var(--text-muted); }
+        .status-time { display:block; margin-top:4px; font-size:10px; font-weight:700; color:var(--text-muted); text-transform:none; letter-spacing:0; }
 
         /* Records spreadsheet (pivot) */
         .view-toggle-wrap { display:flex; gap:6px; align-items:center; margin-bottom:16px; }
@@ -779,7 +781,7 @@
                 // Check if attendance already exists for this date/section/subject
                 const existingRows = await fetchRows("attendance", q => q.eq("section", sec).eq("subjectCode", sub).eq("date", date));
                 const existingMap = {};
-                existingRows.forEach(d => { existingMap[d.studentNo] = { status: d.status, id: d.id }; });
+                existingRows.forEach(d => { existingMap[d.studentNo] = { status: d.status, id: d.id, createdAt: d.createdAt || d.timestamp || d.checkedInAt }; });
 
                 let students = await fetchRows("enrollments", q => q.eq("section", sec).eq("subjectCode", sub));
                 if(!students.length) { tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No students found for this section/subject.</td></tr>'; return; }
@@ -789,11 +791,14 @@
                 let rowNum = 1;
                 students.forEach(st => {
                     const existing = existingMap[st.studentNo];
-                    const defStatus = existing ? existing.status : 'P';
+                    const defStatus = existing ? (existing.status || '') : '';
                     const docId = existing ? existing.id : '';
-                    const statusLabels = { P:'Present', A:'Absent', L:'Late', E:'Excused' };
+                    const statusLabels = { P:'Present', A:'Absent', L:'Late', E:'Excused', '':'Not marked' };
+                    const statusClass = defStatus ? `status-chip-${defStatus}` : 'status-chip-empty';
+                    const rowClass = defStatus ? `row-${defStatus}` : 'row-unmarked';
+                    const timeLabel = existing?.createdAt ? `<span class="status-time">${new Date(existing.createdAt).toLocaleTimeString('en-PH', { hour:'numeric', minute:'2-digit' })}</span>` : '';
                     tbody.innerHTML += `
-                        <tr class="row-${defStatus}" data-status="${defStatus}">
+                        <tr class="${rowClass}" data-status="${defStatus}">
                             <td class="row-num">${rowNum++}</td>
                             <td class="col-sno">${st.studentNo}</td>
                             <td class="col-name">${st.studentName}</td>
@@ -807,7 +812,7 @@
                                 </div>
                             </td>
                             <td class="col-current">
-                                <span class="status-chip status-chip-${defStatus}" id="chip-${st.studentNo}">${statusLabels[defStatus]}</span>
+                                <span class="status-chip ${statusClass}" id="chip-${st.studentNo}">${statusLabels[defStatus] || 'Not marked'}${timeLabel}</span>
                             </td>
                         </tr>`;
                 });
@@ -868,16 +873,18 @@
             if(inputs.length === 0) { window.showToast("No students to save.", "error"); return; }
 
             try {
+                let savedCount = 0;
                 for(let inp of inputs) {
                     const sno = inp.getAttribute('data-sno');
                     const docId = inp.getAttribute('data-docid');
                     const status = inp.value;
+                    if(!status) continue;
                     const row = inp.closest('tr');
                     const studentName = row ? row.cells[2].textContent : '';
                     if(docId) await updateById("attendance", docId, { status });
                     else await insertRow("attendance", { section: sec, subjectCode: sub, date, studentNo: sno, studentName, status, createdAt: new Date().toISOString() });
                 }
-                window.showToast("Attendance saved successfully!");
+                window.showToast("Marked attendance saved successfully!");
                 // Refresh docids
                 window.loadAttendanceRoster();
             } catch(e) { console.error(e); window.showToast("Error saving attendance.", "error"); }
