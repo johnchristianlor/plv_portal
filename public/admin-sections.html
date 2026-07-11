@@ -225,7 +225,7 @@
                 loadSections(); 
             } catch(error) {
                 console.error(error);
-                window.showToast("Failed to add section.", "error");
+                window.showToast(error.message ? `Failed to add section: ${error.message}` : "Failed to add section.", "error");
             } finally {
                 btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Save Section'; btn.disabled = false;
             }
@@ -240,7 +240,7 @@
                 loadSections();
             } catch(e) {
                 console.error(e);
-                window.showToast("Delete failed.", "error");
+                window.showToast(e.message ? `Delete failed: ${e.message}` : "Delete failed.", "error");
             }
         }
 

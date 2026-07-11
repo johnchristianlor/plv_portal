@@ -91,11 +91,21 @@ function payloadForDoc(ref, data) {
 
 function throwSupabase(error) {
     if (!error) return;
-    const wrapped = new Error(error.message || "Supabase request failed");
+    const parts = [error.message, error.details, error.hint].filter(Boolean);
+    const wrapped = new Error(parts.join(" ") || "Supabase request failed");
     wrapped.code = error.code;
     wrapped.details = error.details;
     wrapped.hint = error.hint;
     throw wrapped;
+}
+
+function shouldRetryWithoutId(error, payload) {
+    if (!error || !payload || payload.id == null) return false;
+    const message = `${error.message || ""} ${error.details || ""} ${error.hint || ""}`.toLowerCase();
+    return error.code === "22P02" ||
+        error.code === "PGRST204" ||
+        message.includes("invalid input syntax for type uuid") ||
+        message.includes("column") && message.includes("id") && message.includes("does not exist");
 }
 
 async function findDocument(ref) {
@@ -215,7 +225,11 @@ export async function getDoc(ref) {
 }
 
 async function insertRow(table, payload) {
-    const { data, error } = await supabase.from(table).insert(payload).select("*").limit(1);
+    let { data, error } = await supabase.from(table).insert(payload).select("*").limit(1);
+    if (shouldRetryWithoutId(error, payload)) {
+        const { id, ...payloadWithoutId } = payload;
+        ({ data, error } = await supabase.from(table).insert(payloadWithoutId).select("*").limit(1));
+    }
     throwSupabase(error);
     return data?.[0] || payload;
 }
