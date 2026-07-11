@@ -197,6 +197,32 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
 
     const loginBtn = document.getElementById('loginBtn');
     const resetLoginBtn = () => { loginBtn.innerHTML = 'Secure Login <i class="ph-bold ph-arrow-right"></i>'; loginBtn.disabled = false; };
+    async function findAdminProfile(cred, email, identifier) {
+        const typed = identifier.trim();
+        const candidates = [
+            ['uid', cred.user.uid],
+            ['id', cred.user.uid],
+            ['email', email],
+            ['email', cred.user.email],
+            ['username', typed],
+            ['studentNo', typed]
+        ];
+
+        const directDoc = await getDoc(doc(db, 'users', cred.user.uid));
+        if (directDoc.exists() && directDoc.data().role === 'admin') return { id: directDoc.id, ...directDoc.data() };
+
+        for (const [field, value] of candidates) {
+            if (!value) continue;
+            try {
+                const snap = await getDocs(query(collection(db, 'users'), where(field, '==', value)));
+                const match = snap.docs.find(d => d.data().role === 'admin');
+                if (match) return { id: match.id, ...match.data() };
+            } catch (err) {
+                console.warn(`Admin lookup skipped for ${field}.`, err);
+            }
+        }
+        return null;
+    }
 
     // --- LOGIN LOGIC ---
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -210,17 +236,18 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
             const email = identifier.includes('@') ? identifier : `${identifier}@plv.edu.ph`;
             const cred = await signInWithEmailAndPassword(auth, email, password);
 
-            // Look up admin profile in Supabase by their Supabase Auth UID
-            const adminDoc = await getDoc(doc(db, 'users', cred.user.uid));
-            if (adminDoc.exists() && adminDoc.data().role === 'admin' && adminDoc.data().status !== 'Inactive') {
-                localStorage.setItem('loggedInUser', JSON.stringify({ ...adminDoc.data(), uid: cred.user.uid }));
+            // Look up the admin profile. Some migrated databases store the admin by
+            // Auth UID, while others kept email/username from the old Firebase data.
+            const adminData = await findAdminProfile(cred, email, identifier);
+            if (adminData && adminData.role === 'admin' && adminData.status !== 'Inactive') {
+                localStorage.setItem('loggedInUser', JSON.stringify({ ...adminData, uid: cred.user.uid, email: adminData.email || cred.user.email }));
                 window.showToast('Login Successful!');
                 setTimeout(() => window.location.href = 'admin-dashboard.html', 1000);
                 return;
             }
 
-            // Supabase Auth succeeded but not an admin — deny access
-            window.showToast('Access denied.', 'error');
+            // Supabase Auth succeeded but no active admin profile was found.
+            window.showToast('Access denied. Admin profile not found in users table.', 'error');
             resetLoginBtn();
             return;
 
