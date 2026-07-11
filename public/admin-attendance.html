@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root { --bg-body: #f0f4f8; --text-main: #0f172a; --text-muted: #64748b; --glass-bg: rgba(255,255,255,0.75); --glass-border: rgba(255,255,255,0.9); --glass-highlight: inset 0 1px 0 0 rgba(255,255,255,0.9); --glass-shadow: 0 24px 48px -12px rgba(0,35,102,0.08); --accent-primary: #003DA5; --accent-hover: #00287A; --accent-light: rgba(0,61,165,0.08); --accent-gold: #D4AF37; --input-bg: rgba(255,255,255,0.9); --input-border: rgba(0,35,102,0.1); --blob-1: #cce0ff; --blob-2: #ffeb99; --blob-3: #e0ebff; --success: #10b981; --danger: #e11d48; --warning: #f59e0b; }
         .dark-theme { --bg-body: #040914; --text-main: #f8fafc; --text-muted: #94a3b8; --glass-bg: rgba(10,15,30,0.6); --glass-border: rgba(255,255,255,0.06); --glass-highlight: inset 0 1px 0 0 rgba(255,255,255,0.04); --glass-shadow: 0 24px 48px -12px rgba(0,0,0,0.8); --accent-primary: #3b82f6; --accent-hover: #60a5fa; --accent-light: rgba(59,130,246,0.15); --accent-gold: #FCD34D; --input-bg: rgba(0,0,0,0.4); --input-border: rgba(255,255,255,0.1); --blob-1: #001f5c; --blob-2: #422b00; --blob-3: #001233; --success: #34d399; --danger: #fb7185; --warning: #fbbf24; }
@@ -213,6 +214,20 @@
         .del-count-badge { background:var(--danger); color:#fff; padding:3px 10px; border-radius:6px; font-size:13px; font-weight:800; }
         .del-warning { background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:12px; padding:12px 16px; font-size:12px; font-weight:700; color:var(--warning); display:flex; align-items:center; gap:8px; margin-bottom:20px; }
         .del-actions { display:flex; gap:12px; justify-content:flex-end; flex-wrap:wrap; }
+        .qr-session-card { display:grid; grid-template-columns:minmax(220px,280px) 1fr; gap:24px; align-items:center; padding:20px; margin:18px 0 24px; border:1px solid var(--input-border); border-radius:18px; background:var(--input-bg); }
+        .qr-box { width:220px; min-height:220px; display:flex; align-items:center; justify-content:center; padding:12px; border-radius:16px; background:#fff; border:1px solid rgba(0,35,102,0.08); }
+        .qr-box canvas, .qr-box img { width:196px !important; height:196px !important; }
+        .qr-placeholder { width:196px; height:196px; border:2px dashed rgba(0,61,165,0.25); border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:var(--text-muted); text-align:center; font-size:12px; font-weight:700; padding:12px; }
+        .qr-placeholder i { font-size:34px; color:var(--accent-primary); }
+        .qr-details { display:flex; flex-direction:column; gap:12px; min-width:0; }
+        .qr-details h4 { font-size:17px; font-weight:800; color:var(--text-main); }
+        .qr-details p { font-size:13px; line-height:1.6; color:var(--text-muted); font-weight:600; }
+        .qr-meta-grid { display:grid; grid-template-columns:repeat(3,minmax(120px,1fr)); gap:10px; }
+        .qr-meta { padding:10px 12px; border-radius:10px; background:var(--accent-light); }
+        .qr-meta label { display:block; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.7px; color:var(--text-muted); margin-bottom:3px; }
+        .qr-meta span { font-size:13px; font-weight:800; color:var(--text-main); word-break:break-word; }
+        .qr-actions { display:flex; gap:10px; flex-wrap:wrap; }
+        @media (max-width:768px) { .qr-session-card { grid-template-columns:1fr; } .qr-box { width:100%; } .qr-meta-grid { grid-template-columns:1fr; } }
         .btn-cancel-del { background:transparent; border:1.5px solid var(--input-border); color:var(--text-muted); font-weight:700; padding:12px 24px; border-radius:12px; cursor:pointer; font-size:14px; }
         .btn-confirm-del { background:var(--danger); color:#fff; border:none; font-weight:800; padding:12px 28px; border-radius:12px; cursor:pointer; font-size:14px; display:flex; align-items:center; gap:8px; }
         .btn-confirm-del:hover { opacity:0.9; transform:translateY(-1px); }
@@ -292,10 +307,32 @@
                         <label class="form-label">Date</label>
                         <input type="date" id="inputDate" class="form-control" required>
                     </div>
-                    <div class="form-group full" style="margin-top:4px;">
+                    <div class="form-group full" style="margin-top:4px; display:flex; flex-direction:row; gap:12px; flex-wrap:wrap; align-items:center;">
                         <button class="btn btn-primary" onclick="window.loadAttendanceRoster()" style="width:fit-content;">
                             <i class="ph-bold ph-users"></i> Load Student Roster
                         </button>
+                        <button class="btn btn-success" onclick="window.generateAttendanceQR()" style="width:fit-content;">
+                            <i class="ph-bold ph-qr-code"></i> Generate QR
+                        </button>
+                    </div>
+                </div>
+
+                <div class="qr-session-card" id="qrSessionCard">
+                    <div class="qr-box" id="attendanceQrBox">
+                        <div class="qr-placeholder"><i class="ph-bold ph-qr-code"></i><span>Select a section, subject, and date, then generate a QR.</span></div>
+                    </div>
+                    <div class="qr-details">
+                        <h4>Student QR Check-in</h4>
+                        <p>Students can scan this code from their attendance page. The scan will mark them Present for the selected session and save the current timestamp.</p>
+                        <div class="qr-meta-grid">
+                            <div class="qr-meta"><label>Section</label><span id="qrMetaSection">-</span></div>
+                            <div class="qr-meta"><label>Subject</label><span id="qrMetaSubject">-</span></div>
+                            <div class="qr-meta"><label>Date</label><span id="qrMetaDate">-</span></div>
+                        </div>
+                        <div class="qr-actions">
+                            <button class="btn btn-outline" onclick="window.copyAttendanceQRPayload()"><i class="ph-bold ph-copy"></i> Copy QR Data</button>
+                            <button class="btn btn-outline" onclick="window.downloadAttendanceQR()"><i class="ph-bold ph-download-simple"></i> Download QR</button>
+                        </div>
                     </div>
                 </div>
 
@@ -573,6 +610,76 @@
         let currentEditDocId = null;
         let editingData = {};
         let subjectsBySection = {};
+        let currentQrPayload = '';
+
+        function encodeQrPayload(payload) {
+            return 'PLV_ATTENDANCE:' + btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+        }
+
+        function getSelectedSession() {
+            const section = document.getElementById('inputSection').value;
+            const subjectCode = document.getElementById('inputSubject').value;
+            const date = document.getElementById('inputDate').value;
+            if(!section || !subjectCode || !date) {
+                window.showToast('Please select section, subject, and date first.', 'error');
+                return null;
+            }
+            return { section, subjectCode, date };
+        }
+
+        window.generateAttendanceQR = function() {
+            const session = getSelectedSession();
+            if(!session) return;
+            if(typeof QRCode === 'undefined') {
+                window.showToast('QR library did not load. Please refresh the page.', 'error');
+                return;
+            }
+
+            const generatedAt = new Date();
+            const expiresAt = new Date(generatedAt.getTime() + (6 * 60 * 60 * 1000));
+            const payload = {
+                type: 'plv_attendance_checkin',
+                version: 1,
+                section: session.section,
+                subjectCode: session.subjectCode,
+                date: session.date,
+                generatedAt: generatedAt.toISOString(),
+                expiresAt: expiresAt.toISOString(),
+                nonce: Math.random().toString(36).slice(2) + Date.now().toString(36)
+            };
+
+            currentQrPayload = encodeQrPayload(payload);
+            const box = document.getElementById('attendanceQrBox');
+            box.innerHTML = '';
+            new QRCode(box, { text: currentQrPayload, width: 196, height: 196, correctLevel: QRCode.CorrectLevel.M });
+
+            document.getElementById('qrMetaSection').textContent = session.section;
+            document.getElementById('qrMetaSubject').textContent = session.subjectCode;
+            document.getElementById('qrMetaDate').textContent = session.date;
+            window.showToast('QR code generated for this attendance session.');
+        }
+
+        window.copyAttendanceQRPayload = async function() {
+            if(!currentQrPayload) { window.showToast('Generate a QR code first.', 'error'); return; }
+            try {
+                await navigator.clipboard.writeText(currentQrPayload);
+                window.showToast('QR data copied.');
+            } catch(e) {
+                console.error(e);
+                window.showToast('Could not copy QR data.', 'error');
+            }
+        }
+
+        window.downloadAttendanceQR = function() {
+            if(!currentQrPayload) { window.showToast('Generate a QR code first.', 'error'); return; }
+            const box = document.getElementById('attendanceQrBox');
+            const img = box.querySelector('img');
+            const canvas = box.querySelector('canvas');
+            const link = document.createElement('a');
+            link.download = 'plv-attendance-qr.png';
+            link.href = img ? img.src : canvas.toDataURL('image/png');
+            link.click();
+        }
 
         // Toast
         window.showToast = function(msg, type='success') {

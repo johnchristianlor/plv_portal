@@ -7,6 +7,7 @@
     <link rel="icon" type="image/png" href="https://res.cloudinary.com/dfdlqf6ng/image/upload/v1772078917/PamantasanNgLungsodNgValenzuelaLogo_t53djy.png">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
         :root { --bg-body: #f0f4f8; --text-main: #0f172a; --text-muted: #64748b; --glass-bg: rgba(255,255,255,0.65); --glass-border: rgba(255,255,255,0.9); --glass-highlight: inset 0 1px 0 0 rgba(255,255,255,0.9); --glass-shadow: 0 24px 48px -12px rgba(0,35,102,0.08); --accent-primary: #003DA5; --accent-hover: #00287A; --accent-light: rgba(0,61,165,0.08); --accent-gold: #D4AF37; --accent-gold-light: rgba(212,175,55,0.15); --hero-bg: linear-gradient(135deg,#001f5c 0%,#003DA5 100%); --input-bg: rgba(255,255,255,0.9); --input-border: rgba(0,35,102,0.1); --blob-1: #cce0ff; --blob-2: #ffeb99; --blob-3: #e0ebff; --success: #10b981; --success-bg: rgba(16,185,129,0.1); --danger: #e11d48; --danger-bg: rgba(225,29,72,0.1); --warning: #f59e0b; --warning-bg: rgba(245,158,11,0.1); }
         .dark-theme { --bg-body: #040914; --text-main: #f8fafc; --text-muted: #94a3b8; --glass-bg: rgba(10,15,30,0.55); --glass-border: rgba(255,255,255,0.06); --glass-highlight: inset 0 1px 0 0 rgba(255,255,255,0.04); --glass-shadow: 0 24px 48px -12px rgba(0,0,0,0.8); --accent-primary: #3b82f6; --accent-hover: #60a5fa; --accent-light: rgba(59,130,246,0.15); --accent-gold: #FCD34D; --accent-gold-light: rgba(252,211,77,0.15); --input-bg: rgba(0,0,0,0.4); --input-border: rgba(255,255,255,0.1); --blob-1: #001f5c; --blob-2: #422b00; --blob-3: #001233; --success: #34d399; --success-bg: rgba(52,211,153,0.15); --danger: #fb7185; --danger-bg: rgba(251,113,133,0.15); --warning: #fbbf24; --warning-bg: rgba(251,191,36,0.15); }
@@ -114,6 +115,26 @@
         .empty-state { text-align:center; padding:60px 20px; }
         .empty-state i { font-size:48px; color:var(--text-muted); margin-bottom:16px; display:block; }
         .empty-state p { color:var(--text-muted); font-size:15px; font-weight:600; }
+        .qr-scan-card { gap:20px; }
+        .qr-scan-layout { display:grid; grid-template-columns:minmax(260px,360px) 1fr; gap:24px; align-items:start; }
+        .qr-camera-box { min-height:260px; border-radius:18px; border:1px solid var(--input-border); background:var(--input-bg); display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative; }
+        .qr-camera-box video { width:100%; height:100%; min-height:260px; object-fit:cover; display:none; }
+        .qr-camera-placeholder { display:flex; flex-direction:column; gap:12px; align-items:center; justify-content:center; color:var(--text-muted); text-align:center; padding:28px; font-weight:700; }
+        .qr-camera-placeholder i { font-size:42px; color:var(--accent-primary); }
+        .qr-scan-details { display:flex; flex-direction:column; gap:14px; }
+        .qr-scan-details h3 { font-size:18px; font-weight:800; display:flex; align-items:center; gap:10px; }
+        .qr-scan-details p { color:var(--text-muted); font-size:14px; line-height:1.6; font-weight:600; }
+        .qr-scan-actions { display:flex; gap:10px; flex-wrap:wrap; }
+        .qr-status { padding:12px 14px; border-radius:12px; background:var(--accent-light); color:var(--text-main); font-size:13px; font-weight:700; }
+        .btn { padding:12px 18px; border-radius:12px; font-size:14px; font-weight:800; cursor:pointer; border:none; display:inline-flex; align-items:center; gap:8px; }
+        .btn-primary { background:var(--accent-primary); color:#fff; }
+        .btn-primary:hover { background:var(--accent-hover); transform:translateY(-1px); }
+        .btn-outline { background:transparent; border:1px solid var(--accent-primary); color:var(--accent-primary); }
+        .btn-outline:hover { background:var(--accent-light); }
+        .toast { position:fixed; bottom:32px; right:32px; background:var(--success); color:#fff; padding:14px 20px; border-radius:12px; font-weight:700; box-shadow:0 12px 24px rgba(16,185,129,0.25); transform:translateX(150%); transition:transform 0.3s ease; z-index:1000; }
+        .toast.show { transform:translateX(0); }
+        .toast.error { background:var(--danger); }
+        @media (max-width:768px) { .qr-scan-layout { grid-template-columns:1fr; } .toast { left:16px; right:16px; bottom:86px; } }
         /* Mobile nav */
         .mobile-nav-bar { display:none; position:fixed; bottom:0; left:0; right:0; background:var(--glass-bg); backdrop-filter:blur(32px); border-top:1px solid var(--glass-border); z-index:200; padding:6px 0 max(6px,env(safe-area-inset-bottom)); }
         .mobile-nav-bar ul { display:flex; list-style:none; align-items:center; padding:0 8px; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; scroll-snap-type:x mandatory; scrollbar-width:none; -ms-overflow-style:none; gap:2px; }
@@ -192,6 +213,27 @@
             </div>
         </div>
 
+        <!-- QR Scanner -->
+        <div class="card glass qr-scan-card">
+            <div class="qr-scan-layout">
+                <div class="qr-camera-box">
+                    <video id="qrVideo" playsinline></video>
+                    <div class="qr-camera-placeholder" id="qrCameraPlaceholder">
+                        <i class="ph-bold ph-qr-code"></i>
+                        <span>Open the camera and scan the QR from your instructor.</span>
+                    </div>
+                </div>
+                <div class="qr-scan-details">
+                    <h3><i class="ph-fill ph-scan" style="color:var(--accent-primary);"></i> QR Attendance Check-in</h3>
+                    <p>Scan the QR code shown by your instructor. Your attendance will be marked Present for that section, subject, and date with the current timestamp.</p>
+                    <div class="qr-status" id="qrStatus">Camera is ready.</div>
+                    <div class="qr-scan-actions">
+                        <button class="btn btn-primary" onclick="window.startQrScanner()"><i class="ph-bold ph-camera"></i> Start Camera</button>
+                        <button class="btn btn-outline" onclick="window.stopQrScanner()"><i class="ph-bold ph-stop-circle"></i> Stop</button>
+                    </div>
+                </div>
+            </div>
+        </div>
         <!-- Records Table -->
         <div class="card glass">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
@@ -246,11 +288,12 @@
                                 <th>Date</th>
                                 <th>Subject</th>
                                 <th>Section</th>
+                                <th>Time</th>
                                 <th style="text-align:center;">Status</th>
                             </tr>
                         </thead>
                         <tbody id="attBody">
-                            <tr><td colspan="4" style="text-align:center;">Loading attendance records...</td></tr>
+                            <tr><td colspan="5" style="text-align:center;">Loading attendance records...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -278,7 +321,7 @@
 
     <script type="module">
         import { initializeApp } from "./supabase-adapter.js";
-        import { getSupabase, collection, getDocs, query, where, doc, updateDoc, serverTimestamp } from "./supabase-adapter.js";
+        import { getSupabase, collection, addDoc, getDocs, query, where, doc, updateDoc, serverTimestamp } from "./supabase-adapter.js";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'student') window.location.href = 'index.html';
@@ -322,6 +365,7 @@
 
         let allRecords = [];
         const studentNo = user.studentNo || user.username || '';
+        let currentStudentName = user.name || user.fullName || user.username || studentNo;
 
         async function loadData() {
             try {
@@ -336,6 +380,7 @@
                     section = ud.section || section;
                 }
 
+                currentStudentName = studentName;
                 document.getElementById('heroName').textContent = studentName;
                 document.getElementById('heroInfo').textContent = `${section ? section + ' • ' : ''}Student No. ${studentNo}`;
                 document.getElementById('studentSubheader').textContent = `${section || 'Your'} attendance overview`;
@@ -464,6 +509,13 @@
             document.getElementById('matrixInfo').innerHTML = `<i class="ph-bold ph-table"></i> ${subjects.length} subject${subjects.length>1?'s':''} × ${dates.length} session${dates.length>1?'s':''}`;
         }
 
+        function formatAttendanceTime(value) {
+            if(!value) return '-';
+            const date = new Date(value);
+            if(Number.isNaN(date.getTime())) return '-';
+            return date.toLocaleTimeString('en-PH', { hour:'numeric', minute:'2-digit' });
+        }
+
         function renderTable(data) {
             const tbody = document.getElementById('attBody');
             const empty = document.getElementById('emptyState');
@@ -478,16 +530,17 @@
             data.forEach(r => {
                 const dateObj = new Date(r.date);
                 const formatted = dateObj.toLocaleDateString('en-PH', { weekday:'short', year:'numeric', month:'short', day:'numeric' });
+                const time = formatAttendanceTime(r.createdAt || r.timestamp || r.checkedInAt);
                 tbody.innerHTML += `
                     <tr>
                         <td>${formatted}</td>
                         <td style="font-weight:700;">${r.subjectCode}</td>
                         <td>${r.section}</td>
+                        <td>${time}</td>
                         <td style="text-align:center;">${statusBadge(r.status)}</td>
                     </tr>`;
             });
         }
-
         window.applyFilter = function() {
             const sub = document.getElementById('filterSubject').value;
             const status = document.getElementById('filterStatus').value;
@@ -495,6 +548,145 @@
             renderTable(filtered);
         }
 
+        let qrStream = null;
+        let qrScanTimer = null;
+        let qrBusy = false;
+
+        function showQrToast(message, type='success') {
+            let toast = document.getElementById('qrToast');
+            if(!toast) {
+                toast = document.createElement('div');
+                toast.id = 'qrToast';
+                toast.className = 'toast';
+                document.body.appendChild(toast);
+            }
+            toast.textContent = message;
+            toast.className = 'toast show' + (type === 'error' ? ' error' : '');
+            setTimeout(() => toast.classList.remove('show'), 3200);
+        }
+
+        function decodeAttendanceQr(raw) {
+            if(!raw || !raw.startsWith('PLV_ATTENDANCE:')) throw new Error('This is not a PLV attendance QR.');
+            const encoded = raw.replace('PLV_ATTENDANCE:', '');
+            return JSON.parse(decodeURIComponent(escape(atob(encoded))));
+        }
+
+        async function markQrAttendance(payload) {
+            if(!payload || payload.type !== 'plv_attendance_checkin') throw new Error('Invalid attendance QR.');
+            if(payload.expiresAt && new Date(payload.expiresAt).getTime() < Date.now()) throw new Error('This QR code has expired. Ask your instructor for a new one.');
+            if(!payload.section || !payload.subjectCode || !payload.date) throw new Error('This QR code is missing attendance details.');
+
+            const status = document.getElementById('qrStatus');
+            status.textContent = 'Checking your enrollment...';
+
+            const enrollQ = query(
+                collection(db, 'enrollments'),
+                where('studentNo', '==', studentNo),
+                where('section', '==', payload.section),
+                where('subjectCode', '==', payload.subjectCode)
+            );
+            const enrollSnap = await getDocs(enrollQ);
+            if(enrollSnap.empty) throw new Error('You are not enrolled in this section and subject.');
+
+            const existingQ = query(
+                collection(db, 'attendance'),
+                where('studentNo', '==', studentNo),
+                where('section', '==', payload.section),
+                where('subjectCode', '==', payload.subjectCode),
+                where('date', '==', payload.date)
+            );
+            const existingSnap = await getDocs(existingQ);
+            const now = new Date().toISOString();
+            const name = currentStudentName || user.name || user.fullName || user.username || studentNo;
+            const attendanceData = {
+                section: payload.section,
+                subjectCode: payload.subjectCode,
+                date: payload.date,
+                studentNo,
+                studentName: name,
+                status: 'P',
+                createdAt: now
+            };
+
+            if(existingSnap.empty) {
+                await addDoc(collection(db, 'attendance'), attendanceData);
+            } else {
+                const firstDoc = existingSnap.docs[0];
+                await updateDoc(doc(db, 'attendance', firstDoc.id), attendanceData);
+            }
+
+            status.textContent = `Marked Present for ${payload.subjectCode} on ${payload.date} at ${new Date(now).toLocaleTimeString()}.`;
+            showQrToast('Attendance marked Present.');
+            window.stopQrScanner();
+            await loadData();
+        }
+
+        async function handleQrResult(raw) {
+            if(qrBusy) return;
+            qrBusy = true;
+            try {
+                document.getElementById('qrStatus').textContent = 'QR detected. Saving attendance...';
+                const payload = decodeAttendanceQr(raw);
+                await markQrAttendance(payload);
+            } catch(e) {
+                console.error(e);
+                document.getElementById('qrStatus').textContent = e.message || 'Could not scan this QR code.';
+                showQrToast(e.message || 'Could not scan this QR code.', 'error');
+                setTimeout(() => { qrBusy = false; }, 1800);
+            }
+        }
+
+        window.startQrScanner = async function() {
+            if(qrStream) return;
+            if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showQrToast('Camera is not available in this browser.', 'error');
+                return;
+            }
+            if(typeof jsQR === 'undefined') {
+                showQrToast('QR scanner did not load. Please refresh the page.', 'error');
+                return;
+            }
+
+            try {
+                qrBusy = false;
+                const video = document.getElementById('qrVideo');
+                const placeholder = document.getElementById('qrCameraPlaceholder');
+                qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+                video.srcObject = qrStream;
+                await video.play();
+                video.style.display = 'block';
+                placeholder.style.display = 'none';
+                document.getElementById('qrStatus').textContent = 'Scanning... point your camera at the QR code.';
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                qrScanTimer = setInterval(() => {
+                    if(!video.videoWidth || !video.videoHeight || qrBusy) return;
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+                    if(code && code.data) handleQrResult(code.data);
+                }, 350);
+            } catch(e) {
+                console.error(e);
+                showQrToast('Please allow camera permission to scan attendance QR.', 'error');
+                document.getElementById('qrStatus').textContent = 'Camera permission was not allowed.';
+                window.stopQrScanner();
+            }
+        }
+
+        window.stopQrScanner = function() {
+            if(qrScanTimer) clearInterval(qrScanTimer);
+            qrScanTimer = null;
+            if(qrStream) qrStream.getTracks().forEach(track => track.stop());
+            qrStream = null;
+            const video = document.getElementById('qrVideo');
+            const placeholder = document.getElementById('qrCameraPlaceholder');
+            if(video) { video.pause(); video.srcObject = null; video.style.display = 'none'; }
+            if(placeholder) placeholder.style.display = 'flex';
+        }
         loadData();
 
         // Theme
