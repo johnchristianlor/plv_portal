@@ -205,15 +205,11 @@
 
     <!-- SUPABASE LOGIC -->
     <script type="module">
-        import { initializeApp } from "./supabase-adapter.js";
-        import { getSupabase, collection, setDoc, doc, getDocs, deleteDoc, query } from "./supabase-adapter.js";
+        import { supabase } from "./supabase-adapter.js";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
         window.logout = function() { localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
-
-        const app = initializeApp();
-        const db = getSupabase(app);
 
         window.showToast = function(message, type = 'success') {
             const toast = document.getElementById('toast');
@@ -224,28 +220,32 @@
             toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000);
         }
 
-        // --- FETCH SUBJECTS ---
+        function htmlEscape(value) {
+            return String(value ?? '').replace(/[&<>'"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[ch]));
+        }
+
         async function loadSubjects() {
             const tbody = document.getElementById('subjectTableBody');
             tbody.innerHTML = '';
             try {
-                const q = query(collection(db, "subjects"));
-                const snap = await getDocs(q);
-                
-                if (snap.empty) {
+                const { data, error } = await supabase.from('subjects').select('*').order('subjectCode', { ascending: true });
+                if (error) throw error;
+
+                const subjects = data || [];
+                if (subjects.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No subjects found.</td></tr>';
                     return;
                 }
 
-                snap.forEach(d => {
-                    const data = d.data();
+                subjects.forEach(subject => {
+                    const code = subject.subjectCode || subject.id || '';
                     tbody.innerHTML += `
                         <tr>
-                            <td><strong style="color:var(--accent-primary)">${data.subjectCode}</strong></td>
-                            <td>${data.subjectName}</td>
-                            <td>${data.profName}</td>
+                            <td><strong style="color:var(--accent-primary)">${htmlEscape(code)}</strong></td>
+                            <td>${htmlEscape(subject.subjectName || '')}</td>
+                            <td>${htmlEscape(subject.profName || '')}</td>
                             <td style="text-align: center;">
-                                <button class="btn btn-delete" onclick="window.deleteSubject('${d.id}')">
+                                <button class="btn btn-delete" onclick="window.deleteSubject('${htmlEscape(code)}')">
                                     <i class="ph-bold ph-trash"></i>
                                 </button>
                             </td>
@@ -254,11 +254,10 @@
                 });
             } catch(e) {
                 console.error(e);
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger);">Error loading data.</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--danger);">${htmlEscape(e.message || 'Error loading data.')}</td></tr>`;
             }
         }
 
-        // --- ADD SUBJECT ---
         document.getElementById('addSubjectForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('saveBtn');
@@ -269,39 +268,42 @@
             const subProf = document.getElementById('subProf').value.trim();
 
             try {
-                // IMPORTANT: We use the subjectCode as the Document ID.
-                // This allows other files to easily find this doc by just knowing the code.
-                await setDoc(doc(db, "subjects", subCode), {
-                    subjectCode: subCode,
-                    subjectName: subName,
-                    profName: subProf
-                });
+                const payload = { subjectCode: subCode, subjectName: subName, profName: subProf };
+                const existing = await supabase.from('subjects').select('*').eq('subjectCode', subCode).limit(1);
+                if (existing.error) throw existing.error;
+
+                if (existing.data && existing.data.length > 0) {
+                    const { error } = await supabase.from('subjects').update(payload).eq('subjectCode', subCode);
+                    if (error) throw error;
+                } else {
+                    const { error } = await supabase.from('subjects').insert(payload);
+                    if (error) throw error;
+                }
 
                 window.showToast("Subject Added Successfully!");
                 e.target.reset();
                 loadSubjects(); 
             } catch(error) {
                 console.error(error);
-                window.showToast("Failed to add subject.", "error");
+                window.showToast(error.message ? `Failed to add subject: ${error.message}` : "Failed to add subject.", "error");
             } finally {
                 btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Save Subject'; btn.disabled = false;
             }
         });
 
-        // --- DELETE SUBJECT ---
-        window.deleteSubject = async function(id) {
-            if(!confirm(`Delete subject ${id}? Note: This will not delete grades/students already enrolled in it.`)) return;
+        window.deleteSubject = async function(subjectCode) {
+            if(!confirm(`Delete subject ${subjectCode}? Note: This will not delete grades/students already enrolled in it.`)) return;
             try {
-                await deleteDoc(doc(db, "subjects", id));
+                const { error } = await supabase.from('subjects').delete().eq('subjectCode', subjectCode);
+                if (error) throw error;
                 window.showToast("Subject Deleted.");
                 loadSubjects();
             } catch(e) {
                 console.error(e);
-                window.showToast("Delete failed.", "error");
+                window.showToast(e.message ? `Delete failed: ${e.message}` : "Delete failed.", "error");
             }
         }
 
-        // Init
         loadSubjects();
 
         const themeToggleBtn = document.getElementById('themeToggle'); const themeIcon = document.getElementById('themeIcon'); const body = document.body;

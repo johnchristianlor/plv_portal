@@ -173,74 +173,51 @@
     </main>
 
     <script type="module">
-        import { initializeApp } from "./supabase-adapter.js";
-        import { getSupabase, collection, getDocs, query, where, onSnapshot } from "./supabase-adapter.js";
+        import { supabase } from "./supabase-adapter.js";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
-        
-        const app = initializeApp();
-        const db = getSupabase(app);
 
         window.logout = function() {
             localStorage.removeItem('loggedInUser');
             window.location.href = 'index.html';
         };
 
-        // ─── INACTIVITY THRESHOLD ─────────────────────────────────────────────────
-        // Students are considered OFFLINE if their lastActiveAt is older than this.
-        const INACTIVE_MS = 10 * 60 * 1000; // 10 minutes
+        const INACTIVE_MS = 10 * 60 * 1000;
 
-        function countOnlineStudents(snap) {
+        function activeMillis(value) {
+            if (!value) return 0;
+            if (typeof value === 'number') return value;
+            const parsed = new Date(value).getTime();
+            return Number.isNaN(parsed) ? 0 : parsed;
+        }
+
+        function countOnlineStudents(students) {
             const cutoff = Date.now() - INACTIVE_MS;
-            let n = 0;
-            snap.forEach(d => {
-                const data = d.data();
-                const la = data.lastActiveAt;
-                if (la) {
-                    // Supabase Timestamp — use toMillis()
-                    const ms = la.toMillis ? la.toMillis() : Number(la);
-                    if (ms >= cutoff) n++;
-                } else if (data.isOnline === true) {
-                    // Legacy fallback (students that haven't logged in since update)
-                    n++;
-                }
-            });
-            return n;
+            return (students || []).filter(student => {
+                const ms = activeMillis(student.lastActiveAt);
+                return ms ? ms >= cutoff : student.isOnline === true;
+            }).length;
         }
 
         async function fetchStats() {
             try {
-                // 1. Total Students
-                const qStudents = query(collection(db, "users"), where("role", "==", "student"));
-                const snapStudents = await getDocs(qStudents);
-                document.getElementById('totalStudents').textContent = snapStudents.size;
+                const studentsResult = await supabase.from('users').select('*').eq('role', 'student');
+                if (studentsResult.error) throw studentsResult.error;
+                const students = studentsResult.data || [];
+                document.getElementById('totalStudents').textContent = students.length;
+                document.getElementById('onlineUsers').textContent = countOnlineStudents(students);
 
-                // 2. Active Classes
-                const snapSubjects = await getDocs(collection(db, "subjects"));
-                document.getElementById('totalSubjects').textContent = snapSubjects.size;
-
-                // 3. Online Now — real-time listener on all students.
-                //    We filter by lastActiveAt client-side since Supabase can't query
-                //    "timestamp within last N minutes" without Cloud Functions.
-                const qAll = query(collection(db, "users"), where("role", "==", "student"));
-
-                onSnapshot(qAll, (snap) => {
-                    document.getElementById('onlineUsers').textContent = countOnlineStudents(snap);
-                });
-
-                // Re-check every 60s so stale users drop off automatically even
-                // without a new Supabase change event (covers tab-close / network drop).
-                setInterval(async () => {
-                    try {
-                        const fresh = await getDocs(qAll);
-                        document.getElementById('onlineUsers').textContent = countOnlineStudents(fresh);
-                    } catch(e) { /* silent */ }
-                }, 60 * 1000);
-
-            } catch (error) { console.error("Dashboard stats error:", error); }
+                const subjectsResult = await supabase.from('subjects').select('subjectCode,id');
+                if (subjectsResult.error) throw subjectsResult.error;
+                document.getElementById('totalSubjects').textContent = (subjectsResult.data || []).length;
+            } catch (error) {
+                console.error("Dashboard stats error:", error);
+            }
         }
+
         fetchStats();
+        setInterval(fetchStats, 60 * 1000);
 
         const themeToggleBtn = document.getElementById('themeToggle'); const themeIcon = document.getElementById('themeIcon'); const body = document.body;
         if (localStorage.getItem('theme') === 'dark') { body.classList.add('dark-theme'); themeIcon.className = 'ph-fill ph-moon'; } else { themeIcon.className = 'ph-fill ph-sun'; }

@@ -184,123 +184,164 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
 
 <!-- SUPABASE INTEGRATION -->
 <script type="module">
-    import { initializeApp } from "./supabase-adapter.js";
-    import { getSupabase, collection, getDocs, query, where, doc, updateDoc, getDoc } from "./supabase-adapter.js";
-    import { getAuth, signInWithEmailAndPassword } from "./supabase-adapter.js";
+    import { supabase } from "./supabase-adapter.js";
 
-    const app = initializeApp();
-    const db = getSupabase(app);
-    const auth = getAuth(app);
-
-    // Temp storage for first-login password change
+    const ADMIN_EMAIL = 'admin@plv.edu.ph';
     let pendingUser = null;
 
     const loginBtn = document.getElementById('loginBtn');
     const resetLoginBtn = () => { loginBtn.innerHTML = 'Secure Login <i class="ph-bold ph-arrow-right"></i>'; loginBtn.disabled = false; };
-    async function findAdminProfile(cred, email, identifier) {
-        const typed = identifier.trim();
-        const candidates = [
-            ['uid', cred.user.uid],
-            ['id', cred.user.uid],
-            ['email', email],
-            ['email', cred.user.email],
-            ['username', typed],
-            ['studentNo', typed]
-        ];
 
-        const directDoc = await getDoc(doc(db, 'users', cred.user.uid));
-        if (directDoc.exists() && directDoc.data().role === 'admin') return { id: directDoc.id, ...directDoc.data() };
+    function loginEmail(identifier) {
+        return (identifier.includes('@') ? identifier : `${identifier}@plv.edu.ph`).toLowerCase();
+    }
+
+    async function findAdminProfile(authUser, email, identifier) {
+        const candidates = [
+            ['uid', authUser.id],
+            ['id', authUser.id],
+            ['email', email],
+            ['email', authUser.email],
+            ['username', identifier],
+            ['studentNo', identifier]
+        ];
 
         for (const [field, value] of candidates) {
             if (!value) continue;
-            try {
-                const snap = await getDocs(query(collection(db, 'users'), where(field, '==', value)));
-                const match = snap.docs.find(d => d.data().role === 'admin');
-                if (match) return { id: match.id, ...match.data() };
-            } catch (err) {
-                console.warn(`Admin lookup skipped for ${field}.`, err);
+            const { data, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq(field, value)
+                .limit(5);
+
+            if (error) {
+                console.warn(`Admin lookup skipped for ${field}.`, error);
+                continue;
             }
+
+            const match = (data || []).find(row => row.role === 'admin');
+            if (match) return match;
         }
+
         return null;
     }
 
-    // --- LOGIN LOGIC ---
+    async function findStudent(identifier, password) {
+        let result = await supabase
+            .from('users')
+            .select('*')
+            .eq('studentNo', identifier)
+            .eq('password', password)
+            .limit(1);
+
+        if (!result.error && result.data && result.data.length > 0) return result.data[0];
+
+        result = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', identifier)
+            .eq('password', password)
+            .limit(1);
+
+        if (result.error) throw result.error;
+        return result.data?.[0] || null;
+    }
+
+    async function updateUserByStudentNo(studentNo, changes) {
+        const { error } = await supabase
+            .from('users')
+            .update(changes)
+            .eq('studentNo', studentNo);
+        if (error) throw error;
+    }
+
+    async function tryAdminLogin(identifier, password) {
+        const email = loginEmail(identifier);
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+
+        const adminData = await findAdminProfile(data.user, email, identifier);
+        if (!adminData) {
+            await supabase.auth.signOut();
+            throw new Error('Admin Auth is valid, but public.users has no active admin profile. Run fix_admin_profile_missing_robust.sql in Supabase SQL Editor.');
+        }
+
+        if (adminData.status === 'Inactive') {
+            await supabase.auth.signOut();
+            throw new Error('Admin account is inactive.');
+        }
+
+        if (adminData.role !== 'admin') {
+            await supabase.auth.signOut();
+            throw new Error('Access denied. This account is not an admin.');
+        }
+
+        localStorage.setItem('loggedInUser', JSON.stringify({
+            ...adminData,
+            uid: data.user.id,
+            email: adminData.email || data.user.email
+        }));
+        window.showToast('Login Successful!');
+        setTimeout(() => window.location.href = 'admin-dashboard.html', 1000);
+    }
+
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const identifier = document.getElementById('userIdentifier').value.trim();
         const password = document.getElementById('passwordInput').value.trim();
-        loginBtn.innerHTML = 'Authenticating...'; loginBtn.disabled = true;
+        loginBtn.innerHTML = 'Authenticating...';
+        loginBtn.disabled = true;
 
         try {
-            // Build email: accept plain "admin" or a full email
-            const email = identifier.includes('@') ? identifier : `${identifier}@plv.edu.ph`;
-            const cred = await signInWithEmailAndPassword(auth, email, password);
-
-            // Look up the admin profile. Some migrated databases store the admin by
-            // Auth UID, while others kept email/username from the old Firebase data.
-            const adminData = await findAdminProfile(cred, email, identifier);
-            if (adminData && adminData.role === 'admin' && adminData.status !== 'Inactive') {
-                localStorage.setItem('loggedInUser', JSON.stringify({ ...adminData, uid: cred.user.uid, email: adminData.email || cred.user.email }));
-                window.showToast('Login Successful!');
-                setTimeout(() => window.location.href = 'admin-dashboard.html', 1000);
-                return;
-            }
-
-            // Supabase Auth succeeded but no active admin profile was found.
-            window.showToast('Access denied. Admin profile not found in users table.', 'error');
-            resetLoginBtn();
+            await tryAdminLogin(identifier, password);
             return;
-
         } catch (authErr) {
-            // Not a Supabase Auth user — continue to student login below
-            if (!['auth/user-not-found', 'auth/wrong-password', 'auth/invalid-credential', 'auth/invalid-email'].includes(authErr.code)) {
-                // Unexpected error (network, etc.)
-                window.showToast('Login error. Please try again.', 'error');
+            const authMessage = String(authErr.message || '').toLowerCase();
+            const canTryStudent = authMessage.includes('invalid login credentials') ||
+                authMessage.includes('email not confirmed') ||
+                authErr.code === 'auth/invalid-credential';
+
+            if (!canTryStudent && loginEmail(identifier) === ADMIN_EMAIL) {
+                console.error(authErr);
+                window.showToast(authErr.message || 'Admin login failed.', 'error');
                 resetLoginBtn();
                 return;
             }
-            // Falls through to student Supabase login
         }
 
-        // ── STUDENTS: Supabase lookup (existing flow, unchanged) ──
         try {
-            const usersRef = collection(db, 'users');
-            let snapshot = await getDocs(query(usersRef, where('studentNo', '==', identifier), where('password', '==', password)));
-            if (snapshot.empty) snapshot = await getDocs(query(usersRef, where('email', '==', identifier), where('password', '==', password)));
+            const userData = await findStudent(identifier, password);
 
-            if (!snapshot.empty) {
-                const userData = snapshot.docs[0].data();
-
-                if (userData.status === 'Inactive') {
-                    window.showToast('Account is Inactive. Contact Admin.', 'error');
-                    resetLoginBtn(); return;
-                }
-
-                // First login → force password change
-                if (userData.isFirstLogin === true) {
-                    pendingUser = { ...userData, id: userData.studentNo };
-                    document.getElementById('changePassModal').classList.add('open');
-                    resetLoginBtn(); return;
-                }
-
-                // Normal student login — set online status
-                await updateDoc(doc(db, 'users', userData.studentNo), { isOnline: true });
-                localStorage.setItem('loggedInUser', JSON.stringify(userData));
-                window.showToast('Login Successful!');
-                setTimeout(() => window.location.href = 'student-dashboard.html', 1000);
-
-            } else {
+            if (!userData) {
                 window.showToast('Invalid Credentials.', 'error');
                 resetLoginBtn();
+                return;
             }
+
+            if (userData.status === 'Inactive') {
+                window.showToast('Account is Inactive. Contact Admin.', 'error');
+                resetLoginBtn();
+                return;
+            }
+
+            if (userData.isFirstLogin === true) {
+                pendingUser = { ...userData, id: userData.studentNo };
+                document.getElementById('changePassModal').classList.add('open');
+                resetLoginBtn();
+                return;
+            }
+
+            await updateUserByStudentNo(userData.studentNo, { isOnline: true });
+            localStorage.setItem('loggedInUser', JSON.stringify(userData));
+            window.showToast('Login Successful!');
+            setTimeout(() => window.location.href = 'student-dashboard.html', 1000);
         } catch (error) {
             console.error(error);
-            window.showToast('Connection Error.', 'error');
+            window.showToast(error.message || 'Connection Error.', 'error');
             resetLoginBtn();
         }
     });
 
-    // --- PASSWORD VALIDATION LOGIC ---
     const newPassInput = document.getElementById('newPass');
     const confirmPassInput = document.getElementById('confirmPass');
     const savePassBtn = document.getElementById('savePassBtn');
@@ -331,15 +372,16 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
     newPassInput.addEventListener('input', validatePassword);
     confirmPassInput.addEventListener('input', validatePassword);
 
-    // --- SAVE NEW PASSWORD (students only) ---
     document.getElementById('changePassForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!pendingUser) return;
         const newPass = newPassInput.value;
         const btn = document.getElementById('savePassBtn');
-        btn.innerHTML = 'Updating...'; btn.disabled = true;
+        btn.innerHTML = 'Updating...';
+        btn.disabled = true;
+
         try {
-            await updateDoc(doc(db, 'users', pendingUser.id), {
+            await updateUserByStudentNo(pendingUser.id, {
                 password: newPass,
                 isFirstLogin: false,
                 isOnline: true
@@ -351,11 +393,11 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
             setTimeout(() => window.location.href = 'student-dashboard.html', 1500);
         } catch (err) {
             console.error(err);
-            window.showToast('Error updating password.', 'error');
-            btn.innerHTML = 'Save New Password <i class="ph-bold ph-floppy-disk"></i>'; btn.disabled = false;
+            window.showToast(err.message || 'Error updating password.', 'error');
+            btn.innerHTML = 'Save New Password <i class="ph-bold ph-floppy-disk"></i>';
+            btn.disabled = false;
         }
     });
-
 </script>
 </body>
 </html>

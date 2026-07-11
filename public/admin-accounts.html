@@ -436,15 +436,11 @@
 </nav>
 
 <script type="module">
-import { initializeApp } from "./supabase-adapter.js";
-import {getSupabase,collection,doc,setDoc,getDocs,updateDoc,deleteDoc,getDoc} from "./supabase-adapter.js";
+import { supabase } from "./supabase-adapter.js";
 
 const _u=JSON.parse(localStorage.getItem('loggedInUser'));
 if(!_u||_u.role!=='admin')location.href='index.html';
 window.logout=()=>{localStorage.removeItem('loggedInUser');location.href='index.html';};
-
-const app = initializeApp();
-const db=getSupabase(app);
 
 // ===================== CACHE =====================
 let subjectsMap={};   // subjectCode -> {subjectCode, subjectName, profName, schedule?}
@@ -454,6 +450,46 @@ let allAccountsData=[];
 let sortCol='studentName', sortDir='asc';
 let pendingAction=null;
 let pendingUploadRows=[];
+
+async function fetchRows(table, builder = null) {
+    let request = supabase.from(table).select('*');
+    if (builder) request = builder(request);
+    const { data, error } = await request;
+    if (error) throw error;
+    return data || [];
+}
+async function fetchOne(table, builder) {
+    const rows = await fetchRows(table, q => builder(q).limit(1));
+    return rows[0] || null;
+}
+async function insertRow(table, row) {
+    const clean = Object.fromEntries(Object.entries(row).filter(([, value]) => value !== undefined));
+    const { data, error } = await supabase.from(table).insert(clean).select('*').single();
+    if (error) throw error;
+    return data;
+}
+async function updateById(table, id, updates) {
+    const { error } = await supabase.from(table).update(updates).eq('id', id);
+    if (error) throw error;
+}
+async function deleteById(table, id) {
+    const { error } = await supabase.from(table).delete().eq('id', id);
+    if (error) throw error;
+}
+async function deleteWhere(table, builder) {
+    const { error } = await builder(supabase.from(table).delete());
+    if (error) throw error;
+}
+async function saveUserByStudentNo(row) {
+    const existing = await fetchOne('users', q => q.eq('studentNo', row.studentNo));
+    if (existing && existing.id) { await updateById('users', existing.id, row); return { ...existing, ...row }; }
+    return insertRow('users', row);
+}
+async function saveEnrollment(row) {
+    const existing = await fetchOne('enrollments', q => q.eq('studentNo', row.studentNo).eq('subjectCode', row.subjectCode));
+    if (existing && existing.id) { await updateById('enrollments', existing.id, row); return { ...existing, ...row }; }
+    return insertRow('enrollments', row);
+}
 
 // ===================== TOAST =====================
 window.showToast=(msg,type='ok')=>{
@@ -466,17 +502,17 @@ window.showToast=(msg,type='ok')=>{
 
 // ===================== LOAD REFERENCE DATA =====================
 async function loadReferenceData(){
-    const[subSnap,secSnap,schedSnap]=await Promise.all([
-        getDocs(collection(db,'subjects')),
-        getDocs(collection(db,'sections')),
-        getDocs(collection(db,'class_schedules'))
+    const[subjects,sections,schedules]=await Promise.all([
+        fetchRows('subjects'),
+        fetchRows('sections'),
+        fetchRows('class_schedules')
     ]);
     subjectsMap={};
-    subSnap.forEach(d=>{ const dat=d.data(); subjectsMap[dat.subjectCode||d.id]={...dat}; });
+    subjects.forEach(dat=>{ subjectsMap[dat.subjectCode||dat.id]={...dat}; });
     sectionsMap={};
-    secSnap.forEach(d=>{ const dat=d.data(); sectionsMap[dat.sectionName||d.id]={...dat}; });
+    sections.forEach(dat=>{ sectionsMap[dat.sectionName||dat.id]={...dat}; });
     schedulesMap={};
-    schedSnap.forEach(d=>{ schedulesMap[d.id]={...d.data()}; });
+    schedules.forEach(dat=>{ schedulesMap[dat.id || ((dat.subjectCode || '') + '_' + (dat.section || ''))]={...dat}; });
 }
 
 // ===================== HELPERS =====================
@@ -612,14 +648,14 @@ window.loadAccounts=async()=>{
     const tbody=document.getElementById('accountsTableBody');
     tbody.innerHTML='<tr class="loading-msg"><td colspan="8"><span class="spin"></span> Loading accounts...</td></tr>';
     try{
-        const[userSnap,enrollSnap]=await Promise.all([
-            getDocs(collection(db,'users')),
-            getDocs(collection(db,'enrollments'))
+        const[users,enrollments]=await Promise.all([
+            fetchRows('users'),
+            fetchRows('enrollments')
         ]);
         const userMap={};
-        userSnap.forEach(d=>{
-            const ud=d.data();
-            userMap[d.id]={
+        users.forEach(ud=>{
+            userMap[ud.studentNo||ud.username||ud.id]={
+                id:ud.id,
                 status:ud.status||'Active',
                 courseYear:ud.courseYear||'',
                 fullName:ud.fullName||'',
@@ -628,12 +664,11 @@ window.loadAccounts=async()=>{
             };
         });
         let records=[];
-        enrollSnap.forEach(d=>{
-            const data=d.data();
+        enrollments.forEach(data=>{
             const um=userMap[data.studentNo]||{status:'Active',courseYear:'',fullName:'',email:'',section:''};
             records.push({
                 ...data,
-                enrollId:d.id,
+                enrollId:data.id,
                 status:um.status,
                 courseYear:um.courseYear,
                 // Prefer user doc name if enrollment name is missing
@@ -789,13 +824,8 @@ window.openDeleteModal=(sNo,enrollId)=>openConfirmModal(
         btn.textContent='Deleting...';btn.disabled=true;
         try{
             const ops=[];
-            // Delete enrollment (always)
-            if(enrollId) ops.push(deleteDoc(doc(db,'enrollments',enrollId)));
-            // Delete user doc if it exists
-            try{
-                const uSnap=await getDoc(doc(db,'users',sNo));
-                if(uSnap.exists()) ops.push(deleteDoc(doc(db,'users',sNo)));
-            }catch(_){}
+            if(enrollId) ops.push(deleteById('enrollments',enrollId));
+            ops.push(deleteWhere('users', q => q.eq('studentNo', sNo)));
             await Promise.all(ops);
             window.showToast('Account deleted.');window.loadAccounts();window.closeConfirmModal();
         }catch(e){console.error(e);window.showToast('Delete failed: '+e.message,'err');btn.textContent='Yes, Delete';btn.disabled=false;}
@@ -815,11 +845,8 @@ window.confirmBulkDelete=()=>{
             try{
                 const ops=[];
                 for(const cb of checked){
-                    if(cb.dataset.enrollid) ops.push(deleteDoc(doc(db,'enrollments',cb.dataset.enrollid)));
-                    try{
-                        const uSnap=await getDoc(doc(db,'users',cb.dataset.sno));
-                        if(uSnap.exists()) ops.push(deleteDoc(doc(db,'users',cb.dataset.sno)));
-                    }catch(_){}
+                    if(cb.dataset.enrollid) ops.push(deleteById('enrollments',cb.dataset.enrollid));
+                    ops.push(deleteWhere('users', q => q.eq('studentNo', cb.dataset.sno)));
                 }
                 await Promise.all(ops);
                 window.showToast(`Deleted ${checked.length} records.`);
@@ -840,7 +867,7 @@ window.openToggleModal=(sNo,currentStatus)=>{
             btn.textContent='Updating...';btn.disabled=true;
             try{
                 // Use setDoc with merge so it works even if user doc doesn't exist yet
-                await setDoc(doc(db,'users',sNo),{status:newStatus,studentNo:sNo},{merge:true});
+                await saveUserByStudentNo({status:newStatus,studentNo:sNo});
                 window.showToast(`${sNo} is now ${newStatus}.`);window.loadAccounts();window.closeConfirmModal();
             }catch(e){console.error(e);window.showToast('Update failed: '+e.message,'err');btn.textContent='Confirm';btn.disabled=false;}
         }
@@ -861,12 +888,12 @@ window.openEditModal=async(studentNo,enrollId,currentSubCode)=>{
 
     try{
         const[userDoc,enrollDoc]=await Promise.all([
-            getDoc(doc(db,'users',studentNo)),
-            getDoc(doc(db,'enrollments',enrollId))
+            fetchOne('users', q => q.eq('studentNo', studentNo)),
+            enrollId ? fetchOne('enrollments', q => q.eq('id', enrollId)) : fetchOne('enrollments', q => q.eq('studentNo', studentNo).eq('subjectCode', currentSubCode))
         ]);
-        if(!userDoc.exists())throw new Error('User not found');
-        const ud=userDoc.data();
-        const ed=enrollDoc.exists()?enrollDoc.data():{};
+        if(!userDoc)throw new Error('User not found');
+        const ud=userDoc;
+        const ed=enrollDoc||{};
 
         document.getElementById('editSno').value=ud.studentNo||studentNo;
         document.getElementById('editName').value=ud.fullName||'';
@@ -929,35 +956,32 @@ document.getElementById('editForm').addEventListener('submit',async e=>{
         const isSubChanged=oldSubCode!==newSubCode;
 
         if(isIdChanged){
-            const oldUserSnap=await getDoc(doc(db,'users',oldSno));
-            if(!oldUserSnap.exists())throw new Error('Original user not found');
-            const oldUD=oldUserSnap.data();
-            await setDoc(doc(db,'users',newSno),{
-                ...oldUD,studentNo:newSno,fullName:newName,courseYear:newCourse,section:newSec,
+            const oldUD=await fetchOne('users', q => q.eq('studentNo', oldSno));
+            if(!oldUD)throw new Error('Original user not found');
+            await insertRow('users', {
+                ...oldUD,id:undefined,studentNo:newSno,fullName:newName,courseYear:newCourse,section:newSec,
                 password:newPass||oldUD.password,isFirstLogin:!!newPass
             });
-            await setDoc(doc(db,'enrollments',`${newSno}_${newSubCode}`),{
+            await insertRow('enrollments', {
                 studentNo:newSno,subjectCode:newSubCode,studentName:newName,
                 section:newSec,schedule:finalSched,midtermGrade:null,finalTermGrade:null
             });
-            await Promise.all([deleteDoc(doc(db,'users',oldSno)),deleteDoc(doc(db,'enrollments',oldEnrollId))]);
+            await Promise.all([deleteWhere('users', q => q.eq('studentNo', oldSno)), oldEnrollId ? deleteById('enrollments', oldEnrollId) : Promise.resolve()]);
             window.showToast('Student ID changed & data migrated!');
         } else {
             const udUpdate={fullName:newName,courseYear:newCourse,section:newSec,studentNo:oldSno};
             if(newPass){udUpdate.password=newPass;udUpdate.isFirstLogin=true;}
             // Use setDoc+merge so it works even if user doc doesn't exist
-            await setDoc(doc(db,'users',oldSno),udUpdate,{merge:true});
+            await saveUserByStudentNo(udUpdate);
             if(isSubChanged){
-                await deleteDoc(doc(db,'enrollments',oldEnrollId));
-                await setDoc(doc(db,'enrollments',`${oldSno}_${newSubCode}`),{
+                if(oldEnrollId) await deleteById('enrollments',oldEnrollId);
+                await saveEnrollment({
                     studentNo:oldSno,subjectCode:newSubCode,studentName:newName,
                     section:newSec,schedule:finalSched,midtermGrade:null,finalTermGrade:null
-                },{merge:true});
+                });
                 window.showToast('Details & subject updated!');
             } else {
-                await setDoc(doc(db,'enrollments',oldEnrollId),{
-                    studentName:newName,section:newSec,schedule:finalSched
-                },{merge:true});
+                if(oldEnrollId) await updateById('enrollments', oldEnrollId, { studentName:newName,section:newSec,schedule:finalSched });
                 window.showToast('Details updated!');
             }
         }
@@ -981,17 +1005,18 @@ document.getElementById('createAccountForm').addEventListener('submit',async e=>
         const sec=document.getElementById('sSec').value;
         const schedInfo=getSchedule(subCode,sec);
         const sched=schedInfo?schedInfo.full:(document.getElementById('subSched').value.trim());
-        await setDoc(doc(db,'users',sNo),{
+        const studentName=document.getElementById('sName').value.trim();
+        await saveUserByStudentNo({
             studentNo:sNo,
-            fullName:document.getElementById('sName').value.trim(),
+            fullName:studentName,
             email:document.getElementById('sEmail').value.trim(),
             password:document.getElementById('sPass').value.trim(),
             courseYear:document.getElementById('sCourse').value.trim(),
             section:sec,role:'student',status:'Active',isFirstLogin:true
         });
-        await setDoc(doc(db,'enrollments',`${sNo}_${subCode}`),{
+        await saveEnrollment({
             studentNo:sNo,subjectCode:subCode,
-            studentName:document.getElementById('sName').value.trim(),
+            studentName,
             section:sec,schedule:sched,midtermGrade:null,finalTermGrade:null
         });
         window.showToast('Student created & enrolled!');
@@ -1168,15 +1193,15 @@ window.commitUpload=async()=>{
     let ok=0,errs=0;
     for(const r of pendingUploadRows){
         try{
-            await setDoc(doc(db,'users',r.Student_No),{
+            await saveUserByStudentNo({
                 studentNo:r.Student_No,fullName:r.Full_Name,email:r.Email,
                 password:r.Password||'PLV12345',courseYear:r.Course_Year,
                 section:r.Section,role:'student',status:'Active',isFirstLogin:true
-            },{merge:true});
-            await setDoc(doc(db,'enrollments',`${r.Student_No}_${r.Subject_Code}`),{
+            });
+            await saveEnrollment({
                 studentNo:r.Student_No,subjectCode:r.Subject_Code,studentName:r.Full_Name,
                 section:r.Section,schedule:r.Schedule,midtermGrade:null,finalTermGrade:null
-            },{merge:true});
+            });
             ok++;
         }catch(err){console.error('Row error',r.Student_No,err);errs++;}
     }

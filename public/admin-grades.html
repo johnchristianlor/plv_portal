@@ -476,42 +476,53 @@
     <div id="toast" class="toast"><i id="toast-icon" class="ph-fill ph-check-circle" style="font-size: 24px;"></i><span id="toast-msg">Success!</span></div>
 
     <script type="module">
-        import { initializeApp } from "./supabase-adapter.js";
-        import { getSupabase, doc, updateDoc, getDoc, collection, query, where, getDocs } from "./supabase-adapter.js";
+        import { supabase } from "./supabase-adapter.js";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
         window.logout = function() { localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
 
-        const app = initializeApp();
-        const db = getSupabase(app);
-
         // GLOBAL DATA
         let allStudents = [];
+
+        async function getEnrollment(studentNo, subjectCode) {
+            const { data, error } = await supabase.from("enrollments").select("*").eq("studentNo", studentNo).eq("subjectCode", subjectCode).limit(1).maybeSingle();
+            if (error) throw error;
+            return data;
+        }
+
+        async function updateEnrollmentByRow(row, updates) {
+            let request = supabase.from("enrollments").update(updates);
+            if (row.enrollId) request = request.eq("id", row.enrollId);
+            else request = request.eq("studentNo", row.sNo).eq("subjectCode", row.subCode);
+            const { error } = await request;
+            if (error) throw error;
+        }
+
+        async function updateEnrollmentGrade(studentNo, subjectCode, updates) {
+            const enrollment = await getEnrollment(studentNo, subjectCode);
+            if (!enrollment) return false;
+            const { error } = await supabase.from("enrollments").update(updates).eq("id", enrollment.id);
+            if (error) throw error;
+            return enrollment;
+        }
 
         // INIT LOAD
         async function loadData() {
             try {
                 // 1. Fetch Students
-                const userQ = query(collection(db, "users"), where("role", "==", "student"));
-                const userSnap = await getDocs(userQ);
-                allStudents = [];
-                userSnap.forEach(doc => {
-                    const d = doc.data();
-                    allStudents.push({ no: d.studentNo, name: d.fullName });
-                });
+                const { data: userRows, error: userError } = await supabase.from("users").select("*").eq("role", "student");
+                if (userError) throw userError;
+                allStudents = (userRows || []).map(d => ({ no: d.studentNo, name: d.fullName || d.name || d.username || d.studentNo }));
                 allStudents.sort((a,b) => a.name.localeCompare(b.name));
                 
                 // 2. Fetch Subjects
-                const subSnap = await getDocs(collection(db, "subjects"));
+                const { data: subjectRows, error: subjectError } = await supabase.from("subjects").select("*");
+                if (subjectError) throw subjectError;
                 const subSelect = document.getElementById('gSub');
                 subSelect.innerHTML = '<option value="">-- Select Subject --</option>';
                 
-                let subjects = [];
-                subSnap.forEach(doc => {
-                    const d = doc.data();
-                    subjects.push({ code: d.subjectCode, name: d.subjectName });
-                });
+                let subjects = (subjectRows || []).map(d => ({ code: d.subjectCode, name: d.subjectName }));
                 subjects.sort((a,b) => a.code.localeCompare(b.code));
                 subjects.forEach(sub => {
                     subSelect.innerHTML += `<option value="${sub.code}">${sub.code}: ${sub.name}</option>`;
@@ -524,11 +535,11 @@
 
                 // 3. Fetch Sections
                 try {
-                    const secSnap = await getDocs(collection(db, "sections"));
+                    const { data: sectionRows, error: sectionError } = await supabase.from("sections").select("*");
+                    if (sectionError) throw sectionError;
                     const batchSecSel = document.getElementById('batchSection');
                     batchSecSel.innerHTML = '<option value="">-- Select Section --</option>';
-                    let sections = [];
-                    secSnap.forEach(d => { const s = d.data(); const nm = s.sectionName || s.name || d.id; sections.push(nm); });
+                    let sections = (sectionRows || []).map(s => s.sectionName || s.name || s.id);
                     sections.sort();
                     sections.forEach(nm => { batchSecSel.innerHTML += `<option value="${nm}">${nm}</option>`; });
                     // Also populate csvSection at the same time
@@ -661,12 +672,11 @@
             btn.innerHTML = '<i class="ph-bold ph-spinner"></i> Loading...'; btn.disabled = true;
             try {
                 // Query enrollments directly by section+subject (same as activities page)
-                const enrollQ = query(collection(db, "enrollments"), where("section", "==", sectionId), where("subjectCode", "==", subCode));
-                const enrollSnap = await getDocs(enrollQ);
-                if (enrollSnap.empty) { window.showToast("No students enrolled in this section for the selected subject.", "error"); btn.innerHTML = '<i class="ph-bold ph-magnifying-glass"></i> Load Section Grades'; btn.disabled = false; return; }
+                const { data: enrollments, error } = await supabase.from("enrollments").select("*").eq("section", sectionId).eq("subjectCode", subCode);
+                if (error) throw error;
+                if (!enrollments || !enrollments.length) { window.showToast("No students enrolled in this section for the selected subject.", "error"); btn.innerHTML = '<i class="ph-bold ph-magnifying-glass"></i> Load Section Grades'; btn.disabled = false; return; }
                 batchData = [];
-                enrollSnap.forEach(d => {
-                    const g = d.data();
+                enrollments.forEach(g => {
                     batchData.push({
                         sNo: g.studentNo || '',
                         name: g.studentName || g.studentNo || '',
@@ -676,7 +686,7 @@
                         fRaw: g.finalTermRawGrade ?? null,
                         fT: g.finalTermGrade ?? null,
                         hasEnroll: true,
-                        enrollId: d.id
+                        enrollId: g.id
                     });
                 });
                 batchData.sort((a,b) => a.name.localeCompare(b.name));
@@ -768,7 +778,7 @@
                         if (term === 'midterm' || term === 'both') { updates.midtermGrade = null; updates.midtermRawGrade = null; }
                         if (term === 'final' || term === 'both') { updates.finalTermGrade = null; updates.finalTermRawGrade = null; }
                         try {
-                            if (row.hasEnroll) { await updateDoc(doc(db, "enrollments", row.enrollId || `${row.sNo}_${row.subCode}`), updates); }
+                            if (row.hasEnroll) { await updateEnrollmentByRow(row, updates); }
                             if (term === 'midterm' || term === 'both') { row.mRaw = null; row.mT = null; }
                             if (term === 'final' || term === 'both') { row.fRaw = null; row.fT = null; }
                             success++;
@@ -841,16 +851,14 @@
             const btn = document.getElementById('loadGradesBtn');
             btn.innerHTML = '<i class="ph-bold ph-spinner"></i> Loading...'; btn.disabled = true;
             try {
-                const ref = doc(db, "enrollments", `${sNo}_${subCode}`);
-                const snap = await getDoc(ref);
-                if (!snap.exists()) { window.showToast("No enrollment record found for this student & subject.", "error"); btn.innerHTML = '<i class="ph-bold ph-magnifying-glass"></i> Load Grades'; btn.disabled = false; return; }
-                const data = snap.data();
-                renderDeletePanel(sNo, subCode, data, ref);
+                const data = await getEnrollment(sNo, subCode);
+                if (!data) { window.showToast("No enrollment record found for this student & subject.", "error"); btn.innerHTML = '<i class="ph-bold ph-magnifying-glass"></i> Load Grades'; btn.disabled = false; return; }
+                renderDeletePanel(sNo, subCode, data);
             } catch(err) { console.error(err); window.showToast("Error loading grades.", "error"); }
             btn.innerHTML = '<i class="ph-bold ph-magnifying-glass"></i> Load Grades'; btn.disabled = false;
         }
 
-        function renderDeletePanel(sNo, subCode, data, ref) {
+        function renderDeletePanel(sNo, subCode, data) {
             const studentName = allStudents.find(s => s.no === sNo)?.name || sNo;
             const mRaw = data.midtermRawGrade ?? null;
             const fRaw = data.finalTermRawGrade ?? null;
@@ -915,15 +923,13 @@
                 `This will permanently remove the ${termLabel} grade for ${sNo} in ${subCode}. This cannot be undone.`,
                 async () => {
                     try {
-                        const ref = doc(db, "enrollments", `${sNo}_${subCode}`);
                         const updates = term === 'midterm'
                             ? { midtermGrade: null, midtermRawGrade: null }
                             : { finalTermGrade: null, finalTermRawGrade: null };
-                        await updateDoc(ref, updates);
+                        await updateEnrollmentGrade(sNo, subCode, updates);
                         window.showToast(`${termLabel} grade deleted successfully.`);
-                        // Reload the panel to reflect changes
-                        const snap = await getDoc(ref);
-                        if (snap.exists()) renderDeletePanel(sNo, subCode, snap.data(), ref);
+                        const updated = await getEnrollment(sNo, subCode);
+                        if (updated) renderDeletePanel(sNo, subCode, updated);
                     } catch(err) { console.error(err); window.showToast("Error deleting grade.", "error"); }
                 }
             );
@@ -948,22 +954,18 @@
             btn.innerHTML = 'Saving...'; btn.disabled = true;
 
             try {
-                const ref = doc(db, "enrollments", `${sNo}_${sSub}`);
-                const snap = await getDoc(ref);
-                
-                if(!snap.exists()) { 
-                    window.showToast("Student is not enrolled in this specific subject.", "error"); 
-                    btn.disabled = false; 
-                    btn.innerHTML='<i class="ph-bold ph-floppy-disk"></i> Save Student Grades'; 
-                    return; 
-                }
-                
-                await updateDoc(ref, { 
+                const saved = await updateEnrollmentGrade(sNo, sSub, { 
                     midtermRawGrade: mG ? Number(mG) : null,
                     finalTermRawGrade: fG ? Number(fG) : null,
                     midtermGrade: mG ? transmute(Number(mG)) : null, 
                     finalTermGrade: fG ? transmute(Number(fG)) : null 
                 });
+                if(!saved) { 
+                    window.showToast("Student is not enrolled in this specific subject.", "error"); 
+                    btn.disabled = false; 
+                    btn.innerHTML='<i class="ph-bold ph-floppy-disk"></i> Save Student Grades'; 
+                    return; 
+                }
                 
                 window.showToast("Grades Saved Successfully!"); 
                 e.target.reset();
@@ -995,14 +997,13 @@
             loadMsg.style.display = 'flex';
             try {
                 // Query enrollments by section + subjectCode — identical to activities page pattern
-                const q = query(collection(db, "enrollments"), where("section", "==", sec), where("subjectCode", "==", sub));
-                const snap = await getDocs(q);
-                if (snap.empty) { loadMsg.style.display = 'none'; emptyState.style.display = 'block'; return; }
+                const { data: enrollments, error } = await supabase.from("enrollments").select("*").eq("section", sec).eq("subjectCode", sub);
+                if (error) throw error;
+                if (!enrollments || !enrollments.length) { loadMsg.style.display = 'none'; emptyState.style.display = 'block'; return; }
                 csvRosterData = [];
-                snap.forEach(d => {
-                    const g = d.data();
+                enrollments.forEach(g => {
                     csvRosterData.push({
-                        enrollId:    d.id,
+                        enrollId:    g.id,
                         sNo:         g.studentNo   || '',
                         name:        g.studentName || g.studentNo || '',
                         subCode:     g.subjectCode || sub,
@@ -1077,14 +1078,12 @@
                         const mRaw = (row.Midterm_Grade    != null && row.Midterm_Grade    !== '') ? Number(row.Midterm_Grade)    : null;
                         const fRaw = (row.Final_Term_Grade != null && row.Final_Term_Grade !== '') ? Number(row.Final_Term_Grade) : null;
                         try {
-                            const ref  = doc(db, "enrollments", `${sNo}_${subCode}`);
-                            const snap = await getDoc(ref);
-                            if (snap.exists()) {
-                                await updateDoc(ref, {
+                            const updated = await updateEnrollmentGrade(sNo, subCode, {
                                     midtermRawGrade:  mRaw,  finalTermRawGrade:  fRaw,
                                     midtermGrade:  mRaw != null ? transmute(mRaw) : null,
                                     finalTermGrade:fRaw != null ? transmute(fRaw) : null
                                 });
+                            if (updated) {
                                 saved++;
                                 log.push(`<span style="color:var(--success)">&#10003;</span> ${sNo} &mdash; ${subCode}: Mid=${mRaw??'&mdash;'}, Final=${fRaw??'&mdash;'}`);
                             } else {

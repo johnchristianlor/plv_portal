@@ -320,24 +320,19 @@
     </nav>
 
     <script type="module">
-        import { initializeApp } from "./supabase-adapter.js";
-        import { getSupabase, collection, addDoc, getDocs, query, where, doc, updateDoc, serverTimestamp } from "./supabase-adapter.js";
+        import { supabase } from "./supabase-adapter.js";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'student') window.location.href = 'index.html';
 
-        const app = initializeApp();
-        const db = getSupabase(app);
-
         // ─── HEARTBEAT / ONLINE TRACKING ─────────────────────────────────────────────
         // Writes lastActiveAt every 2 min + on interaction.
         // Admin counts students online only if lastActiveAt < 10 min ago.
-        const _hbRef = doc(db, "users", user.studentNo);
         const _HB_MS = 2 * 60 * 1000;   // heartbeat interval
         const _DB_MS = 30 * 1000;        // activity debounce
         
         async function _ping() {
-            try { await updateDoc(_hbRef, { lastActiveAt: serverTimestamp(), isOnline: true }); }
+            try { await supabase.from("users").update({ lastActiveAt: new Date().toISOString(), isOnline: true }).eq("studentNo", user.studentNo); }
             catch(e) { /* silent */ }
         }
         _ping();
@@ -353,13 +348,13 @@
         
         window.logout = async function() {
             clearInterval(_hbTimer);
-            try { await updateDoc(_hbRef, { isOnline: false, lastActiveAt: null }); } catch(e) {}
+            try { await supabase.from("users").update({ isOnline: false, lastActiveAt: null }).eq("studentNo", user.studentNo); } catch(e) {}
             localStorage.removeItem('loggedInUser');
             window.location.href = 'index.html';
         };
         
         window.addEventListener('beforeunload', () => {
-            updateDoc(_hbRef, { isOnline: false }).catch(() => {});
+            supabase.from("users").update({ isOnline: false }).eq("studentNo", user.studentNo).then(() => {}).catch(() => {});
         });
         // ──────────────────────────────────────────────────────────────────────────────
 
@@ -370,12 +365,12 @@
         async function loadData() {
             try {
                 // Load student info
-                const userQ = query(collection(db, "users"), where("studentNo", "==", studentNo));
-                const userSnap = await getDocs(userQ);
+                const { data: userRows, error: userError } = await supabase.from("users").select("*").eq("studentNo", studentNo);
+                if (userError) throw userError;
                 let studentName = user.name || user.username || 'Student';
                 let section = user.section || '';
-                if(!userSnap.empty) {
-                    const ud = userSnap.docs[0].data();
+                if(userRows && userRows.length) {
+                    const ud = userRows[0];
                     studentName = ud.name || ud.studentName || studentName;
                     section = ud.section || section;
                 }
@@ -386,12 +381,11 @@
                 document.getElementById('studentSubheader').textContent = `${section || 'Your'} attendance overview`;
 
                 // Load attendance
-                const attQ = query(collection(db, "attendance"), where("studentNo", "==", studentNo));
-                const attSnap = await getDocs(attQ);
+                const { data: attendanceRows, error: attendanceError } = await supabase.from("attendance").select("*").eq("studentNo", studentNo);
+                if (attendanceError) throw attendanceError;
                 allRecords = [];
                 const subjectSet = new Set();
-                attSnap.forEach(d => {
-                    const data = { ...d.data(), id: d.id };
+                (attendanceRows || []).forEach(data => {
                     allRecords.push(data);
                     if(data.subjectCode) subjectSet.add(data.subjectCode);
                 });
@@ -579,23 +573,12 @@
             const status = document.getElementById('qrStatus');
             status.textContent = 'Checking your enrollment...';
 
-            const enrollQ = query(
-                collection(db, 'enrollments'),
-                where('studentNo', '==', studentNo),
-                where('section', '==', payload.section),
-                where('subjectCode', '==', payload.subjectCode)
-            );
-            const enrollSnap = await getDocs(enrollQ);
-            if(enrollSnap.empty) throw new Error('You are not enrolled in this section and subject.');
+            const { data: enrollRows, error: enrollError } = await supabase.from('enrollments').select('*').eq('studentNo', studentNo).eq('section', payload.section).eq('subjectCode', payload.subjectCode);
+            if (enrollError) throw enrollError;
+            if(!enrollRows || !enrollRows.length) throw new Error('You are not enrolled in this section and subject.');
 
-            const existingQ = query(
-                collection(db, 'attendance'),
-                where('studentNo', '==', studentNo),
-                where('section', '==', payload.section),
-                where('subjectCode', '==', payload.subjectCode),
-                where('date', '==', payload.date)
-            );
-            const existingSnap = await getDocs(existingQ);
+            const { data: existingRows, error: existingError } = await supabase.from('attendance').select('*').eq('studentNo', studentNo).eq('section', payload.section).eq('subjectCode', payload.subjectCode).eq('date', payload.date);
+            if (existingError) throw existingError;
             const now = new Date().toISOString();
             const name = currentStudentName || user.name || user.fullName || user.username || studentNo;
             const attendanceData = {
@@ -608,11 +591,12 @@
                 createdAt: now
             };
 
-            if(existingSnap.empty) {
-                await addDoc(collection(db, 'attendance'), attendanceData);
+            if(!existingRows || !existingRows.length) {
+                const { error } = await supabase.from('attendance').insert(attendanceData);
+                if (error) throw error;
             } else {
-                const firstDoc = existingSnap.docs[0];
-                await updateDoc(doc(db, 'attendance', firstDoc.id), attendanceData);
+                const { error } = await supabase.from('attendance').update(attendanceData).eq('id', existingRows[0].id);
+                if (error) throw error;
             }
 
             status.textContent = `Marked Present for ${payload.subjectCode} on ${payload.date} at ${new Date(now).toLocaleTimeString()}.`;

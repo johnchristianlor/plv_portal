@@ -620,13 +620,10 @@
 </nav>
 
 <script type="module">
-import { initializeApp } from "./supabase-adapter.js";
-import {getSupabase,collection,getDocs,doc,updateDoc,addDoc,getDoc,setDoc} from "./supabase-adapter.js";
+import { supabase } from "./supabase-adapter.js";
 const _u=JSON.parse(localStorage.getItem('loggedInUser'));
 if(!_u||_u.role!=='admin')location.href='index.html';
 window.logout=()=>{localStorage.removeItem('loggedInUser');location.href='index.html';};
-const app = initializeApp();
-const db=getSupabase(app);
 
 let enrollments=[],activities=[],scores=[];
 let sortCol=null,sortDir='asc',currentView='grid',editCtx=null;
@@ -647,16 +644,17 @@ window.showToast=(msg,type='ok')=>{
 async function loadAll(){
     document.getElementById('gridBody').innerHTML='<tr class="loading-msg"><td colspan="12"><span class="spin"></span> Loading all records...</td></tr>';
     try{
-        const[eSnap,aSnap,sSnap,settSnap]=await Promise.all([
-            getDocs(collection(db,'enrollments')),
-            getDocs(collection(db,'activities')),
-            getDocs(collection(db,'scores')),
-            getDoc(doc(db,'settings','global'))
+        const[{data:eRows,error:eErr},{data:aRows,error:aErr},{data:sRows,error:sErr},{data:settings,error:settingsErr}]=await Promise.all([
+            supabase.from('enrollments').select('*'),
+            supabase.from('activities').select('*'),
+            supabase.from('scores').select('*'),
+            supabase.from('settings').select('*').eq('id','global').limit(1).maybeSingle()
         ]);
-        enrollments=eSnap.docs.map(d=>({id:d.id,...d.data()}));
-        activities=aSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-        scores=sSnap.docs.map(d=>({id:d.id,...d.data()}));
-        showStanding=settSnap.exists()?!!(settSnap.data().showStanding):false;
+        if(eErr)throw eErr;if(aErr)throw aErr;if(sErr)throw sErr;if(settingsErr)throw settingsErr;
+        enrollments=eRows||[];
+        activities=(aRows||[]).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+        scores=sRows||[];
+        showStanding=settings?!!settings.showStanding:false;
         updateStandingBtn();
         buildDropdowns();applyFilters();
     }catch(e){
@@ -684,7 +682,8 @@ window.toggleStandingVisibility=async()=>{
     showStanding=!showStanding;
     updateStandingBtn();
     try{
-        await setDoc(doc(db,'settings','global'),{showStanding},{ merge:true });
+        const { error } = await supabase.from('settings').upsert({ id: 'global', showStanding });
+        if (error) throw error;
         window.showToast(showStanding?'Class standing is now visible to students!':'Class standing hidden from students.');
     }catch(err){
         console.error(err);
@@ -1123,12 +1122,14 @@ document.getElementById('gridBody').addEventListener('dblclick',async e=>{
         const val=Math.min(Math.max(0,Number(raw)),max);
         try{
             if(existing){
-                await updateDoc(doc(db,'scores',existing.id),{score:val});
+                const { error } = await supabase.from('scores').update({score:val}).eq('id', existing.id);
+                if (error) throw error;
                 const i=scores.findIndex(s=>s.id===existing.id);
                 if(i>=0)scores[i].score=val;
             }else{
-                const ref=await addDoc(collection(db,'scores'),{activityId:actId,studentNo:sno,score:val});
-                scores.push({id:ref.id,activityId:actId,studentNo:sno,score:val});
+                const { data: inserted, error } = await supabase.from('scores').insert({activityId:actId,studentNo:sno,score:val}).select('*').single();
+                if (error) throw error;
+                scores.push(inserted);
             }
             window.showToast(`Saved: ${val}/${max}`);
             applyFilters();
@@ -1183,10 +1184,10 @@ window.saveEditModal=async()=>{
             const v=inp.value.trim();if(v==='')return;
             const num=Number(v);const sid=inp.dataset.scoreId;const actId=inp.dataset.actId;const sno=inp.dataset.studentNo;
             if(sid){
-                ps.push(updateDoc(doc(db,'scores',sid),{score:num}));
+                ps.push(supabase.from('scores').update({score:num}).eq('id',sid).then(({ error })=>{ if(error) throw error; }));
                 const i=scores.findIndex(s=>s.id===sid);if(i>=0)scores[i].score=num;
             }else{
-                ps.push(addDoc(collection(db,'scores'),{activityId:actId,studentNo:sno,score:num}).then(ref=>scores.push({id:ref.id,activityId:actId,studentNo:sno,score:num})));
+                ps.push(supabase.from('scores').insert({activityId:actId,studentNo:sno,score:num}).select('*').single().then(({ data, error })=>{ if(error) throw error; scores.push(data); }));
             }
         });
         const mid=document.getElementById('editMidGrade').value.trim();
@@ -1195,7 +1196,7 @@ window.saveEditModal=async()=>{
         if(mid!=='')upd.midtermGrade=Number(mid);
         if(fin!=='')upd.finalTermGrade=Number(fin);
         if(Object.keys(upd).length){
-            ps.push(updateDoc(doc(db,'enrollments',editCtx.enrollId),upd));
+            ps.push(supabase.from('enrollments').update(upd).eq('id',editCtx.enrollId).then(({ error })=>{ if(error) throw error; }));
             const i=enrollments.findIndex(e=>e.id===editCtx.enrollId);if(i>=0)Object.assign(enrollments[i],upd);
         }
         await Promise.all(ps);

@@ -238,15 +238,11 @@
 
     <!-- SUPABASE LOGIC -->
     <script type="module">
-        import { initializeApp } from "./supabase-adapter.js";
-        import { getSupabase, collection, setDoc, deleteDoc, doc, getDocs, query, where, writeBatch } from "./supabase-adapter.js";
+        import { supabase } from "./supabase-adapter.js";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
         window.logout = function() { localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
-
-        const app = initializeApp();
-        const db = getSupabase(app);
 
         window.showToast = function(message, type = 'success') {
             const toast = document.getElementById('toast');
@@ -257,73 +253,63 @@
             toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000);
         }
 
+        function htmlEscape(value) {
+            return String(value ?? '').replace(/[&<>'"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[ch]));
+        }
+
         let allSchedules = [];
 
-        // --- INIT: LOAD DATA ---
         async function initPage() {
-            // 1. Populate Dropdown
             const subSelect = document.getElementById('subSelect');
             subSelect.innerHTML = '<option value="">-- Select Subject --</option>';
             try {
-                const subSnap = await getDocs(collection(db, "subjects"));
-                subSnap.forEach(d => {
-                    const data = d.data();
-                    subSelect.innerHTML += `<option value="${data.subjectCode}">${data.subjectCode}: ${data.subjectName}</option>`;
+                const { data, error } = await supabase.from('subjects').select('*').order('subjectCode', { ascending: true });
+                if (error) throw error;
+                (data || []).forEach(subject => {
+                    subSelect.innerHTML += `<option value="${htmlEscape(subject.subjectCode)}">${htmlEscape(subject.subjectCode)}: ${htmlEscape(subject.subjectName || '')}</option>`;
                 });
             } catch(e) { console.error("Err loading subjects", e); }
 
-            // 2. Load Schedules Table
             await loadSchedules();
         }
 
-        // --- FETCH SCHEDULES ---
         async function loadSchedules() {
             const tbody = document.getElementById('scheduleTableBody');
             tbody.innerHTML = '';
-            
             try {
-                const q = query(collection(db, "class_schedules"));
-                const snap = await getDocs(q);
-                
-                if (snap.empty) {
+                const { data, error } = await supabase.from('class_schedules').select('*').order('subjectCode', { ascending: true }).order('section', { ascending: true });
+                if (error) throw error;
+
+                allSchedules = data || [];
+                if (allSchedules.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No specific section schedules found.</td></tr>';
-                    allSchedules = [];
                     return;
                 }
 
-                allSchedules = [];
-                snap.forEach(d => {
-                    const data = d.data();
-                    data.id = d.id;
-                    allSchedules.push(data);
-                });
-
                 window.renderTable(allSchedules);
-
             } catch(e) {
                 console.error(e);
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--danger);">Error loading data.</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger);">${htmlEscape(e.message || 'Error loading data.')}</td></tr>`;
             }
         }
 
         window.renderTable = function(data) {
             const tbody = document.getElementById('scheduleTableBody');
             tbody.innerHTML = '';
-            
             if(data.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No matching schedules.</td></tr>';
                 return;
             }
 
-            data.forEach(data => {
+            data.forEach(schedule => {
                 tbody.innerHTML += `
                     <tr>
-                        <td><strong style="color:var(--accent-primary)">${data.subjectCode}</strong></td>
-                        <td>${data.section}</td>
-                        <td>${data.time}</td>
-                        <td>${data.room}</td>
+                        <td><strong style="color:var(--accent-primary)">${htmlEscape(schedule.subjectCode)}</strong></td>
+                        <td>${htmlEscape(schedule.section)}</td>
+                        <td>${htmlEscape(schedule.time)}</td>
+                        <td>${htmlEscape(schedule.room)}</td>
                         <td style="text-align: center;">
-                            <button class="btn btn-delete" title="Delete Schedule" onclick="window.deleteSchedule('${data.id}')">
+                            <button class="btn btn-delete" title="Delete Schedule" onclick="window.deleteSchedule('${htmlEscape(schedule.subjectCode)}','${htmlEscape(schedule.section)}')">
                                 <i class="ph-bold ph-trash"></i>
                             </button>
                         </td>
@@ -335,13 +321,12 @@
         window.filterTable = function() {
             const query = document.getElementById('schedSearch').value.toLowerCase();
             const filtered = allSchedules.filter(item => 
-                item.subjectCode.toLowerCase().includes(query) || 
-                item.section.toLowerCase().includes(query)
+                String(item.subjectCode || '').toLowerCase().includes(query) || 
+                String(item.section || '').toLowerCase().includes(query)
             );
             window.renderTable(filtered);
         }
 
-        // --- SAVE SCHEDULE & SYNC STUDENTS ---
         document.getElementById('assignScheduleForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('saveBtn');
@@ -351,64 +336,55 @@
             const section = document.getElementById('schedSection').value.trim();
             const time = document.getElementById('schedTime').value.trim();
             const room = document.getElementById('schedRoom').value.trim();
-            
-            // Logic: Create Composite ID to ensure unique schedule per section
-            const docId = `${subCode}_${section}`;
             const fullScheduleString = `${time} | ${room}`;
 
             try {
-                // 1. Save to class_schedules collection (For Admin View)
-                await setDoc(doc(db, "class_schedules", docId), {
-                    subjectCode: subCode,
-                    section: section,
-                    time: time,
-                    room: room
-                });
+                const payload = { subjectCode: subCode, section, time, room };
+                const existing = await supabase.from('class_schedules').select('*').eq('subjectCode', subCode).eq('section', section).limit(1);
+                if (existing.error) throw existing.error;
 
-                // 2. BATCH UPDATE: Find all students in this section & subject and update their enrollment
-                const enrollQuery = query(
-                    collection(db, "enrollments"), 
-                    where("subjectCode", "==", subCode),
-                    where("section", "==", section)
-                );
-                
-                const enrollSnap = await getDocs(enrollQuery);
-                
-                if(!enrollSnap.empty) {
-                    const batch = writeBatch(db);
-                    enrollSnap.forEach(docSnap => {
-                        batch.update(docSnap.ref, { schedule: fullScheduleString });
-                    });
-                    await batch.commit();
-                    window.showToast(`Schedule Saved! Updated ${enrollSnap.size} students.`);
+                if (existing.data && existing.data.length > 0) {
+                    const { error } = await supabase.from('class_schedules').update(payload).eq('subjectCode', subCode).eq('section', section);
+                    if (error) throw error;
                 } else {
-                    window.showToast("Schedule Saved! No students currently in this section.");
+                    const { error } = await supabase.from('class_schedules').insert(payload);
+                    if (error) throw error;
                 }
+
+                const updated = await supabase
+                    .from('enrollments')
+                    .update({ schedule: fullScheduleString })
+                    .eq('subjectCode', subCode)
+                    .eq('section', section)
+                    .select('*');
+                if (updated.error) throw updated.error;
+
+                const updatedCount = updated.data?.length || 0;
+                window.showToast(updatedCount > 0 ? `Schedule Saved! Updated ${updatedCount} students.` : "Schedule Saved! No students currently in this section.");
 
                 e.target.reset();
                 loadSchedules(); 
             } catch(error) {
                 console.error(error);
-                window.showToast("Failed to save schedule.", "error");
+                window.showToast(error.message ? `Failed to save schedule: ${error.message}` : "Failed to save schedule.", "error");
             } finally {
                 btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Save & Update Students'; btn.disabled = false;
             }
         });
 
-        // --- DELETE SCHEDULE ---
-        window.deleteSchedule = async function(id) {
+        window.deleteSchedule = async function(subjectCode, section) {
             if(!confirm(`Delete this schedule? Note: This won't remove the schedule text from existing students' dashboards automatically.`)) return;
             try {
-                await deleteDoc(doc(db, "class_schedules", id));
+                const { error } = await supabase.from('class_schedules').delete().eq('subjectCode', subjectCode).eq('section', section);
+                if (error) throw error;
                 window.showToast("Schedule Deleted.");
                 loadSchedules();
             } catch(e) {
                 console.error(e);
-                window.showToast("Delete failed.", "error");
+                window.showToast(e.message ? `Delete failed: ${e.message}` : "Delete failed.", "error");
             }
         }
 
-        // Init
         initPage();
 
         const themeToggleBtn = document.getElementById('themeToggle'); const themeIcon = document.getElementById('themeIcon'); const body = document.body;

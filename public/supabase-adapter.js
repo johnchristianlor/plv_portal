@@ -20,6 +20,13 @@ const DOC_KEY_COLUMNS = {
     sharedFiles: ["id"]
 };
 
+const COMPOSITE_KEY_COLUMNS = {
+    class_schedules: ["subjectCode", "section"],
+    enrollments: ["studentNo", "subjectCode"],
+    attendance: ["studentNo", "section", "subjectCode", "date"],
+    scores: ["activityId", "studentNo"]
+};
+
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
 
 function generateId() {
@@ -108,6 +115,37 @@ function shouldRetryWithoutId(error, payload) {
         message.includes("column") && message.includes("id") && message.includes("does not exist");
 }
 
+function compositeFiltersFromId(table, id) {
+    if (!id || !COMPOSITE_KEY_COLUMNS[table]) return null;
+    const parts = String(id).split("_");
+    if (table === "enrollments" && parts.length >= 2) {
+        return { studentNo: parts[0], subjectCode: parts.slice(1).join("_") };
+    }
+    if (table === "class_schedules" && parts.length >= 2) {
+        return { subjectCode: parts[0], section: parts.slice(1).join("_") };
+    }
+    return null;
+}
+
+async function findByFilters(table, filters) {
+    if (!filters || Object.values(filters).some(value => value == null || value === "")) return null;
+    let request = supabase.from(table).select("*");
+    Object.entries(filters).forEach(([key, value]) => {
+        request = request.eq(key, normalizeValue(value));
+    });
+    const { data, error } = await request.limit(1);
+    if (error) return null;
+    return data?.[0] ? { row: data[0], key: Object.keys(filters)[0], filters } : null;
+}
+
+async function findByPayload(table, payload) {
+    const keys = COMPOSITE_KEY_COLUMNS[table];
+    if (!keys) return null;
+    const filters = {};
+    keys.forEach(key => { filters[key] = payload?.[key]; });
+    return findByFilters(table, filters);
+}
+
 async function findDocument(ref) {
     if (!ref?.id) return null;
     for (const key of keyColumns(ref.table)) {
@@ -115,7 +153,8 @@ async function findDocument(ref) {
         if (error) continue;
         if (data && data.length > 0) return { row: data[0], key };
     }
-    return null;
+    const compositeFilters = compositeFiltersFromId(ref.table, ref.id);
+    return findByFilters(ref.table, compositeFilters);
 }
 
 class DocumentSnapshot {
@@ -236,8 +275,15 @@ async function insertRow(table, payload) {
 
 async function updateFound(ref, data, found) {
     const payload = normalizePayload(data);
-    const matchValue = found.row[found.key];
-    const { data: rows, error } = await supabase.from(ref.table).update(payload).eq(found.key, matchValue).select("*").limit(1);
+    let request = supabase.from(ref.table).update(payload);
+    if (found.filters) {
+        Object.entries(found.filters).forEach(([key, value]) => {
+            request = request.eq(key, normalizeValue(value));
+        });
+    } else {
+        request = request.eq(found.key, found.row[found.key]);
+    }
+    const { data: rows, error } = await request.select("*").limit(1);
     throwSupabase(error);
     return rows?.[0] || { ...found.row, ...payload };
 }
@@ -251,7 +297,7 @@ export async function addDoc(collectionRef, data) {
 
 export async function setDoc(ref, data, options = {}) {
     const payload = payloadForDoc(ref, data);
-    const found = await findDocument(ref);
+    const found = await findDocument(ref) || await findByPayload(ref.table, payload);
     if (found) return updateFound(ref, payload, found);
     return insertRow(ref.table, payload);
 }
@@ -265,7 +311,15 @@ export async function updateDoc(ref, data) {
 export async function deleteDoc(ref) {
     const found = await findDocument(ref);
     if (!found) return;
-    const { error } = await supabase.from(ref.table).delete().eq(found.key, found.row[found.key]);
+    let request = supabase.from(ref.table).delete();
+    if (found.filters) {
+        Object.entries(found.filters).forEach(([key, value]) => {
+            request = request.eq(key, normalizeValue(value));
+        });
+    } else {
+        request = request.eq(found.key, found.row[found.key]);
+    }
+    const { error } = await request;
     throwSupabase(error);
 }
 

@@ -338,15 +338,12 @@
     <div id="toast" class="toast"><i id="toast-icon" class="ph-fill ph-check-circle" style="font-size: 24px;"></i><span id="toast-msg">Success!</span></div>
 
     <script type="module">
-        import { initializeApp } from "./supabase-adapter.js";
-        import { getSupabase, doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs, deleteDoc, query, orderBy, where } from "./supabase-adapter.js";
+        import { supabase } from "./supabase-adapter.js";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
         window.logout = function() { localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
 
-        const app = initializeApp();
-        const db = getSupabase(app);
 
         // ── Cloudinary Config ──
         const CLOUD_NAME = 'dfdlqf6ng';
@@ -369,21 +366,32 @@
         }
 
         // ── SETTINGS & RANKING ──
-        const settingsRef = doc(db, "settings", "global");
         let sectionData = {};
+
+        async function insertRow(table, row) {
+            const { data, error } = await supabase.from(table).insert(row).select("*").single();
+            if (error) throw error;
+            return data;
+        }
+
+        async function deleteById(table, id) {
+            const { error } = await supabase.from(table).delete().eq("id", id);
+            if (error) throw error;
+        }
 
         async function loadSettingsAndRankings() {
             try {
-                const snap = await getDoc(settingsRef);
-                if(snap.exists()) { document.getElementById('toggleStanding').checked = snap.data().showStanding || false; }
-                else { await setDoc(settingsRef, { showStanding: false }); }
+                const { data: settings, error } = await supabase.from("settings").select("*").eq("id", "global").limit(1).maybeSingle();
+                if (error) throw error;
+                if(settings) { document.getElementById('toggleStanding').checked = settings.showStanding || false; }
+                else { const { error: insertError } = await supabase.from("settings").insert({ id: "global", showStanding: false }); if (insertError) throw insertError; }
             } catch(e) { console.error(e); }
 
             try {
-                const enrollSnap = await getDocs(collection(db, "enrollments"));
+                const { data: enrollments, error } = await supabase.from("enrollments").select("*");
+                if (error) throw error;
                 sectionData = {};
-                enrollSnap.forEach(doc => {
-                    const d = doc.data();
+                (enrollments || []).forEach(d => {
                     if(!sectionData[d.section]) { sectionData[d.section] = { students: [], subjectCode: d.subjectCode }; }
                     sectionData[d.section].students.push({ no: d.studentNo, name: d.studentName, totalScore: 0 });
                 });
@@ -403,12 +411,13 @@
             let grandTotalPerfect = 0;
             const activityIds = new Set();
             try {
-                const actSnap = await getDocs(query(collection(db, "activities"), where("subjectCode", "==", subjectCode)));
-                actSnap.forEach(doc => { grandTotalPerfect += Number(doc.data().perfectScore); activityIds.add(doc.id); });
-                const scoresSnap = await getDocs(collection(db, "scores"));
+                const { data: activities, error: activitiesError } = await supabase.from("activities").select("*").eq("subjectCode", subjectCode);
+                if (activitiesError) throw activitiesError;
+                (activities || []).forEach(activity => { grandTotalPerfect += Number(activity.perfectScore); activityIds.add(activity.id); });
+                const { data: scores, error: scoresError } = await supabase.from("scores").select("*");
+                if (scoresError) throw scoresError;
                 const studentScoresMap = {};
-                scoresSnap.forEach(doc => {
-                    const s = doc.data();
+                (scores || []).forEach(s => {
                     if(activityIds.has(s.activityId)) { if(!studentScoresMap[s.studentNo]) studentScoresMap[s.studentNo] = 0; studentScoresMap[s.studentNo] += Number(s.score); }
                 });
                 const rankedStudents = data.students.map(stud => {
@@ -432,7 +441,8 @@
 
         window.saveSettings = async function() {
             try {
-                await updateDoc(settingsRef, { showStanding: document.getElementById('toggleStanding').checked });
+                const { error } = await supabase.from("settings").upsert({ id: "global", showStanding: document.getElementById('toggleStanding').checked });
+                if (error) throw error;
                 window.showToast("Visibility settings updated!");
             } catch(e) { console.error(e); window.showToast("Error saving settings", "error"); }
         }
@@ -442,7 +452,7 @@
         document.getElementById('deadlineForm').addEventListener('submit', async(e) => {
             e.preventDefault();
             try {
-                await addDoc(collection(db, "deadlines"), { title: document.getElementById('dTitle').value, desc: document.getElementById('dDesc').value, status: document.getElementById('dStatus').value, createdAt: new Date() });
+                await insertRow("deadlines", { title: document.getElementById('dTitle').value, desc: document.getElementById('dDesc').value, status: document.getElementById('dStatus').value, createdAt: new Date().toISOString() });
                 window.showToast("Deadline Added!"); e.target.reset(); loadDeadlines();
             } catch(e) { console.error(e); }
         });
@@ -450,10 +460,11 @@
         async function loadDeadlines() {
             const list = document.getElementById('deadlinesList');
             try {
-                const snap = await getDocs(query(collection(db, "deadlines"), orderBy("createdAt", "desc")));
+                const { data: deadlines, error } = await supabase.from("deadlines").select("*").order("createdAt", { ascending: false });
+                if (error) throw error;
                 list.innerHTML = '';
-                if(snap.empty) { list.innerHTML = '<p style="color:var(--text-muted);">No active deadlines.</p>'; return; }
-                snap.forEach(d => { const data = d.data(); list.innerHTML += `<div class="managed-item"><div class="item-details"><h5>${data.title}</h5><p>${data.desc}</p></div><div style="display:flex;align-items:center;"><span class="item-meta">${data.status}</span><button class="btn-danger" onclick="window.deleteItem('deadlines','${d.id}')"><i class="ph-bold ph-trash"></i></button></div></div>`; });
+                if(!deadlines || !deadlines.length) { list.innerHTML = '<p style="color:var(--text-muted);">No active deadlines.</p>'; return; }
+                deadlines.forEach(data => { list.innerHTML += `<div class="managed-item"><div class="item-details"><h5>${data.title}</h5><p>${data.desc}</p></div><div style="display:flex;align-items:center;"><span class="item-meta">${data.status}</span><button class="btn-danger" onclick="window.deleteItem('deadlines','${data.id}')"><i class="ph-bold ph-trash"></i></button></div></div>`; });
             } catch(e) { console.error(e); }
         }
         loadDeadlines();
@@ -462,7 +473,7 @@
         document.getElementById('announceForm').addEventListener('submit', async(e) => {
             e.preventDefault();
             try {
-                await addDoc(collection(db, "announcements"), { title: document.getElementById('aTitle').value, message: document.getElementById('aMsg').value, isUrgent: document.getElementById('aUrgent').value === 'true', createdAt: new Date() });
+                await insertRow("announcements", { title: document.getElementById('aTitle').value, message: document.getElementById('aMsg').value, isUrgent: document.getElementById('aUrgent').value === 'true', createdAt: new Date().toISOString() });
                 window.showToast("Announcement Posted!"); e.target.reset(); loadAnnouncements();
             } catch(e) { console.error(e); }
         });
@@ -470,11 +481,11 @@
         async function loadAnnouncements() {
             const list = document.getElementById('announceList');
             try {
-                const snap = await getDocs(query(collection(db, "announcements"), orderBy("createdAt", "desc")));
+                const { data: announcements, error } = await supabase.from("announcements").select("*").order("createdAt", { ascending: false });
+                if (error) throw error;
                 list.innerHTML = '';
-                if(snap.empty) { list.innerHTML = '<p style="color:var(--text-muted);">No active announcements.</p>'; return; }
-                snap.forEach(d => {
-                    const data = d.data();
+                if(!announcements || !announcements.length) { list.innerHTML = '<p style="color:var(--text-muted);">No active announcements.</p>'; return; }
+                announcements.forEach(data => {
                     const urgentClass = data.isUrgent ? 'item-urgent' : '';
                     const badgeText = data.isUrgent ? 'URGENT' : 'NORMAL';
                     list.innerHTML += `<div class="managed-item" style="align-items:flex-start;"><div class="item-details" style="flex:1;padding-right:10px;"><h5>${data.title}</h5><p>${data.message}</p></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;"><span class="item-meta ${urgentClass}">${badgeText}</span><button class="btn-danger" onclick="window.deleteItem('announcements','${d.id}')"><i class="ph-bold ph-trash"></i></button></div></div>`;
@@ -485,7 +496,7 @@
 
         window.deleteItem = async function(col, id) {
             if(!confirm("Delete this item?")) return;
-            try { await deleteDoc(doc(db, col, id)); window.showToast("Deleted!"); if(col === 'deadlines') loadDeadlines(); else loadAnnouncements(); } catch(e) { console.error(e); }
+            try { await deleteById(col, id); window.showToast("Deleted!"); if(col === 'deadlines') loadDeadlines(); else loadAnnouncements(); } catch(e) { console.error(e); }
         }
 
         // ── THEME ──
@@ -502,13 +513,10 @@
 
         async function loadStudentDropdowns() {
             try {
-                const snap = await getDocs(collection(db, 'users'));
+                const { data: studentsRaw, error } = await supabase.from('users').select('*').eq('role', 'student');
+                if (error) throw error;
                 const filterSel = document.getElementById('fFilterRecipient');
-                const students = [];
-                snap.forEach(d => {
-                    const u = d.data();
-                    if (u.role === 'student') students.push(u);
-                });
+                const students = studentsRaw || [];
                 students.sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
                 students.forEach(u => {
                     const name = u.fullName || u.studentName || u.username || u.studentNo || 'Unknown';
@@ -676,7 +684,7 @@
                 pLabel.textContent = 'Saving to database...';
 
                 // Save metadata to Supabase — permanent, survives logout & device changes
-                await addDoc(collection(db, 'sharedFiles'), {
+                await insertRow('sharedFiles', {
                     fileName: label,
                     originalName: file.name,
                     fileUrl: downloadURL,
@@ -684,7 +692,7 @@
                     fileSize: file.size,
                     recipientStudentNo: recipient,
                     uploadedBy: user.name || user.fullName || user.username || 'Admin',
-                    uploadedAt: new Date()
+                    uploadedAt: new Date().toISOString()
                 });
 
                 bar.style.width = '100%';
@@ -723,14 +731,11 @@
             container.innerHTML = '<p style="color:var(--text-muted);grid-column:1/-1;padding:20px 0;">Loading...</p>';
             try {
                 const recipFilter = document.getElementById('fFilterRecipient').value;
-                let q;
-                if (recipFilter) {
-                    q = query(collection(db, 'sharedFiles'), where('recipientStudentNo', '==', recipFilter), orderBy('uploadedAt', 'desc'));
-                } else {
-                    q = query(collection(db, 'sharedFiles'), orderBy('uploadedAt', 'desc'));
-                }
-                const snap = await getDocs(q);
-                allSentFiles = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                let request = supabase.from('sharedFiles').select('*').order('uploadedAt', { ascending: false });
+                if (recipFilter) request = request.eq('recipientStudentNo', recipFilter);
+                const { data, error } = await request;
+                if (error) throw error;
+                allSentFiles = data || [];
                 window.filterSentFiles();
             } catch(e) {
                 console.error(e);
@@ -793,7 +798,7 @@
         window.deleteSentFile = async function(id) {
             if (!confirm('Delete this file? Students will no longer see it.')) return;
             try {
-                await deleteDoc(doc(db, 'sharedFiles', id));
+                await deleteById('sharedFiles', id);
                 window.showToast('File deleted!');
                 window.loadSentFiles();
             } catch(e) { window.showToast('Delete failed: ' + e.message, 'error'); }

@@ -148,15 +148,11 @@
 
     <!-- SUPABASE LOGIC -->
     <script type="module">
-        import { initializeApp } from "./supabase-adapter.js";
-        import { getSupabase, collection, setDoc, doc, getDocs, deleteDoc, query, orderBy } from "./supabase-adapter.js";
+        import { supabase } from "./supabase-adapter.js";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
         window.logout = function() { localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
-
-        const app = initializeApp();
-        const db = getSupabase(app);
 
         window.showToast = function(message, type = 'success') {
             const toast = document.getElementById('toast');
@@ -167,31 +163,31 @@
             toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000);
         }
 
-        // --- FETCH SECTIONS ---
+        function htmlEscape(value) {
+            return String(value ?? '').replace(/[&<>'"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[ch]));
+        }
+
         async function loadSections() {
             const tbody = document.getElementById('sectionTableBody');
             tbody.innerHTML = '';
             try {
-                const q = query(collection(db, "sections"));
-                const snap = await getDocs(q);
-                
-                if (snap.empty) {
+                const { data, error } = await supabase.from('sections').select('*').order('sectionName', { ascending: true });
+                if (error) throw error;
+
+                const sections = data || [];
+                if (sections.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No sections found.</td></tr>';
                     return;
                 }
 
-                // Sort purely alphabetically
-                const sections = [];
-                snap.forEach(d => sections.push({ id: d.id, ...d.data() }));
-                sections.sort((a,b) => a.sectionName.localeCompare(b.sectionName));
-
-                sections.forEach(data => {
+                sections.forEach(section => {
+                    const name = section.sectionName || section.section || section.id || '';
                     tbody.innerHTML += `
                         <tr>
-                            <td><strong style="color:var(--accent-primary)">${data.sectionName}</strong></td>
-                            <td>${data.yearLevel}</td>
+                            <td><strong style="color:var(--accent-primary)">${htmlEscape(name)}</strong></td>
+                            <td>${htmlEscape(section.yearLevel || '')}</td>
                             <td style="text-align: center;">
-                                <button class="btn btn-delete" onclick="window.deleteSection('${data.id}')">
+                                <button class="btn btn-delete" onclick="window.deleteSection('${htmlEscape(name)}')">
                                     <i class="ph-bold ph-trash"></i>
                                 </button>
                             </td>
@@ -200,11 +196,10 @@
                 });
             } catch(e) {
                 console.error(e);
-                tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--danger);">Error loading data.</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--danger);">${htmlEscape(e.message || 'Error loading data.')}</td></tr>`;
             }
         }
 
-        // --- ADD SECTION ---
         document.getElementById('addSectionForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('saveBtn');
@@ -214,11 +209,17 @@
             const secYear = document.getElementById('secYear').value;
 
             try {
-                // Use section name as ID for easy lookup
-                await setDoc(doc(db, "sections", secName), {
-                    sectionName: secName,
-                    yearLevel: secYear
-                });
+                const payload = { sectionName: secName, yearLevel: secYear };
+                const existing = await supabase.from('sections').select('*').eq('sectionName', secName).limit(1);
+                if (existing.error) throw existing.error;
+
+                if (existing.data && existing.data.length > 0) {
+                    const { error } = await supabase.from('sections').update(payload).eq('sectionName', secName);
+                    if (error) throw error;
+                } else {
+                    const { error } = await supabase.from('sections').insert(payload);
+                    if (error) throw error;
+                }
 
                 window.showToast("Section Added Successfully!");
                 e.target.reset();
@@ -231,11 +232,11 @@
             }
         });
 
-        // --- DELETE SECTION ---
-        window.deleteSection = async function(id) {
-            if(!confirm(`Delete section ${id}? Note: This won't delete students currently in this section.`)) return;
+        window.deleteSection = async function(sectionName) {
+            if(!confirm(`Delete section ${sectionName}? Note: This won't delete students currently in this section.`)) return;
             try {
-                await deleteDoc(doc(db, "sections", id));
+                const { error } = await supabase.from('sections').delete().eq('sectionName', sectionName);
+                if (error) throw error;
                 window.showToast("Section Deleted.");
                 loadSections();
             } catch(e) {
@@ -244,7 +245,6 @@
             }
         }
 
-        // Init
         loadSections();
 
         const themeToggleBtn = document.getElementById('themeToggle'); const themeIcon = document.getElementById('themeIcon'); const body = document.body;

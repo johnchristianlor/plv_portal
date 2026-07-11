@@ -351,15 +351,11 @@
 
     <!-- SUPABASE LOGIC -->
     <script type="module">
-        import { initializeApp } from "./supabase-adapter.js";
-        import { getSupabase, collection, addDoc, getDocs, query, where, deleteDoc, doc } from "./supabase-adapter.js";
+        import { supabase } from "./supabase-adapter.js";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
         window.logout = function() { localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
-
-        const app = initializeApp();
-        const db = getSupabase(app);
 
         // UI & Tab Handling
         window.toggleTab = function(showId, element) {
@@ -382,13 +378,24 @@
         let activeSubjectCode = ""; 
         document.getElementById('aDate').valueAsDate = new Date();
 
+        async function insertRow(table, row) {
+            const { data, error } = await supabase.from(table).insert(row).select('*').single();
+            if (error) throw error;
+            return data;
+        }
+
+        async function deleteById(table, id) {
+            const { error } = await supabase.from(table).delete().eq('id', id);
+            if (error) throw error;
+        }
+
         // 1. Load Sections Dropdown from 'sections' collection
         window.loadSections = async function() {
             const select = document.getElementById('sectionSelect');
             try {
-                const snap = await getDocs(collection(db, "sections"));
-                const sections = [];
-                snap.forEach(d => sections.push(d.data().sectionName));
+                const { data, error } = await supabase.from("sections").select("*").order("sectionName", { ascending: true });
+                if (error) throw error;
+                const sections = (data || []).map(d => d.sectionName);
                 sections.sort();
                 
                 select.innerHTML = '<option value="">Select Class Section</option>';
@@ -401,9 +408,9 @@
         window.loadSubjects = async function() {
             const select = document.getElementById('subCode');
             try {
-                const snap = await getDocs(collection(db, "subjects"));
-                const subjects = [];
-                snap.forEach(d => subjects.push(d.data())); // Get data objects
+                const { data, error } = await supabase.from("subjects").select("*").order("subjectCode", { ascending: true });
+                if (error) throw error;
+                const subjects = data || [];
                 subjects.sort((a,b) => a.subjectCode.localeCompare(b.subjectCode));
 
                 select.innerHTML = '<option value="">Select Subject</option>';
@@ -416,14 +423,9 @@
 
         // Helper: Check Duplicate
         async function checkDuplicate(sub, term, cat, title, section) {
-            const q = query(collection(db, "activities"), 
-                where("subjectCode", "==", sub), 
-                where("term", "==", term), 
-                where("category", "==", cat), 
-                where("title", "==", title),
-                where("section", "==", section)
-            );
-            const snap = await getDocs(q); return !snap.empty;
+            const { data, error } = await supabase.from("activities").select("id").eq("subjectCode", sub).eq("term", term).eq("category", cat).eq("title", title).eq("section", section);
+            if (error) throw error;
+            return !!(data && data.length);
         }
 
         // 2. Manual Entry Logic
@@ -451,13 +453,9 @@
             
             try {
                 // Fetch enrollments for specific section AND subject
-                const q = query(collection(db, "enrollments"), where("section", "==", sec), where("subjectCode", "==", sub));
-                const snap = await getDocs(q);
-                
-                if(snap.empty) { window.showToast("No students found in this section for this subject.", "error"); btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-users"></i> Load Student Roster'; return; }
-                
-                let students = [];
-                snap.forEach(doc => { students.push(doc.data()); });
+                const { data: students, error } = await supabase.from("enrollments").select("*").eq("section", sec).eq("subjectCode", sub);
+                if (error) throw error;
+                if(!students || !students.length) { window.showToast("No students found in this section for this subject.", "error"); btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-users"></i> Load Student Roster'; return; }
                 students.sort((a,b) => a.studentName.localeCompare(b.studentName));
 
                 students.forEach(data => {
@@ -476,9 +474,9 @@
             const btn = document.getElementById('saveScoreBtn'); btn.innerHTML = 'Saving...'; btn.disabled = true;
             try {
                 // IMPORTANT: Save Section in Activity Doc
-                const actRef = await addDoc(collection(db, "activities"), { 
+                const actRef = await insertRow("activities", { 
                     subjectCode: document.getElementById('subCode').value, 
-                    section: document.getElementById('sectionSelect').value, // Added section
+                    section: document.getElementById('sectionSelect').value,
                     term: document.getElementById('aTerm').value, 
                     category: document.getElementById('aCat').value, 
                     title: document.getElementById('aTitle').value, 
@@ -486,7 +484,7 @@
                     date: document.getElementById('aDate').value || new Date().toISOString()
                 });
                 const inputs = document.querySelectorAll('.stud-score');
-                for(let inp of inputs) { await addDoc(collection(db, "scores"), { activityId: actRef.id, studentNo: inp.dataset.sno, score: Number(inp.value) }); }
+                for(let inp of inputs) { await insertRow("scores", { activityId: actRef.id, studentNo: inp.dataset.sno, score: Number(inp.value) }); }
                 window.showToast('Activity and all student scores saved!');
                 document.getElementById('activityForm').reset(); document.getElementById('roster-container').style.display = 'none';
                 window.loadActivities(); 
@@ -505,9 +503,9 @@
         async function populateTmplSections() {
             const sel = document.getElementById('tmplSection');
             try {
-                const snap = await getDocs(collection(db, "sections"));
-                const secs = [];
-                snap.forEach(d => secs.push(d.data().sectionName));
+                const { data, error } = await supabase.from("sections").select("*").order("sectionName", { ascending: true });
+                if (error) throw error;
+                const secs = (data || []).map(d => d.sectionName);
                 secs.sort();
                 sel.innerHTML = '<option value="">Select Section...</option>';
                 secs.forEach(s => sel.innerHTML += `<option value="${s}">${s}</option>`);
@@ -527,14 +525,13 @@
             tmplSubjects = [];
 
             try {
-                const q = query(collection(db, "enrollments"), where("section", "==", sec));
-                const snap = await getDocs(q);
+                const { data: enrollments, error } = await supabase.from("enrollments").select("*").eq("section", sec);
+                if (error) throw error;
 
                 const subjectSet = new Set();
                 const studentMap = {}; // studentNo => { studentNo, studentName, subjects: Set }
 
-                snap.forEach(d => {
-                    const data = d.data();
+                (enrollments || []).forEach(data => {
                     if(!studentMap[data.studentNo]) {
                         studentMap[data.studentNo] = { studentNo: data.studentNo, studentName: data.studentName || '', subjects: new Set() };
                     }
@@ -882,7 +879,7 @@
                                 }
 
                                 try {
-                                    const actRef = await addDoc(collection(db, "activities"), {
+                                    const actRef = await insertRow("activities", {
                                         subjectCode,
                                         section,
                                         term: act.term,
@@ -898,7 +895,7 @@
                                         const scoreRaw = row[act.colIdx];
                                         const score = scoreRaw !== '' && scoreRaw !== undefined ? Number(scoreRaw) : 0;
                                         if(!sNo) continue;
-                                        await addDoc(collection(db, "scores"), { activityId: actRef.id, studentNo: sNo, score });
+                                        await insertRow("scores", { activityId: actRef.id, studentNo: sNo, score });
                                         savedScores++;
                                     }
                                     logLines.push(`✅ "${act.title}" (${subjectCode}) — saved with ${savedScores} student scores.`);
@@ -954,16 +951,11 @@
             const tbody = document.getElementById('manageBody');
             tbody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
             try {
-                const snap = await getDocs(collection(db, "activities"));
-                if(snap.empty) { tbody.innerHTML = '<tr><td colspan="8">No activities found.</td></tr>'; allActivitiesData = []; return; }
+                const { data: activities, error } = await supabase.from("activities").select("*");
+                if (error) throw error;
+                if(!activities || !activities.length) { tbody.innerHTML = '<tr><td colspan="8">No activities found.</td></tr>'; allActivitiesData = []; return; }
                 
-                let records = [];
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    d.id = doc.id;
-                    d.dateStr = d.date ? d.date.split('T')[0] : 'N/A';
-                    records.push(d);
-                });
+                let records = activities.map(d => ({ ...d, dateStr: d.date ? d.date.split('T')[0] : 'N/A' }));
                 
                 records.sort((a,b) => b.date.localeCompare(a.date));
                 allActivitiesData = records;
@@ -1080,11 +1072,9 @@
         }
 
         async function deleteActivityAndScores(actId) {
-            await deleteDoc(doc(db, "activities", actId));
-            const q = query(collection(db, "scores"), where("activityId", "==", actId));
-            const snap = await getDocs(q);
-            const batchPromises = snap.docs.map(d => deleteDoc(d.ref));
-            await Promise.all(batchPromises);
+            await deleteById("activities", actId);
+            const { error } = await supabase.from("scores").delete().eq("activityId", actId);
+            if (error) throw error;
         }
 
         window.confirmAction = function() { if(pendingAction) pendingAction(); }

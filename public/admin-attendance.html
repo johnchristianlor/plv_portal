@@ -596,21 +596,42 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "./supabase-adapter.js";
-        import { getSupabase, collection, addDoc, getDocs, query, where, deleteDoc, doc, updateDoc, writeBatch } from "./supabase-adapter.js";
+        import { supabase } from "./supabase-adapter.js";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
         window.logout = function() { localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
-
-        const app = initializeApp();
-        const db = getSupabase(app);
 
         let allAttendanceData = [];
         let currentEditDocId = null;
         let editingData = {};
         let subjectsBySection = {};
         let currentQrPayload = '';
+
+        async function fetchRows(table, builder = null) {
+            let request = supabase.from(table).select('*');
+            if (builder) request = builder(request);
+            const { data, error } = await request;
+            if (error) throw error;
+            return data || [];
+        }
+
+        async function insertRow(table, row) {
+            const { data, error } = await supabase.from(table).insert(row).select('*').single();
+            if (error) throw error;
+            return data;
+        }
+
+        async function updateById(table, id, updates) {
+            const { error } = await supabase.from(table).update(updates).eq('id', id);
+            if (error) throw error;
+        }
+
+        async function deleteIds(table, ids) {
+            if (!ids.length) return;
+            const { error } = await supabase.from(table).delete().in('id', ids);
+            if (error) throw error;
+        }
 
         function encodeQrPayload(payload) {
             return 'PLV_ATTENDANCE:' + btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
@@ -707,9 +728,8 @@
             const sel = document.getElementById('inputSection');
             const fSel = document.getElementById('filterSection');
             try {
-                const snap = await getDocs(collection(db, "sections"));
-                const secs = [];
-                snap.forEach(d => secs.push(d.data().sectionName));
+                const sections = await fetchRows("sections", q => q.order("sectionName", { ascending: true }));
+                const secs = sections.map(d => d.sectionName);
                 secs.sort();
                 sel.innerHTML = '<option value="">Select Section</option>';
                 fSel.innerHTML = '<option value="">All Sections</option>';
@@ -728,10 +748,9 @@
             if(!sec) { subSel.innerHTML = '<option value="">Select section first</option>'; return; }
             try {
                 // Get subjects enrolled in this section from enrollments
-                const q = query(collection(db, "enrollments"), where("section", "==", sec));
-                const snap = await getDocs(q);
+                const enrollments = await fetchRows("enrollments", q => q.eq("section", sec));
                 const subjectCodes = new Set();
-                snap.forEach(d => { if(d.data().subjectCode) subjectCodes.add(d.data().subjectCode); });
+                enrollments.forEach(d => { if(d.subjectCode) subjectCodes.add(d.subjectCode); });
                 subSel.innerHTML = '<option value="">Select Subject</option>';
                 Array.from(subjectCodes).sort().forEach(code => {
                     subSel.innerHTML += `<option value="${code}">${code}</option>`;
@@ -756,17 +775,12 @@
 
             try {
                 // Check if attendance already exists for this date/section/subject
-                const existQ = query(collection(db, "attendance"), where("section","==",sec), where("subjectCode","==",sub), where("date","==",date));
-                const existSnap = await getDocs(existQ);
+                const existingRows = await fetchRows("attendance", q => q.eq("section", sec).eq("subjectCode", sub).eq("date", date));
                 const existingMap = {};
-                existSnap.forEach(d => { existingMap[d.data().studentNo] = { status: d.data().status, id: d.id }; });
+                existingRows.forEach(d => { existingMap[d.studentNo] = { status: d.status, id: d.id }; });
 
-                const q = query(collection(db, "enrollments"), where("section","==",sec), where("subjectCode","==",sub));
-                const snap = await getDocs(q);
-                if(snap.empty) { tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No students found for this section/subject.</td></tr>'; return; }
-
-                let students = [];
-                snap.forEach(d => students.push(d.data()));
+                let students = await fetchRows("enrollments", q => q.eq("section", sec).eq("subjectCode", sub));
+                if(!students.length) { tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No students found for this section/subject.</td></tr>'; return; }
                 students.sort((a,b) => a.studentName.localeCompare(b.studentName));
 
                 tbody.innerHTML = '';
@@ -851,24 +865,16 @@
             const inputs = document.querySelectorAll('.status-val');
             if(inputs.length === 0) { window.showToast("No students to save.", "error"); return; }
 
-            const batch = writeBatch(db);
             try {
                 for(let inp of inputs) {
                     const sno = inp.getAttribute('data-sno');
                     const docId = inp.getAttribute('data-docid');
                     const status = inp.value;
-                    // Get student name from nearby cell
                     const row = inp.closest('tr');
                     const studentName = row ? row.cells[2].textContent : '';
-
-                    if(docId) {
-                        batch.update(doc(db, "attendance", docId), { status });
-                    } else {
-                        const newRef = doc(collection(db, "attendance"));
-                        batch.set(newRef, { section: sec, subjectCode: sub, date, studentNo: sno, studentName, status, createdAt: new Date().toISOString() });
-                    }
+                    if(docId) await updateById("attendance", docId, { status });
+                    else await insertRow("attendance", { section: sec, subjectCode: sub, date, studentNo: sno, studentName, status, createdAt: new Date().toISOString() });
                 }
-                await batch.commit();
                 window.showToast("Attendance saved successfully!");
                 // Refresh docids
                 window.loadAttendanceRoster();
@@ -982,11 +988,10 @@
             const tbody = document.getElementById('recordsBody');
             tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Loading...</td></tr>';
             try {
-                const snap = await getDocs(collection(db, "attendance"));
+                const attendanceRows = await fetchRows("attendance");
                 allAttendanceData = [];
                 const subjectSet = new Set();
-                snap.forEach(d => {
-                    const data = { ...d.data(), id: d.id };
+                attendanceRows.forEach(data => {
                     allAttendanceData.push(data);
                     if(data.subjectCode) subjectSet.add(data.subjectCode);
                 });
@@ -1151,9 +1156,7 @@
             const btn = document.getElementById('btnConfirmDelSel');
             btn.disabled = true; btn.innerHTML = '<i class="ph-bold ph-spinner"></i> Deleting...';
             try {
-                const batch = writeBatch(db);
-                pendingDeleteIds.forEach(id => batch.delete(doc(db, "attendance", id)));
-                await batch.commit();
+                await deleteIds("attendance", pendingDeleteIds);
                 window.showToast(`${pendingDeleteIds.length} record${pendingDeleteIds.length!==1?'s':''} deleted.`);
                 window.closeDeleteModals();
                 window.clearSelection();
@@ -1276,10 +1279,7 @@
                 const ids = bulkDeleteTargets.map(r => r.id);
                 const chunkSize = 490;
                 for(let i = 0; i < ids.length; i += chunkSize) {
-                    const chunk = ids.slice(i, i + chunkSize);
-                    const batch = writeBatch(db);
-                    chunk.forEach(id => batch.delete(doc(db, "attendance", id)));
-                    await batch.commit();
+                    await deleteIds("attendance", ids.slice(i, i + chunkSize));
                 }
                 window.showToast(`${ids.length} record${ids.length!==1?'s':''} deleted.`);
                 window.closeDeleteModals();
@@ -1304,7 +1304,7 @@
         window.applyStatusEdit = async function(newStatus) {
             if(!currentEditDocId) return;
             try {
-                await updateDoc(doc(db, "attendance", currentEditDocId), { status: newStatus });
+                await updateById("attendance", currentEditDocId, { status: newStatus });
                 window.showToast("Attendance updated!");
                 window.closeEditModal();
                 window.loadRecords();
@@ -1345,7 +1345,6 @@
                         const ws = wb.Sheets[wb.SheetNames[0]];
                         const json = XLSX.utils.sheet_to_json(ws);
                         pb.style.width = '40%';
-                        const batch = writeBatch(db);
                         let count = 0;
                         for(const row of json) {
                             let dateStr = '';
@@ -1356,16 +1355,13 @@
                             const statusRaw = String(row.Status || 'P').toUpperCase().trim();
                             const status = ['P','A','L','E'].includes(statusRaw) ? statusRaw : 'P';
                             // Check duplicate
-                            const q = query(collection(db,"attendance"),where("section","==",row.Section||''),where("subjectCode","==",row.Subject_Code||''),where("date","==",dateStr),where("studentNo","==",String(row.Student_No||'')));
-                            const ex = await getDocs(q);
-                            if(ex.empty) {
-                                const newRef = doc(collection(db,"attendance"));
-                                batch.set(newRef, { section: row.Section||'', subjectCode: row.Subject_Code||'', date: dateStr, studentNo: String(row.Student_No||''), studentName: row.Student_Name||'', status, createdAt: new Date().toISOString() });
+                            const existing = await fetchRows("attendance", q => q.eq("section", row.Section || '').eq("subjectCode", row.Subject_Code || '').eq("date", dateStr).eq("studentNo", String(row.Student_No || '')));
+                            if(!existing.length) {
+                                await insertRow("attendance", { section: row.Section||'', subjectCode: row.Subject_Code||'', date: dateStr, studentNo: String(row.Student_No||''), studentName: row.Student_Name||'', status, createdAt: new Date().toISOString() });
                             }
                             count++;
                             pb.style.width = `${40 + (count/json.length*60)}%`;
                         }
-                        await batch.commit();
                         window.showToast("Bulk attendance uploaded!");
                         setTimeout(() => pc.style.display='none', 1000);
                     } catch(err) { console.error(err); window.showToast("Upload error.", "error"); pc.style.display='none'; }

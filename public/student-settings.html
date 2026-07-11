@@ -240,26 +240,23 @@ body{background-color:var(--bg-body);color:var(--text-main);min-height:100vh;dis
 </nav>
 
 <script type="module">
-import { initializeApp } from "./supabase-adapter.js";
-import { getSupabase, collection, getDocs, query, where, orderBy, limit, doc, updateDoc, serverTimestamp } from "./supabase-adapter.js";
+import { supabase } from "./supabase-adapter.js";
 
 // ── AUTH GUARD ──
 const user = JSON.parse(localStorage.getItem('loggedInUser'));
 if (!user || user.role !== 'student') window.location.href = 'index.html';
 
-// ── FIREBASE ──
-const app = initializeApp();
-const db = getSupabase(app);
+// Supabase client is imported above.
 
 // ─── HEARTBEAT / ONLINE TRACKING ─────────────────────────────────────────────
 // Writes lastActiveAt every 2 min + on interaction.
 // Admin counts students online only if lastActiveAt < 10 min ago.
-const _hbRef = doc(db, "users", user.studentNo);
+
 const _HB_MS = 2 * 60 * 1000;   // heartbeat interval
 const _DB_MS = 30 * 1000;        // activity debounce
 
 async function _ping() {
-    try { await updateDoc(_hbRef, { lastActiveAt: serverTimestamp(), isOnline: true }); }
+    try { await supabase.from("users").update({ lastActiveAt: new Date().toISOString(), isOnline: true }).eq("studentNo", user.studentNo); }
     catch(e) { /* silent */ }
 }
 _ping();
@@ -275,13 +272,13 @@ let _hbDebounce = null;
 
 window.logout = async function() {
     clearInterval(_hbTimer);
-    try { await updateDoc(_hbRef, { isOnline: false, lastActiveAt: null }); } catch(e) {}
+    try { await supabase.from("users").update({ isOnline: false, lastActiveAt: null }).eq("studentNo", user.studentNo); } catch(e) {}
     localStorage.removeItem('loggedInUser');
     window.location.href = 'index.html';
 };
 
 window.addEventListener('beforeunload', () => {
-    updateDoc(_hbRef, { isOnline: false }).catch(() => {});
+    supabase.from("users").update({ isOnline: false }).eq("studentNo", user.studentNo).then(() => {}).catch(() => {});
 });
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -341,11 +338,10 @@ async function loadProfile() {
     document.getElementById('iNo').textContent = user.studentNo || '—';
     document.getElementById('iUser').textContent = user.username || '—';
     try {
-        const snap = await getDocs(
-            query(collection(db, 'enrollments'), where('studentNo', '==', user.studentNo))
-        );
-        if (!snap.empty) {
-            document.getElementById('iSec').textContent = snap.docs[0].data().section || '—';
+        const { data: enrollments, error } = await supabase.from('enrollments').select('*').eq('studentNo', user.studentNo);
+        if (error) throw error;
+        if (enrollments && enrollments.length) {
+            document.getElementById('iSec').textContent = enrollments[0].section || '—';
         }
     } catch(e) { /* silent — section field is optional */ }
 }
@@ -491,19 +487,19 @@ async function loadFiles() {
     try {
         // Fetch all sharedFiles and filter on client side.
         // This is the most compatible approach — no composite indexes needed.
-        const snap = await getDocs(collection(db, 'sharedFiles'));
+        const { data: rows, error } = await supabase.from('sharedFiles').select('*').order('uploadedAt', { ascending: false });
+        if (error) throw error;
 
         const seen = new Set();
         allFiles = [];
 
-        snap.docs.forEach(d => {
-            if (seen.has(d.id)) return;
-            const data = d.data();
+        (rows || []).forEach(data => {
+            if (seen.has(data.id)) return;
             const recipient = (data.recipientStudentNo || '').toString().trim();
             // Include if shared with this specific student OR broadcast to all
             if (recipient === studentId || recipient === 'all') {
-                seen.add(d.id);
-                allFiles.push({ id: d.id, ...data });
+                seen.add(data.id);
+                allFiles.push(data);
             }
         });
 

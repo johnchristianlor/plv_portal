@@ -199,24 +199,21 @@
     <div id="toast" class="toast"><i id="toast-icon" class="ph-fill ph-check-circle" style="font-size: 24px;"></i><span id="toast-msg">Action Successful!</span></div>
 
     <script type="module">
-        import { initializeApp } from "./supabase-adapter.js";
-        import { getSupabase, collection, getDocs, query, where, doc, getDoc, updateDoc, serverTimestamp } from "./supabase-adapter.js";
+        import { supabase } from "./supabase-adapter.js";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'student') window.location.href = 'index.html';
 
-        const app = initializeApp();
-        const db = getSupabase(app);
 
         // ─── HEARTBEAT / ONLINE TRACKING ─────────────────────────────────────────────
         // Writes lastActiveAt every 2 min + on interaction.
         // Admin counts students online only if lastActiveAt < 10 min ago.
-        const _hbRef = doc(db, "users", user.studentNo);
+
         const _HB_MS = 2 * 60 * 1000;   // heartbeat interval
         const _DB_MS = 30 * 1000;        // activity debounce
         
         async function _ping() {
-            try { await updateDoc(_hbRef, { lastActiveAt: serverTimestamp(), isOnline: true }); }
+            try { await supabase.from("users").update({ lastActiveAt: new Date().toISOString(), isOnline: true }).eq("studentNo", user.studentNo); }
             catch(e) { /* silent */ }
         }
         _ping();
@@ -232,13 +229,13 @@
         
         window.logout = async function() {
             clearInterval(_hbTimer);
-            try { await updateDoc(_hbRef, { isOnline: false, lastActiveAt: null }); } catch(e) {}
+            try { await supabase.from("users").update({ isOnline: false, lastActiveAt: null }).eq("studentNo", user.studentNo); } catch(e) {}
             localStorage.removeItem('loggedInUser');
             window.location.href = 'index.html';
         };
         
         window.addEventListener('beforeunload', () => {
-            updateDoc(_hbRef, { isOnline: false }).catch(() => {});
+            supabase.from("users").update({ isOnline: false }).eq("studentNo", user.studentNo).then(() => {}).catch(() => {});
         });
         // ──────────────────────────────────────────────────────────────────────────────
 
@@ -275,12 +272,14 @@
 
         async function loadData() {
             try {
-                const eSnap = await getDocs(query(collection(db, "enrollments"), where("studentNo", "==", user.studentNo)));
-                if(eSnap.empty) { document.getElementById('subTitle').innerText="No subjects enrolled"; window.showToast("No enrolled subjects", "error"); return; }
-                const enroll = eSnap.docs[0].data();
+                const { data: enrollments, error: enrollError } = await supabase.from("enrollments").select("*").eq("studentNo", user.studentNo);
+                if (enrollError) throw enrollError;
+                if(!enrollments || !enrollments.length) { document.getElementById('subTitle').innerText="No subjects enrolled"; window.showToast("No enrolled subjects", "error"); return; }
+                const enroll = enrollments[0];
                 
-                const sSnap = await getDoc(doc(db, "subjects", enroll.subjectCode));
-                if(sSnap.exists()) document.getElementById('subTitle').innerText = `${sSnap.data().subjectCode}: ${sSnap.data().subjectName}`;
+                const { data: subject, error: subjectError } = await supabase.from("subjects").select("*").eq("subjectCode", enroll.subjectCode).limit(1).maybeSingle();
+                if (subjectError) throw subjectError;
+                if(subject) document.getElementById('subTitle').innerText = `${subject.subjectCode}: ${subject.subjectName}`;
 
                 // Support both raw grade (0-100) and already-transmuted (1.00-5.00) storage
                 const mRaw = enroll.midtermRawGrade ?? enroll.midtermGrade;

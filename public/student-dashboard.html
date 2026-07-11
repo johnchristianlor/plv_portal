@@ -252,14 +252,11 @@
 <div id="toast" class="toast"><i id="toast-icon" class="ph-fill ph-check-circle" style="font-size: 24px;"></i><span id="toast-msg">Action Successful!</span></div>
 
 <script type="module">
-    import { initializeApp } from "./supabase-adapter.js";
-    import { getSupabase, collection, getDocs, query, where, doc, getDoc, orderBy, limit, updateDoc, serverTimestamp } from "./supabase-adapter.js";
+    import { supabase } from "./supabase-adapter.js";
 
     const user = JSON.parse(localStorage.getItem('loggedInUser'));
     if (!user || user.role !== 'student') window.location.href = 'index.html';
     
-    const app = initializeApp();
-    const db = getSupabase(app);
 
     // ─── HEARTBEAT / ACTIVITY TRACKING ────────────────────────────────────────
     // Pings Supabase every 2 min and on user activity so admin dashboard
@@ -269,10 +266,8 @@
 
     async function pingOnline() {
         try {
-            await updateDoc(doc(db, "users", user.studentNo), {
-                lastActiveAt: serverTimestamp(),
-                isOnline: true
-            });
+            const { error } = await supabase.from("users").update({ lastActiveAt: new Date().toISOString(), isOnline: true }).eq("studentNo", user.studentNo);
+            if (error) throw error;
         } catch(e) { /* silent - don't break page */ }
     }
 
@@ -290,14 +285,14 @@
 
     window.logout = async function() {
         clearInterval(_heartbeatTimer);
-        try { await updateDoc(doc(db, "users", user.studentNo), { isOnline: false, lastActiveAt: null }); }
+        try { await supabase.from("users").update({ isOnline: false, lastActiveAt: null }).eq("studentNo", user.studentNo); }
         catch(e) { /* silent */ }
         localStorage.removeItem('loggedInUser');
         window.location.href = 'index.html';
     };
 
     window.addEventListener('beforeunload', () => {
-        updateDoc(doc(db, "users", user.studentNo), { isOnline: false }).catch(() => {});
+        supabase.from("users").update({ isOnline: false }).eq("studentNo", user.studentNo).then(() => {}).catch(() => {});
     });
 
     window.showToast = function(message, type = 'success') {
@@ -347,7 +342,8 @@
         user.avatarUrl = url;
         localStorage.setItem('loggedInUser', JSON.stringify(user));
         try {
-            await updateDoc(doc(db, "users", user.studentNo), { avatarUrl: url });
+            const { error } = await supabase.from("users").update({ avatarUrl: url }).eq("studentNo", user.studentNo);
+            if (error) throw error;
             window.showToast("Avatar Updated!");
             window.closeAvatarModal();
         } catch(e) {
@@ -383,17 +379,18 @@
     async function loadData() {
         try {
             // 1. Load Enrollment Data
-            const snap = await getDocs(query(collection(db, "enrollments"), where("studentNo", "==", user.studentNo)));
+            const { data: myEnrollments, error: enrollError } = await supabase.from("enrollments").select("*").eq("studentNo", user.studentNo);
+            if (enrollError) throw enrollError;
             
-            if(!snap.empty) {
-                const enroll = snap.docs[0].data();
+            if(myEnrollments && myEnrollments.length) {
+                const enroll = myEnrollments[0];
                 const currentSubjectCode = enroll.subjectCode;
                 const currentSection = enroll.section;
 
-                const subSnap = await getDoc(doc(db, "subjects", currentSubjectCode));
+                const { data: sub, error: subjectError } = await supabase.from("subjects").select("*").eq("subjectCode", currentSubjectCode).limit(1).maybeSingle();
+                if (subjectError) throw subjectError;
                 
-                if(subSnap.exists()) {
-                    const sub = subSnap.data();
+                if(sub) {
                     document.getElementById('subTitle').textContent = `${sub.subjectCode}: ${sub.subjectName}`;
                     document.getElementById('subProf').textContent = sub.profName;
                     
@@ -412,8 +409,9 @@
                 }
                 
                 // 2. Load Grade Visibility Settings
-                const settingsSnap = await getDoc(doc(db, "settings", "global"));
-                const settings = settingsSnap.exists() ? settingsSnap.data() : { showStanding: false };
+                const { data: settingsRow, error: settingsError } = await supabase.from("settings").select("*").eq("id", "global").limit(1).maybeSingle();
+                if (settingsError) throw settingsError;
+                const settings = settingsRow || { showStanding: false };
 
                 if(settings.showStanding) {
                     // ─── SMART CLASS STANDING LOGIC ──────────────────────────────────────
@@ -422,16 +420,11 @@
                     // ─────────────────────────────────────────────────────────────────────
 
                     // Fetch all enrollments in the same section for the same subject
-                    const classSnap = await getDocs(query(
-                        collection(db, "enrollments"),
-                        where("section", "==", currentSection),
-                        where("subjectCode", "==", currentSubjectCode)
-                    ));
+                    const { data: classRows, error: classError } = await supabase.from("enrollments").select("*").eq("section", currentSection).eq("subjectCode", currentSubjectCode);
+                    if (classError) throw classError;
 
-                    // Build map: studentNo → enrollment data (grades included)
                     const enrollMap = {};
-                    classSnap.forEach(d => {
-                        const data = d.data();
+                    (classRows || []).forEach(data => {
                         enrollMap[data.studentNo] = {
                             midtermRaw: data.midtermRawGrade != null ? Number(data.midtermRawGrade) : null,
                             midtermGrade: data.midtermGrade != null ? Number(data.midtermGrade) : null,
@@ -459,14 +452,12 @@
 
                     if (scoringMode === 'activity') {
                         // Fallback: use activity scores
-                        const actSnap = await getDocs(query(
-                            collection(db, "activities"),
-                            where("subjectCode", "==", currentSubjectCode)
-                        ));
+                        const { data: activityRows, error: activityError } = await supabase.from("activities").select("*").eq("subjectCode", currentSubjectCode);
+                        if (activityError) throw activityError;
                         const activityIds = [];
-                        actSnap.forEach(d => {
-                            grandTotalPerfect += Number(d.data().perfectScore || 0);
-                            activityIds.push(d.id);
+                        (activityRows || []).forEach(activity => {
+                            grandTotalPerfect += Number(activity.perfectScore || 0);
+                            activityIds.push(activity.id);
                         });
 
                         // Initialize all students with 0
@@ -477,12 +468,9 @@
                             for (let i = 0; i < activityIds.length; i += 10)
                                 chunks.push(activityIds.slice(i, i + 10));
                             for (const chunk of chunks) {
-                                const scoreSnap = await getDocs(query(
-                                    collection(db, "scores"),
-                                    where("activityId", "in", chunk)
-                                ));
-                                scoreSnap.forEach(d => {
-                                    const s = d.data();
+                                const { data: scoreRows, error: scoreError } = await supabase.from("scores").select("*").in("activityId", chunk);
+                                if (scoreError) throw scoreError;
+                                (scoreRows || []).forEach(s => {
                                     if (activityScoreMap.hasOwnProperty(s.studentNo)) {
                                         activityScoreMap[s.studentNo] += Number(s.score || 0);
                                     }
@@ -589,30 +577,30 @@
             }
 
             // 3. Load Deadlines
-            const deadlinesSnap = await getDocs(query(collection(db, "deadlines"), orderBy("createdAt", "desc"), limit(4)));
+            const { data: deadlines, error: deadlinesError } = await supabase.from("deadlines").select("*").order("createdAt", { ascending: false }).limit(4);
+            if (deadlinesError) throw deadlinesError;
             const dCont = document.getElementById('deadlinesContainer');
             dCont.innerHTML = '';
-            if(deadlinesSnap.empty) {
+            if(!deadlines || !deadlines.length) {
                 dCont.innerHTML = '<p style="font-size:12px; color:var(--text-muted); padding:10px;">No upcoming deadlines.</p>';
             } else {
-                deadlinesSnap.forEach(d => {
-                    const data = d.data();
+                deadlines.forEach(data => {
                     const statusClass = data.status === 'Graded' ? 'status-done' : 'status-pending';
                     dCont.innerHTML += `<div class="activity-item"><div class="act-info"><h4>${data.title}</h4><p>${data.desc}</p></div><div class="act-status ${statusClass}">${data.status}</div></div>`;
                 });
             }
 
             // 4. Load Announcements
-            const annSnap = await getDocs(query(collection(db, "announcements"), orderBy("createdAt", "desc"), limit(5)));
+            const { data: announcements, error: announcementsError } = await supabase.from("announcements").select("*").order("createdAt", { ascending: false }).limit(5);
+            if (announcementsError) throw announcementsError;
             const aCont = document.getElementById('announceContainer');
             aCont.innerHTML = '';
-            if(annSnap.empty) {
+            if(!announcements || !announcements.length) {
                 aCont.innerHTML = '<p style="font-size:12px; color:var(--text-muted); padding:10px;">No new announcements.</p>';
             } else {
-                annSnap.forEach(d => {
-                    const data = d.data();
+                announcements.forEach(data => {
                     const urgentClass = data.isUrgent ? 'urgent' : '';
-                    const dateStr = data.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+                    const dateStr = new Date(data.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
                     aCont.innerHTML += `<div class="announce-item ${urgentClass}"><h4>${data.title}</h4><p>${data.message}</p><span class="announce-date">Posted: ${dateStr}</span></div>`;
                 });
             }
