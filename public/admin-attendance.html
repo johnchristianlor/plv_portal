@@ -647,9 +647,13 @@
     <script type="module">
         import { supabase } from "./supabase-adapter.js";
 
-        const user = JSON.parse(localStorage.getItem('loggedInUser'));
+
+import { startAdminSessionGuard } from "./admin-session.js";
+const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
-        window.logout = function() { localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
+
+        const adminSessionGuard = startAdminSessionGuard(supabase, user);
+        window.logout = function() { adminSessionGuard.stop(); localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
 
         let allAttendanceData = [];
         let currentEditDocId = null;
@@ -1195,7 +1199,7 @@
                         <td style="text-align:center;">${statusBadge(r.status)}</td>
                         <td style="text-align:center;">
                             <div style="display:flex;gap:6px;justify-content:center;">
-                                <button class="att-btn att-btn-${statusClass} selected" 
+                                <button class="att-btn att-btn-${statusClass} selected"
                                     style="width:auto;padding:5px 11px;border-radius:8px;font-size:12px;font-weight:700;"
                                     onclick="window.openEditModal('${r.id}','${r.studentName}','${r.date}','${r.status}')">
                                     <i class="ph-bold ph-pencil-simple"></i> Edit

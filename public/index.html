@@ -226,7 +226,48 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
         return null;
     }
 
+    function createSessionToken() {
+        if (crypto && crypto.randomUUID) return crypto.randomUUID();
+        return 'sess_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2);
+    }
+
+    function normalizeRpcUser(data) {
+        if (!data) return null;
+        if (Array.isArray(data)) return data[0] || null;
+        return data;
+    }
+
+    async function startAdminSession(adminData) {
+        const sessionToken = createSessionToken();
+        try {
+            const { error } = await supabase.rpc('start_admin_session', {
+                p_profile_id: String(adminData.id),
+                p_session_token: sessionToken
+            });
+            if (error) throw error;
+            return { ...adminData, activeSessionToken: sessionToken };
+        } catch (error) {
+            if (!String(error.message || '').toLowerCase().includes('start_admin_session')) throw error;
+            console.warn('Admin single-session security is waiting for the Supabase SQL update.', error);
+            return adminData;
+        }
+    }
+
     async function findStudent(identifier, password) {
+        const sessionToken = createSessionToken();
+        try {
+            const { data, error } = await supabase.rpc('login_student_secure', {
+                p_identifier: identifier,
+                p_password: password,
+                p_session_token: sessionToken
+            });
+            if (error) throw error;
+            const secureUser = normalizeRpcUser(data);
+            return secureUser ? { ...secureUser, activeSessionToken: secureUser.activeSessionToken || sessionToken } : null;
+        } catch (error) {
+            if (!String(error.message || '').toLowerCase().includes('login_student_secure')) throw error;
+        }
+
         const { data, error } = await supabase.rpc('login_student', {
             p_identifier: identifier,
             p_password: password
@@ -292,10 +333,11 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
             throw new Error('Access denied. This account is not an admin.');
         }
 
+        const securedAdminData = await startAdminSession(adminData);
         localStorage.setItem('loggedInUser', JSON.stringify({
-            ...adminData,
+            ...securedAdminData,
             uid: data.user.id,
-            email: adminData.email || data.user.email
+            email: securedAdminData.email || data.user.email
         }));
         window.showToast('Login Successful!');
         setTimeout(() => window.location.href = 'admin-dashboard.html', 1000);

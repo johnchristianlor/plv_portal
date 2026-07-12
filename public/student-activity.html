@@ -226,12 +226,15 @@
     <script type="module">
         import { supabase } from "./supabase-adapter.js";
         import { startStudentPresence } from "./student-presence.js";
+        import { startStudentSessionGuard } from "./student-session.js";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'student') window.location.href = 'index.html';
         const studentPresence = startStudentPresence(supabase, user);
+        const studentSessionGuard = startStudentSessionGuard(supabase, user);
 
         window.logout = async function() {
+            studentSessionGuard.stop();
             await studentPresence.stop();
             localStorage.removeItem('loggedInUser');
             window.location.href = 'index.html';

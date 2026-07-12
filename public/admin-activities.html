@@ -13,38 +13,38 @@
         /* CORE DESIGN PRESERVED */
         :root { --bg-body: #f0f4f8; --text-main: #0f172a; --text-muted: #64748b; --glass-bg: rgba(255, 255, 255, 0.75); --glass-border: rgba(255, 255, 255, 0.9); --glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.9); --glass-shadow: 0 24px 48px -12px rgba(0, 35, 102, 0.08); --accent-primary: #003DA5; --accent-hover: #00287A; --accent-light: rgba(0, 61, 165, 0.08); --accent-gold: #D4AF37; --input-bg: rgba(255, 255, 255, 0.9); --input-border: rgba(0, 35, 102, 0.1); --blob-1: #cce0ff; --blob-2: #ffeb99; --blob-3: #e0ebff; --success: #10b981; --danger: #e11d48; }
         .dark-theme { --bg-body: #040914; --text-main: #f8fafc; --text-muted: #94a3b8; --glass-bg: rgba(10, 15, 30, 0.6); --glass-border: rgba(255, 255, 255, 0.06); --glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.04); --glass-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.8); --accent-primary: #3b82f6; --accent-hover: #60a5fa; --accent-light: rgba(59, 130, 246, 0.15); --accent-gold: #FCD34D; --input-bg: rgba(0, 0, 0, 0.4); --input-border: rgba(255, 255, 255, 0.1); --blob-1: #001f5c; --blob-2: #422b00; --blob-3: #001233; --success: #34d399; --danger: #fb7185; }
-        
+
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; transition: 0.4s ease; }
         body { background-color: var(--bg-body); color: var(--text-main); min-height: 100vh; display: flex; overflow-x: hidden; position: relative; }
         .ambient-mesh { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; overflow: hidden; z-index: -1; pointer-events: none; } .blob { position: absolute; filter: blur(120px); opacity: 0.6; border-radius: 50%; animation: float 18s infinite alternate ease-in-out; } .blob-1 { width: 600px; height: 600px; background: var(--blob-1); top: -10%; left: -10%; } .blob-2 { width: 700px; height: 700px; background: var(--blob-2); bottom: -20%; right: -10%; animation-delay: -5s; } .blob-3 { width: 500px; height: 500px; background: var(--blob-3); top: 40%; left: 40%; animation-delay: -10s; } @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(60px, 40px) scale(1.1); } }
-        
+
         .glass { background: var(--glass-bg); backdrop-filter: blur(32px); border: 1px solid var(--glass-border); box-shadow: var(--glass-highlight), var(--glass-shadow); border-radius: 28px; }
-        .sidebar { width: 300px; height: 100vh; padding: 40px 24px; display: flex; flex-direction: column; position: sticky; top: 0; z-index: 10; border-right: 1px solid var(--glass-border); background: rgba(var(--bg-body), 0.3); backdrop-filter: blur(24px); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; } 
+        .sidebar { width: 300px; height: 100vh; padding: 40px 24px; display: flex; flex-direction: column; position: sticky; top: 0; z-index: 10; border-right: 1px solid var(--glass-border); background: rgba(var(--bg-body), 0.3); backdrop-filter: blur(24px); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; }
         .logo-container { display: flex; align-items: center; gap: 14px; margin-bottom: 48px; padding: 0 12px; } .logo-img { width: 52px; height: 52px; border-radius: 50%; box-shadow: 0 8px 16px rgba(0,0,0,0.1); } .logo-text h2 { font-size: 22px; font-weight: 800; color: var(--text-main); line-height: 1.1; } .logo-text p { font-size: 11px; font-weight: 800; color: var(--accent-primary); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
         .nav-menu { list-style: none; flex: 1; display: flex; flex-direction: column; gap: 8px; }
         .sidebar::-webkit-scrollbar { width:6px; }
         .sidebar::-webkit-scrollbar-thumb { background:var(--input-border); border-radius:999px; }
         .sidebar::-webkit-scrollbar-track { background:transparent; } .nav-item a { text-decoration: none; color: var(--text-muted); font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 16px; padding: 14px 18px; border-radius: 18px; cursor: pointer; } .nav-item a i { font-size: 22px; transition: transform 0.3s ease; } .nav-item a:hover { background: var(--accent-light); color: var(--accent-primary); } .nav-item a.active { background: var(--accent-primary); color: #fff; box-shadow: 0 10px 24px -8px var(--accent-primary); }
-        .main-wrapper { flex: 1; padding: 40px 48px; display: flex; flex-direction: column; gap: 32px; max-width: 1600px; margin: 0 auto; width: 100%; } 
+        .main-wrapper { flex: 1; padding: 40px 48px; display: flex; flex-direction: column; gap: 32px; max-width: 1600px; margin: 0 auto; width: 100%; }
         .header { display: flex; justify-content: space-between; align-items: center; } .header h1 { font-size: 28px; font-weight: 800; letter-spacing: -1px; } .header p { color: var(--text-muted); font-weight: 600; font-size: 15px; } .header-actions { display: flex; align-items: center; gap: 16px; }
         .icon-btn { width: 48px; height: 48px; border-radius: 50%; display: flex; justify-content: center; align-items: center; background: var(--glass-bg); border: 1px solid var(--glass-border); box-shadow: var(--glass-highlight), 0 4px 12px rgba(0,0,0,0.02); font-size: 20px; color: var(--text-muted); cursor: pointer; transition: all 0.3s ease; } .theme-toggle { background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.6)); border: 1px solid rgba(255,255,255,0.8); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04), inset 0 2px 4px rgba(255,255,255,0.8); color: #d97706; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); position: relative; } .theme-toggle:hover { transform: translateY(-3px) scale(1.05); } .dark-theme .theme-toggle { background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9)); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 2px 4px rgba(255,255,255,0.05); color: #93c5fd; }
-        
+
         .card { padding: 32px; display: flex; flex-direction: column; position: relative; overflow: hidden; margin-bottom: 24px;}
-        .tab-controls { display: flex; background: rgba(0,0,0,0.05); padding: 6px; border-radius: 14px; margin-bottom: 24px; width: fit-content; } .dark-theme .tab-controls { background: rgba(255,255,255,0.05); } 
-        .tab-btn { background: transparent; border: none; padding: 10px 24px; border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--text-muted); cursor: pointer; transition: all 0.3s; } 
-        .tab-btn.active { background: var(--glass-bg); color: var(--accent-primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); } 
+        .tab-controls { display: flex; background: rgba(0,0,0,0.05); padding: 6px; border-radius: 14px; margin-bottom: 24px; width: fit-content; } .dark-theme .tab-controls { background: rgba(255,255,255,0.05); }
+        .tab-btn { background: transparent; border: none; padding: 10px 24px; border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--text-muted); cursor: pointer; transition: all 0.3s; }
+        .tab-btn.active { background: var(--glass-bg); color: var(--accent-primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         .tab-content { display: none; } .tab-content.active { display: block; animation: fadeIn 0.3s ease; } @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .form-section-title { grid-column: span 2; font-size: 14px; font-weight: 800; color: var(--accent-primary); border-bottom: 1px solid var(--glass-border); padding-bottom: 8px; margin-top: 8px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;} 
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; } .form-group { display: flex; flex-direction: column; gap: 8px; } .form-group.full { grid-column: span 2; } 
-        .form-label { font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; } 
+
+        .form-section-title { grid-column: span 2; font-size: 14px; font-weight: 800; color: var(--accent-primary); border-bottom: 1px solid var(--glass-border); padding-bottom: 8px; margin-top: 8px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;}
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; } .form-group { display: flex; flex-direction: column; gap: 8px; } .form-group.full { grid-column: span 2; }
+        .form-label { font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
         .form-control { background: var(--input-bg); border: 1px solid var(--input-border); padding: 14px 16px; border-radius: 12px; font-size: 15px; color: var(--text-main); font-weight: 500; outline: none; transition: all 0.3s; } .form-control:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 4px var(--accent-light); } select.form-control option { background: var(--bg-body); color: var(--text-main); }
-        
-        .btn { padding: 14px 24px; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; border: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.3s; } 
-        .btn-primary { background: var(--accent-primary); color: #fff; box-shadow: 0 8px 16px var(--accent-light); } .btn-primary:hover { background: var(--accent-hover); transform: translateY(-2px); } 
-        .btn-outline { background: transparent; border: 1px solid var(--accent-primary); color: var(--accent-primary); } .btn-outline:hover { background: var(--accent-light); } 
-        .btn-secondary { background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-main); } .btn-secondary:hover { border-color: var(--accent-primary); color: var(--accent-primary); } 
-        
+
+        .btn { padding: 14px 24px; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; border: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.3s; }
+        .btn-primary { background: var(--accent-primary); color: #fff; box-shadow: 0 8px 16px var(--accent-light); } .btn-primary:hover { background: var(--accent-hover); transform: translateY(-2px); }
+        .btn-outline { background: transparent; border: 1px solid var(--accent-primary); color: var(--accent-primary); } .btn-outline:hover { background: var(--accent-light); }
+        .btn-secondary { background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-main); } .btn-secondary:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
+
         /* Table Controls & Search */
         .table-controls-wrapper { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 16px; }
         .search-wrapper { position: relative; width: 300px; }
@@ -52,13 +52,13 @@
         .search-input { width: 100%; padding: 12px 16px 12px 48px; border-radius: 12px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-main); font-size: 14px; font-weight: 500; outline: none; }
         .search-input:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-light); }
 
-        .table-container { width: 100%; overflow-x: auto; margin-top: 10px; border-radius: 16px;} 
-        .modern-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; text-align: left; } 
-        .modern-table th { padding: 0 16px 8px; font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--glass-border); } 
-        .modern-table td { padding: 12px 16px; background: var(--input-bg); border-top: 1px solid var(--input-border); border-bottom: 1px solid var(--input-border); font-size: 14px; font-weight: 600; vertical-align: middle; } 
-        .modern-table td:first-child { border-left: 1px solid var(--input-border); border-radius: 12px 0 0 12px; } 
+        .table-container { width: 100%; overflow-x: auto; margin-top: 10px; border-radius: 16px;}
+        .modern-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; text-align: left; }
+        .modern-table th { padding: 0 16px 8px; font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--glass-border); }
+        .modern-table td { padding: 12px 16px; background: var(--input-bg); border-top: 1px solid var(--input-border); border-bottom: 1px solid var(--input-border); font-size: 14px; font-weight: 600; vertical-align: middle; }
+        .modern-table td:first-child { border-left: 1px solid var(--input-border); border-radius: 12px 0 0 12px; }
         .modern-table td:last-child { border-right: 1px solid var(--input-border); border-radius: 0 12px 12px 0; }
-        
+
         /* Checkbox Styling */
         .check-col { width: 40px; text-align: center; }
         .custom-checkbox { width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--text-muted); appearance: none; cursor: pointer; position: relative; transition: all 0.2s; }
@@ -74,7 +74,7 @@
         .score-input { width: 100px; padding: 10px; text-align: center; font-weight: 700; color: var(--accent-primary); border: 1px solid var(--input-border); border-radius: 8px; background: var(--glass-bg); } .score-divider { font-size: 13px; color: var(--text-muted); margin-left: 8px; font-weight: 700;}
         .upload-zone { border: 2px dashed var(--accent-primary); background: var(--accent-light); border-radius: 20px; padding: 48px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; cursor: pointer; transition: all 0.3s; margin-bottom: 24px;} .upload-zone:hover { background: rgba(0, 61, 165, 0.15); border-color: var(--accent-hover); } .dark-theme .upload-zone:hover { background: rgba(59, 130, 246, 0.2); } .upload-icon { font-size: 48px; color: var(--accent-primary); } .upload-text h4 { font-size: 18px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;} .upload-text p { font-size: 13px; color: var(--text-muted); font-weight: 500;}
         .progress-container { width: 100%; height: 8px; background: rgba(0,0,0,0.1); border-radius: 100px; margin-top: 20px; overflow: hidden; display: none; } .progress-bar { width: 0%; height: 100%; background: var(--accent-primary); transition: width 0.3s ease; border-radius: 100px; }
-        
+
         .toast { position: fixed; bottom: 32px; right: 32px; background: var(--success); color: #fff; padding: 16px 24px; border-radius: 12px; font-weight: 600; box-shadow: 0 12px 24px rgba(16, 185, 129, 0.3); display: flex; align-items: center; gap: 12px; transform: translateX(150%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000;} .toast.show { transform: translateX(0); } .toast.error { background: var(--danger); }
 
         /* CUSTOM MODAL */
@@ -126,7 +126,7 @@
 
         @media (max-width: 1024px) { body { flex-direction: column; } .sidebar { width: 100%; height: auto; flex-direction: row; padding: 20px; justify-content: space-between; align-items: center; z-index: 100; border-right: none; border-bottom: 1px solid var(--glass-border); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable;} .nav-menu { display: none; } .form-grid { grid-template-columns: 1fr; } .form-group.full, .form-section-title { grid-column: span 1; } .search-wrapper { width: 100%; order: 2; } .table-controls-wrapper { flex-direction: column; align-items: flex-start; } .btn-bulk-delete { width: 100%; order: 1; justify-content: center; } .act-def-row { grid-template-columns: 1fr 1fr; } .template-builder { padding-left: 0; } }
         @media (max-width: 600px) { .act-def-row { grid-template-columns: 1fr; } .bulk-step-box { padding: 20px 16px; } }
-    
+
         /* ===== MOBILE NAVIGATION ===== */
         .mobile-nav-bar { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--glass-bg); backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px); border-top: 1px solid var(--glass-border); box-shadow: 0 -8px 32px rgba(0,0,0,0.1); z-index: 200; padding: 6px 0 max(6px, env(safe-area-inset-bottom)); }
         .mobile-nav-bar ul { display: flex; list-style: none; align-items: center; padding: 0 12px; overflow-x: auto; gap: 4px; }
@@ -138,7 +138,7 @@
 </head>
 <body>
     <div class="ambient-mesh"><div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div></div>
-    
+
     <!-- SIDEBAR -->
     <aside class="sidebar">
         <div class="logo-container">
@@ -356,19 +356,23 @@
     <script type="module">
         import { supabase } from "./supabase-adapter.js";
 
-        const user = JSON.parse(localStorage.getItem('loggedInUser'));
+
+import { startAdminSessionGuard } from "./admin-session.js";
+const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
-        window.logout = function() { localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
+
+        const adminSessionGuard = startAdminSessionGuard(supabase, user);
+        window.logout = function() { adminSessionGuard.stop(); localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
 
         // UI & Tab Handling
         window.toggleTab = function(showId, element) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            element.classList.add('active'); 
+            element.classList.add('active');
             document.getElementById(showId).classList.add('active');
-            if(showId === 'act-manage') window.loadActivities(); 
+            if(showId === 'act-manage') window.loadActivities();
         }
-        
+
         window.showToast = function(message, type='success') {
             const toast = document.getElementById('toast');
             const icon = document.getElementById('toast-icon');
@@ -378,7 +382,7 @@
             toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000);
         }
 
-        let activeSubjectCode = ""; 
+        let activeSubjectCode = "";
         document.getElementById('aDate').valueAsDate = new Date();
 
         async function insertRow(table, row) {
@@ -400,7 +404,7 @@
                 if (error) throw error;
                 const sections = (data || []).map(d => d.sectionName);
                 sections.sort();
-                
+
                 select.innerHTML = '<option value="">Select Class Section</option>';
                 sections.forEach(sec => { select.innerHTML += `<option value="${sec}">${sec}</option>`; });
             } catch(e) { console.error(e); }
@@ -434,8 +438,8 @@
         // 2. Manual Entry Logic
         document.getElementById('activityForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const btn = document.getElementById('loadRosterBtn'); 
-            
+            const btn = document.getElementById('loadRosterBtn');
+
             const sub = document.getElementById('subCode').value;
             const sec = document.getElementById('sectionSelect').value;
             const term = document.getElementById('aTerm').value;
@@ -453,7 +457,7 @@
             btn.innerHTML = 'Loading...'; btn.disabled = true;
             const perfScore = document.getElementById('perfectScore').value;
             const tbody = document.getElementById('roster-body'); tbody.innerHTML = '';
-            
+
             try {
                 // Fetch enrollments for specific section AND subject
                 const { data: students, error } = await supabase.from("enrollments").select("*").eq("section", sec).eq("subjectCode", sub);
@@ -477,20 +481,20 @@
             const btn = document.getElementById('saveScoreBtn'); btn.innerHTML = 'Saving...'; btn.disabled = true;
             try {
                 // IMPORTANT: Save Section in Activity Doc
-                const actRef = await insertRow("activities", { 
-                    subjectCode: document.getElementById('subCode').value, 
+                const actRef = await insertRow("activities", {
+                    subjectCode: document.getElementById('subCode').value,
                     section: document.getElementById('sectionSelect').value,
-                    term: document.getElementById('aTerm').value, 
-                    category: document.getElementById('aCat').value, 
-                    title: document.getElementById('aTitle').value, 
-                    perfectScore: Number(document.getElementById('perfectScore').value), 
+                    term: document.getElementById('aTerm').value,
+                    category: document.getElementById('aCat').value,
+                    title: document.getElementById('aTitle').value,
+                    perfectScore: Number(document.getElementById('perfectScore').value),
                     date: document.getElementById('aDate').value || new Date().toISOString()
                 });
                 const inputs = document.querySelectorAll('.stud-score');
                 for(let inp of inputs) { await insertRow("scores", { activityId: actRef.id, studentNo: inp.dataset.sno, score: Number(inp.value) }); }
                 window.showToast('Activity and all student scores saved!');
                 document.getElementById('activityForm').reset(); document.getElementById('roster-container').style.display = 'none';
-                window.loadActivities(); 
+                window.loadActivities();
             } catch(e) { console.error(e); window.showToast("Failed to save scores", "error"); }
             btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Save Activity & Scores'; btn.disabled = false;
         });
@@ -697,7 +701,7 @@
 
             // Also collect activities that span all subjects in a combined "All Activities" sheet
             // FORMAT: Row 1 = metadata header, Row 2 = field labels, Row 3+ = student data
-            // Columns: [LOCKED] Student_No | [LOCKED] Student_Name | [LOCKED] Subject_Code | 
+            // Columns: [LOCKED] Student_No | [LOCKED] Student_Name | [LOCKED] Subject_Code |
             //          [ACT 1] Score | [ACT 2] Score | ...
 
             Object.entries(bySubject).forEach(([subjectCode, acts]) => {
@@ -957,9 +961,9 @@
                 const { data: activities, error } = await supabase.from("activities").select("*");
                 if (error) throw error;
                 if(!activities || !activities.length) { tbody.innerHTML = '<tr><td colspan="8">No activities found.</td></tr>'; allActivitiesData = []; return; }
-                
+
                 let records = activities.map(d => ({ ...d, dateStr: d.date ? d.date.split('T')[0] : 'N/A' }));
-                
+
                 records.sort((a,b) => b.date.localeCompare(a.date));
                 allActivitiesData = records;
 
@@ -970,7 +974,7 @@
         window.renderTable = function(data) {
             const tbody = document.getElementById('manageBody');
             tbody.innerHTML = '';
-            
+
             if(data.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="8">No matching activities found.</td></tr>';
                 return;
@@ -996,8 +1000,8 @@
 
         window.handleSearch = function() {
             const query = document.getElementById('actSearch').value.toLowerCase();
-            const filtered = allActivitiesData.filter(item => 
-                item.title.toLowerCase().includes(query) || 
+            const filtered = allActivitiesData.filter(item =>
+                item.title.toLowerCase().includes(query) ||
                 item.subjectCode.toLowerCase().includes(query) ||
                 (item.section && item.section.toLowerCase().includes(query))
             );
@@ -1016,7 +1020,7 @@
             const checked = document.querySelectorAll('.row-checkbox:checked');
             const btn = document.getElementById('bulkDeleteBtn');
             const masterCheck = document.getElementById('selectAll');
-            
+
             if(checked.length === checkboxes.length && checkboxes.length > 0) masterCheck.checked = true;
             else masterCheck.checked = false;
 
@@ -1029,11 +1033,11 @@
         }
 
         let pendingAction = null;
-        
+
         window.openDeleteModal = function(id) {
             document.getElementById('modalTitle').innerText = 'Delete Activity?';
             document.getElementById('modalDesc').innerHTML = `This action cannot be undone. The activity and <b>all associated student scores</b> will be permanently removed.`;
-            
+
             pendingAction = async () => {
                 const btn = document.getElementById('modalConfirmBtn');
                 const originalText = btn.innerText; btn.innerText = "Deleting..."; btn.disabled = true;
@@ -1054,7 +1058,7 @@
 
             document.getElementById('modalTitle').innerText = 'Delete Multiple Activities?';
             document.getElementById('modalDesc').innerHTML = `You are about to delete <b>${selected.length} activities</b> and their associated scores.<br>This cannot be undone.`;
-            
+
             pendingAction = async () => {
                 const btn = document.getElementById('modalConfirmBtn');
                 const originalText = btn.innerText; btn.innerText = "Processing..."; btn.disabled = true;
@@ -1087,7 +1091,7 @@
         if (localStorage.getItem('theme') === 'dark') { body.classList.add('dark-theme'); themeIcon.className = 'ph-fill ph-moon'; } else { themeIcon.className = 'ph-fill ph-sun'; }
         themeToggleBtn.addEventListener('click', () => { body.classList.toggle('dark-theme'); const isDark = body.classList.contains('dark-theme'); localStorage.setItem('theme', isDark ? 'dark' : 'light'); themeIcon.style.transform = 'rotate(360deg)'; setTimeout(() => { themeIcon.className = isDark ? 'ph-fill ph-moon' : 'ph-fill ph-sun'; themeIcon.style.transform = 'rotate(0deg)'; }, 150); });
     </script>
-    
+
     <!-- MOBILE BOTTOM NAV -->
     <nav class="mobile-nav-bar">
         <ul>

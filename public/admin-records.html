@@ -625,9 +625,12 @@
 
 <script type="module">
 import { supabase } from "./supabase-adapter.js";
+
+import { startAdminSessionGuard } from "./admin-session.js";
 const _u=JSON.parse(localStorage.getItem('loggedInUser'));
 if(!_u||_u.role!=='admin')location.href='index.html';
-window.logout=()=>{localStorage.removeItem('loggedInUser');location.href='index.html';};
+const adminSessionGuard = startAdminSessionGuard(supabase, _u);
+window.logout=()=>{adminSessionGuard.stop();localStorage.removeItem('loggedInUser');location.href='index.html';};
 
 let enrollments=[],activities=[],scores=[];
 let sortCol=null,sortDir='asc',currentView='grid',editCtx=null;
@@ -955,7 +958,7 @@ function renderGrid(rows,acts){
         const bCls=row.status==='Passed'?'badge-pass':row.status==='Failed'?'badge-fail':'badge-pend';
         const pctStr=row.totalMax>0?`${row.scorePercent.toFixed(1)}%`:'&#8212;';
         const sName=row.studentName.replace(/'/g,"\'").replace(/"/g,'&quot;');
-        
+
         const initials = row.studentName.split(' ').filter(Boolean).map(w=>w[0].toUpperCase()).slice(0,2).join('');
         html+=`<tr>
             <td class="col-rank" style="text-align:center;">${rBadge(row.rank)}</td>

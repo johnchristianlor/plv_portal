@@ -522,9 +522,12 @@
 <script type="module">
 import { supabase } from "./supabase-adapter.js";
 
+
+import { startAdminSessionGuard } from "./admin-session.js";
 const _u=JSON.parse(localStorage.getItem('loggedInUser'));
 if(!_u||_u.role!=='admin')location.href='index.html';
-window.logout=()=>{localStorage.removeItem('loggedInUser');location.href='index.html';};
+const adminSessionGuard = startAdminSessionGuard(supabase, _u);
+window.logout=()=>{adminSessionGuard.stop();localStorage.removeItem('loggedInUser');location.href='index.html';};
 
 // ===================== CACHE =====================
 let subjectsMap={};   // subjectCode -> {subjectCode, subjectName, profName, schedule?}

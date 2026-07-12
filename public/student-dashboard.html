@@ -306,12 +306,15 @@
 <script type="module">
     import { supabase } from "./supabase-adapter.js";
     import { startStudentPresence } from "./student-presence.js";
+    import { startStudentSessionGuard } from "./student-session.js";
 
     const user = JSON.parse(localStorage.getItem('loggedInUser'));
     if (!user || user.role !== 'student') window.location.href = 'index.html';
     const studentPresence = startStudentPresence(supabase, user);
+        const studentSessionGuard = startStudentSessionGuard(supabase, user);
 
     window.logout = async function() {
+        studentSessionGuard.stop();
         await studentPresence.stop();
         localStorage.removeItem('loggedInUser');
         window.location.href = 'index.html';
@@ -423,6 +426,25 @@
     }
 
     async function saveAvatarUrl(url, successMessage = 'Avatar Updated!') {
+        const sessionToken = user.activeSessionToken || user.sessionToken || '';
+        try {
+            const { data, error } = await supabase.rpc('update_student_avatar', {
+                p_student_no: user.studentNo,
+                p_session_token: sessionToken,
+                p_avatar_url: url
+            });
+            if (!error) {
+                const savedUrl = (data && (data.avatarUrl || data.avatar_url)) || url;
+                setStoredAvatar(savedUrl);
+                window.showToast(successMessage);
+                window.closeAvatarModal();
+                return;
+            }
+            if (!String(error.message || '').toLowerCase().includes('update_student_avatar')) throw error;
+        } catch (error) {
+            if (!String(error.message || '').toLowerCase().includes('update_student_avatar')) throw error;
+        }
+
         const { data, error } = await supabase
             .from('users')
             .update({ avatarUrl: url })
@@ -564,19 +586,31 @@
 
 
     async function refreshStudentProfileFromDatabase() {
+        const sessionToken = user.activeSessionToken || user.sessionToken || '';
         try {
-            const { data, error } = await supabase
-                .from('users')
-                .select('fullName,courseYear,section,email,status,avatarUrl')
-                .eq('studentNo', user.studentNo)
-                .maybeSingle();
-            if (error) throw error;
+            let data = null;
+            const rpcResult = await supabase.rpc('get_student_profile', {
+                p_student_no: user.studentNo,
+                p_session_token: sessionToken
+            });
+            if (!rpcResult.error) data = rpcResult.data;
+            else if (!String(rpcResult.error.message || '').toLowerCase().includes('get_student_profile')) throw rpcResult.error;
+
+            if (!data) {
+                const result = await supabase
+                    .from('users')
+                    .select('fullName,courseYear,section,email,status,avatarUrl')
+                    .eq('studentNo', user.studentNo)
+                    .maybeSingle();
+                if (result.error) throw result.error;
+                data = result.data;
+            }
             if (!data) return;
             Object.assign(user, Object.fromEntries(Object.entries(data).filter(([, value]) => value !== null && value !== undefined && value !== '')));
             localStorage.setItem('loggedInUser', JSON.stringify(user));
             document.getElementById('sName').textContent = user.fullName || user.name || user.studentName || user.studentNo || 'Student';
-            document.getElementById('sCourse').textContent = user.courseYear || '—';
-            document.getElementById('sSec').textContent = user.section || '—';
+            document.getElementById('sCourse').textContent = user.courseYear || '-';
+            document.getElementById('sSec').textContent = user.section || '-';
             document.getElementById('avatarImg').src = user.avatarUrl || defaultAvatar;
             setTimeout(() => autoResizeText(document.getElementById('sName'), 40, 20), 50);
         } catch (error) {
@@ -628,10 +662,10 @@
                 const settings = settingsRow || { showStanding: false };
 
                 if(settings.showStanding) {
-                    // ─── SMART CLASS STANDING LOGIC ──────────────────────────────────────
+                    // --- SMART CLASS STANDING LOGIC --------------------------------------
                     // Priority: Final computed grade > Midterm raw grade > Activity score %
                     // Tie handling: same score = same rank (dense ranking)
-                    // ─────────────────────────────────────────────────────────────────────
+                    // ---------------------------------------------------------------------
 
                     // Fetch all enrollments in the same section for the same subject
                     const { data: classRows, error: classError } = await supabase.from("enrollments").select("*").eq("section", currentSection).eq("subjectCode", currentSubjectCode);
@@ -702,10 +736,10 @@
                         }));
 
                     } else if (scoringMode === 'midterm') {
-                        // Use midterm raw grade as the score (0–100 scale)
+                        // Use midterm raw grade as the score (0-100 scale)
                         leaderboard = allStudentNos.map(sNo => {
                             const e = enrollMap[sNo];
-                            // Students without midterm yet get 0 (not excluded — they still rank)
+                            // Students without midterm yet get 0 (not excluded - they still rank)
                             const score = e.midtermRaw != null ? e.midtermRaw : 0;
                             return { sNo, score, rawScore: score, mode: 'midterm', hasGrade: e.midtermRaw != null };
                         });
@@ -734,10 +768,10 @@
                     // Sort descending by score
                     leaderboard.sort((a, b) => b.score - a.score);
 
-                    // ── Dense / tie-aware ranking ──────────────────────────────────────────
+                    // -- Dense / tie-aware ranking ------------------------------------------
                     // If two students share a score, they share a rank.
                     // The next unique score gets rank = previous_rank + 1 (dense), not skipped.
-                    // Example: 98.8, 98.8, 95 → Rank 1, Rank 1, Rank 2
+                    // Example: 98.8, 98.8, 95 -> Rank 1, Rank 1, Rank 2
                     for (let i = 0; i < leaderboard.length; i++) {
                         if (i === 0) {
                             leaderboard[i].rank = 1;
