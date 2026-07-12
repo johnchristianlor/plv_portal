@@ -151,15 +151,6 @@ async function getUploadUrl(env, auth) {
     return response.json();
 }
 
-function buildPublicFileUrl(env, auth, b2FileName) {
-    const publicBaseUrl = envValue(env, 'B2_PUBLIC_BASE_URL').replace(/\/$/, '');
-    if (publicBaseUrl) return publicBaseUrl + '/' + encodeB2FileName(b2FileName);
-
-    const bucketName = envValue(env, 'B2_BUCKET_NAME');
-    if (!bucketName) throw new Error('B2_BUCKET_NAME or B2_PUBLIC_BASE_URL is missing.');
-    return auth.downloadUrl.replace(/\/$/, '') + '/file/' + encodeURIComponent(bucketName) + '/' + encodeB2FileName(b2FileName);
-}
-
 async function uploadToB2(env, file) {
     const extension = getExtension(file.name);
     if (!ALLOWED_EXTENSIONS.has(extension)) {
@@ -195,10 +186,10 @@ async function uploadToB2(env, file) {
 
     const uploaded = await response.json();
     return {
-        fileUrl: buildPublicFileUrl(env, auth, objectName),
+        fileUrl: '',
         b2FileId: uploaded.fileId,
         b2FileName: uploaded.fileName || objectName,
-        storage: 'backblaze',
+        storage: 'backblaze-private',
         contentType: file.type || 'application/octet-stream',
         fileSize: file.size
     };

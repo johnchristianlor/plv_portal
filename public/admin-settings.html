@@ -697,7 +697,7 @@
                     try { response = JSON.parse(xhr.responseText || '{}'); }
                     catch (error) { response = {}; }
 
-                    if (xhr.status >= 200 && xhr.status < 300 && response.fileUrl) {
+                    if (xhr.status >= 200 && xhr.status < 300 && (response.b2FileName || response.fileUrl)) {
                         resolve(response);
                         return;
                     }
@@ -745,7 +745,11 @@
                 await insertRow('sharedFiles', {
                     fileName: label,
                     originalName: file.name,
-                    fileUrl: uploadResult.fileUrl,
+                    fileUrl: uploadResult.fileUrl || '',
+                    b2FileId: uploadResult.b2FileId || '',
+                    b2FileName: uploadResult.b2FileName || '',
+                    storage: uploadResult.storage || 'backblaze-private',
+                    contentType: uploadResult.contentType || file.type || '',
                     fileType: getFileType(file.name),
                     fileSize: uploadResult.fileSize || file.size,
                     recipientStudentNo: recipient,
@@ -846,11 +850,31 @@
                     <div style="font-size:11px;font-weight:800;color:var(--accent-primary);background:var(--accent-light);display:inline-block;padding:3px 10px;border-radius:100px;width:fit-content;">${recipLabel(f.recipientStudentNo)}</div>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;">
                         <span style="font-size:10px;color:var(--text-muted);">${fmtDate(f.uploadedAt)}${f.fileSize ? ' · ' + formatSize(f.fileSize) : ''}</span>
-                        <a href="${f.fileUrl}" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;color:var(--accent-primary);text-decoration:none;display:flex;align-items:center;gap:4px;"><i class="ph-bold ph-arrow-square-out"></i> Open</a>
+                        <button onclick="window.openSentFile('${f.id}')" class="btn btn-outline" style="padding:6px 10px;font-size:12px;"><i class="ph-bold ph-arrow-square-out"></i> Open</button>
                     </div>
                 </div>`;
             }).join('');
         }
+
+        window.openSentFile = async function(id) {
+            try {
+                const token = await getAdminAccessToken();
+                const response = await fetch('/api/b2-download', {
+                    method: 'POST',
+                    headers: {
+                        'content-type': 'application/json',
+                        authorization: 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ fileId: id })
+                });
+                const data = await response.json();
+                if (!response.ok || !data.url) throw new Error(data.error || 'Could not open file.');
+                window.open(data.url, '_blank', 'noopener');
+            } catch (error) {
+                console.error(error);
+                window.showToast('Could not open file: ' + error.message, 'error');
+            }
+        };
 
         window.deleteSentFile = async function(id) {
             if (!confirm('Delete this file? Students will no longer see it.')) return;

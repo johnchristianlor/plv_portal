@@ -390,15 +390,9 @@ function renderFiles(files) {
         const badge = isNew(f.uploadedAt)
             ? `<span class="file-badge badge-new">New</span>`
             : `<span class="file-badge badge-file">${t.toUpperCase()}</span>`;
-        const fname = (f.fileName || f.originalName || 'File').replace(/'/g,"\\'");
-        const url = safeUrl(f.fileUrl);
-        // Image: clicking card or button opens lightbox; non-image: triggers download
-        const cardClick = isImg
-            ? `openLightbox('${url}','${fname}');`
-            : `downloadFile('${url}','${fname}');`;
-        const btnClick = isImg
-            ? `event.stopPropagation();openLightbox('${url}','${fname}');`
-            : `event.stopPropagation();downloadFile('${url}','${fname}');`;
+        const fileId = String(f.id || '').replace(/'/g, "\\'");
+        const cardClick = `openSharedFile('${fileId}');`;
+        const btnClick = `event.stopPropagation();openSharedFile('${fileId}');`;
         return `<div class="file-card" onclick="${cardClick}">
             <div class="file-icon ${iconClass(t)}">${fileIcon(t)}</div>
             ${badge}
@@ -536,19 +530,55 @@ window.refreshFiles = async () => {
 loadFiles();
 
 // ── LIGHTBOX ──
-window.openLightbox = (url, name) => {
+async function getSharedFileUrl(file) {
+    if (!file) throw new Error('File was not found.');
+    if (!file.b2FileName && file.fileUrl) return file.fileUrl;
+
+    const response = await fetch('/api/b2-download', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ fileId: file.id, studentNo: getStudentId() })
+    });
+    const data = await response.json();
+    if (!response.ok || !data.url) throw new Error(data.error || 'Could not open this file.');
+    return data.url;
+}
+
+window.openSharedFile = async function(fileId) {
+    try {
+        const file = allFiles.find(f => String(f.id) === String(fileId));
+        const url = await getSharedFileUrl(file);
+        const name = file.fileName || file.originalName || 'File';
+        if (fileType(file) === 'image') {
+            window.openLightbox(url, name, fileId);
+            return;
+        }
+        await downloadFile(url, name);
+    } catch (error) {
+        console.error(error);
+        toast('Could not open file: ' + error.message, 'error');
+    }
+};
+
+window.openLightbox = (url, name, fileId = '') => {
     document.getElementById('lb-img').src = url;
-    document.getElementById('lb-dl-btn').onclick = () => downloadFile(url, name);
+    document.getElementById('lb-dl-btn').onclick = async () => {
+        const file = allFiles.find(f => String(f.id) === String(fileId));
+        const freshUrl = file ? await getSharedFileUrl(file) : url;
+        await downloadFile(freshUrl, name);
+    };
     document.getElementById('lightbox').classList.add('open');
 };
 
-// ── FORCE DOWNLOAD (bypasses browser open-in-tab behaviour) ──
 async function downloadFile(url, name) {
+    const btn = document.getElementById('lb-dl-btn');
     try {
-        const btn = document.getElementById('lb-dl-btn');
-        btn.innerHTML = '<i class="ph-bold ph-circle-notch" style="animation:spin 0.8s linear infinite;display:inline-block;"></i> Downloading…';
-        btn.disabled = true;
+        if (btn) {
+            btn.innerHTML = '<i class="ph-bold ph-circle-notch" style="animation:spin 0.8s linear infinite;display:inline-block;"></i> Downloading...';
+            btn.disabled = true;
+        }
         const res = await fetch(url);
+        if (!res.ok) throw new Error('Download failed.');
         const blob = await res.blob();
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -557,14 +587,13 @@ async function downloadFile(url, name) {
         a.click();
         a.remove();
         URL.revokeObjectURL(a.href);
-        btn.innerHTML = '<i class="ph-bold ph-download-simple"></i> Download';
-        btn.disabled = false;
     } catch(e) {
-        // Fallback: open in new tab if fetch blocked (CORS)
         window.open(url, '_blank');
-        const btn = document.getElementById('lb-dl-btn');
-        btn.innerHTML = '<i class="ph-bold ph-download-simple"></i> Download';
-        btn.disabled = false;
+    } finally {
+        if (btn) {
+            btn.innerHTML = '<i class="ph-bold ph-download-simple"></i> Download';
+            btn.disabled = false;
+        }
     }
 }
 window.downloadFile = downloadFile;
