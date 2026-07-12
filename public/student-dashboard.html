@@ -85,6 +85,21 @@
     .avatar-upload-copy p { font-size: 12px; color: var(--text-muted); font-weight: 600; line-height: 1.4; }
     .btn-upload-avatar { background: var(--accent-primary); color: #fff; display: inline-flex; align-items: center; gap: 8px; }
     .btn-upload-avatar:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .avatar-crop-editor { display: none; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.55); border-radius: 20px; padding: 18px; margin-bottom: 22px; }
+    .dark-theme .avatar-crop-editor { background: rgba(15,23,42,0.45); }
+    .avatar-crop-editor.open { display: block; }
+    .avatar-crop-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .avatar-crop-head h4 { font-size: 15px; font-weight: 800; color: var(--text-main); }
+    .avatar-crop-head p { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
+    .avatar-crop-stage { width: 260px; height: 260px; margin: 0 auto 14px; border-radius: 50%; overflow: hidden; background: #111827; box-shadow: 0 0 0 6px var(--accent-light); touch-action: none; cursor: grab; }
+    .avatar-crop-stage:active { cursor: grabbing; }
+    #avatarCropCanvas { width: 100%; height: 100%; display: block; }
+    .avatar-crop-controls { display: flex; flex-direction: column; gap: 12px; }
+    .avatar-crop-zoom { display: flex; align-items: center; gap: 10px; color: var(--text-muted); font-size: 18px; }
+    .avatar-crop-zoom input { width: 100%; accent-color: var(--accent-primary); }
+    .avatar-crop-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+    .btn-save-crop { background: var(--accent-primary); color: #fff; }
+    .btn-cancel-crop { background: transparent; border: 1px solid var(--glass-border); color: var(--text-muted); }
 
     .toast { position: fixed; bottom: 32px; right: 32px; background: var(--success); color: #fff; padding: 16px 24px; border-radius: 12px; font-weight: 600; box-shadow: 0 12px 24px rgba(16, 185, 129, 0.3); display: flex; align-items: center; gap: 12px; transform: translateX(150%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000;} .toast.show { transform: translateX(0); } .toast.error { background: var(--danger); }
     
@@ -323,21 +338,69 @@
         });
     }
 
-    async function resizeAvatar(file) {
-        const source = await readImageFile(file);
-        const image = await loadImage(source);
-        const maxSide = 512;
-        const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
-        const width = Math.max(1, Math.round(image.width * scale));
-        const height = Math.max(1, Math.round(image.height * scale));
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
+    const cropState = { image: null, zoom: 1, offsetX: 0, offsetY: 0, dragging: false, lastX: 0, lastY: 0 };
+
+    function getCropGeometry(size = 260) {
+        const image = cropState.image;
+        if (!image) return null;
+        const baseScale = size / Math.min(image.width, image.height);
+        const drawW = image.width * baseScale * cropState.zoom;
+        const drawH = image.height * baseScale * cropState.zoom;
+        return { drawW, drawH, x: (size - drawW) / 2 + cropState.offsetX, y: (size - drawH) / 2 + cropState.offsetY };
+    }
+
+    function clampCropOffset() {
+        const geo = getCropGeometry();
+        if (!geo) return;
+        const maxX = Math.max(0, (geo.drawW - 260) / 2);
+        const maxY = Math.max(0, (geo.drawH - 260) / 2);
+        cropState.offsetX = Math.min(maxX, Math.max(-maxX, cropState.offsetX));
+        cropState.offsetY = Math.min(maxY, Math.max(-maxY, cropState.offsetY));
+    }
+
+    function renderCropPreview() {
+        const canvas = document.getElementById('avatarCropCanvas');
+        if (!canvas || !cropState.image) return;
         const ctx = canvas.getContext('2d');
+        const size = canvas.width;
+        clampCropOffset();
+        const geo = getCropGeometry(size);
+        ctx.clearRect(0, 0, size, size);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+        ctx.clip();
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(image, 0, 0, width, height);
-        return canvas.toDataURL('image/jpeg', 0.88);
+        ctx.fillRect(0, 0, size, size);
+        ctx.drawImage(cropState.image, geo.x, geo.y, geo.drawW, geo.drawH);
+        ctx.restore();
+    }
+
+    async function openCropEditor(file) {
+        const source = await readImageFile(file);
+        cropState.image = await loadImage(source);
+        cropState.zoom = 1;
+        cropState.offsetX = 0;
+        cropState.offsetY = 0;
+        document.getElementById('avatarZoomRange').value = '1';
+        document.getElementById('avatarCropEditor').classList.add('open');
+        renderCropPreview();
+    }
+
+    function buildCroppedAvatarUrl() {
+        if (!cropState.image) throw new Error('No image selected.');
+        const sourceSize = 260;
+        const outputSize = 512;
+        const sourceGeo = getCropGeometry(sourceSize);
+        const canvas = document.createElement('canvas');
+        canvas.width = outputSize;
+        canvas.height = outputSize;
+        const ctx = canvas.getContext('2d');
+        const scale = outputSize / sourceSize;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, outputSize, outputSize);
+        ctx.drawImage(cropState.image, sourceGeo.x * scale, sourceGeo.y * scale, sourceGeo.drawW * scale, sourceGeo.drawH * scale);
+        return canvas.toDataURL('image/jpeg', 0.9);
     }
 
     async function saveAvatarUrl(url, successMessage = 'Avatar Updated!') {
@@ -376,6 +439,53 @@
         }
     }
 
+
+    window.cancelAvatarCrop = function() {
+        document.getElementById('avatarCropEditor').classList.remove('open');
+        cropState.image = null;
+    };
+
+    window.saveCroppedAvatar = async function() {
+        const btn = document.getElementById('avatarSaveCropBtn');
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph-bold ph-circle-notch" style="animation:spin .8s linear infinite;display:inline-block;"></i> Saving';
+        try {
+            await saveAvatarUrl(buildCroppedAvatarUrl(), 'Photo avatar saved!');
+            window.cancelAvatarCrop();
+        } catch (error) {
+            console.error(error);
+            window.showToast(error.message || 'Failed to save cropped avatar.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    };
+
+    document.getElementById('avatarZoomRange').addEventListener('input', (event) => {
+        cropState.zoom = Number(event.target.value) || 1;
+        renderCropPreview();
+    });
+
+    const cropStage = document.getElementById('avatarCropStage');
+    cropStage.addEventListener('pointerdown', (event) => {
+        if (!cropState.image) return;
+        cropState.dragging = true;
+        cropState.lastX = event.clientX;
+        cropState.lastY = event.clientY;
+        cropStage.setPointerCapture(event.pointerId);
+    });
+    cropStage.addEventListener('pointermove', (event) => {
+        if (!cropState.dragging) return;
+        cropState.offsetX += event.clientX - cropState.lastX;
+        cropState.offsetY += event.clientY - cropState.lastY;
+        cropState.lastX = event.clientX;
+        cropState.lastY = event.clientY;
+        renderCropPreview();
+    });
+    cropStage.addEventListener('pointerup', () => { cropState.dragging = false; });
+    cropStage.addEventListener('pointercancel', () => { cropState.dragging = false; });
+
     window.selectAvatar = async function(url) {
         try {
             await saveAvatarUrl(url);
@@ -402,19 +512,11 @@
             return;
         }
 
-        const btn = document.getElementById('avatarUploadBtn');
-        const original = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<i class="ph-bold ph-circle-notch" style="animation:spin .8s linear infinite;display:inline-block;"></i> Saving';
         try {
-            const avatarUrl = await resizeAvatar(file);
-            await saveAvatarUrl(avatarUrl, 'Photo avatar saved!');
+            await openCropEditor(file);
         } catch (error) {
             console.error(error);
-            window.showToast(error.message || 'Failed to upload avatar.', 'error');
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = original;
+            window.showToast(error.message || 'Failed to prepare avatar crop.', 'error');
         }
     });
     document.getElementById('sName').textContent = user.fullName;

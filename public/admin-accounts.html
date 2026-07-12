@@ -158,6 +158,12 @@
         .directory-empty{grid-column:1/-1;text-align:center;padding:54px 20px;color:var(--text-muted);font-weight:700;background:var(--input-bg);border:1px dashed var(--input-border);border-radius:18px;}
         @media(max-width:900px){.directory-toolbar{grid-template-columns:1fr 1fr;}.student-directory-grid{max-height:none;overflow:visible;}}
         @media(max-width:600px){.directory-toolbar{grid-template-columns:1fr;}.student-card{padding:14px;}.student-avatar{width:52px;height:52px;}}
+        .student-avatar-btn{border:0;background:transparent;padding:0;cursor:pointer;border-radius:50%;line-height:0;flex-shrink:0;}
+        .student-avatar-btn:hover .student-avatar{border-color:var(--accent-primary);box-shadow:0 0 0 4px var(--accent-light);}
+        .avatar-preview-modal{max-width:440px;text-align:center;}
+        .avatar-preview-img{width:min(320px,72vw);height:min(320px,72vw);border-radius:50%;object-fit:cover;border:6px solid var(--accent-light);background:#fff;margin:4px auto 18px;display:flex;align-items:center;justify-content:center;color:#fff;background-color:var(--accent-primary);font-size:58px;font-weight:800;}
+        .avatar-preview-name{font-size:20px;font-weight:800;color:var(--text-main);margin-bottom:4px;}
+        .avatar-preview-id{font-family:monospace;color:var(--text-muted);font-weight:700;font-size:13px;}
         /* UPLOAD */
         .upload-zone{border:2px dashed var(--accent-primary);background:var(--accent-light);border-radius:20px;padding:48px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:16px;cursor:pointer;transition:all .3s;margin-bottom:20px;}
         .upload-zone:hover{background:rgba(0,61,165,.15);}
@@ -323,7 +329,7 @@
                     <h3>Student Directory</h3>
                     <p>Browse every student profile with avatars, section, status, and enrolled subjects.</p>
                 </div>
-                <div class="chip chip-blue"><i class="ph-bold ph-users-three"></i>&nbsp;<b id="directoryCount">0</b>&nbsp;shown</div>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><div class="chip chip-blue"><i class="ph-bold ph-users-three"></i>&nbsp;<b id="directoryCount">0</b>&nbsp;shown</div><button class="btn btn-outline" id="refreshDirectoryBtn" onclick="window.refreshDirectory()" style="padding:8px 12px;font-size:12px;"><i class="ph-bold ph-arrow-clockwise"></i> Refresh</button></div>
             </div>
             <div class="directory-toolbar">
                 <div class="search-box">
@@ -481,6 +487,19 @@
                 <button type="submit" id="saveEditBtn" class="modal-btn btn-confirm-save"><i class="ph-bold ph-floppy-disk"></i> Save Changes</button>
             </div>
         </form>
+    </div>
+</div>
+
+
+<div id="avatarPreviewModal" class="modal-overlay">
+    <div class="modal-box avatar-preview-modal">
+        <div class="modal-head">
+            <div><h3>Student Avatar</h3><p>Profile preview</p></div>
+            <button class="modal-close-btn" onclick="window.closeAvatarPreview()"><i class="ph-bold ph-x"></i></button>
+        </div>
+        <div id="avatarPreviewVisual" class="avatar-preview-img"></div>
+        <div class="avatar-preview-name" id="avatarPreviewName">Student</div>
+        <div class="avatar-preview-id" id="avatarPreviewId">—</div>
     </div>
 </div>
 
@@ -720,9 +739,10 @@ function renderDirectory(data){
         const subjectChips=(st.subjects&&st.subjects.length?st.subjects:['No subject']).slice(0,4).map(sub=>`<span class="student-mini-chip">${escapeHtml(sub)}</span>`).join('');
         const extra=st.subjects&&st.subjects.length>4?`<span class="student-mini-chip muted">+${st.subjects.length-4} more</span>`:'';
         const statusCls=st.status==='Active'?'ok':'err';
-        const avatarHtml=st.avatarUrl
+        const avatarVisual=st.avatarUrl
             ? `<img class="student-avatar" src="${escapeHtml(st.avatarUrl)}" alt="${escapeHtml(st.studentName)} avatar" loading="lazy">`
             : `<div class="student-avatar student-avatar-fallback">${escapeHtml(initialsForStudent(st))}</div>`;
+        const avatarHtml=`<button class="student-avatar-btn" data-rowkey="${key}" onclick="window._handleAvatarPreview(this)" title="View avatar">${avatarVisual}</button>`;
         return `<div class="student-card">
             ${avatarHtml}
             <div class="student-card-main">
@@ -744,6 +764,35 @@ function renderDirectory(data){
         </div>`;
     }).join('');
 }
+
+
+window.refreshDirectory=async()=>{
+    const btn=document.getElementById('refreshDirectoryBtn');
+    const original=btn?btn.innerHTML:'';
+    if(btn){btn.disabled=true;btn.innerHTML='<span class="spin" style="width:14px;height:14px;margin-right:4px;"></span> Refreshing';}
+    try{await window.loadAccounts();window.applyDirectoryFilters();}
+    finally{if(btn){btn.disabled=false;btn.innerHTML=original;}}
+};
+
+window._handleAvatarPreview=(btn)=>{
+    const d=window._directoryRows&&window._directoryRows[btn.dataset.rowkey];
+    if(!d)return;
+    const student=allDirectoryStudents.find(st=>st.studentNo===d.sno);
+    if(student)window.openAvatarPreview(student);
+};
+
+window.openAvatarPreview=(student)=>{
+    const visual=document.getElementById('avatarPreviewVisual');
+    document.getElementById('avatarPreviewName').textContent=student.studentName||'Student';
+    document.getElementById('avatarPreviewId').textContent=student.studentNo||'—';
+    if(student.avatarUrl){
+        visual.innerHTML=`<img src="${escapeHtml(student.avatarUrl)}" alt="${escapeHtml(student.studentName)} avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;">`;
+    }else{
+        visual.textContent=initialsForStudent(student);
+    }
+    document.getElementById('avatarPreviewModal').classList.add('open');
+};
+window.closeAvatarPreview=()=>document.getElementById('avatarPreviewModal').classList.remove('open');
 
 window._handleDirectoryEdit=(btn)=>{
     const d=window._directoryRows&&window._directoryRows[btn.dataset.rowkey];
