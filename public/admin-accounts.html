@@ -133,6 +133,31 @@
         .fetching-tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--accent-primary);font-weight:700;margin-top:3px;}
         .fetched-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:7px;font-size:11px;font-weight:700;background:var(--success-bg);color:var(--success);margin-left:8px;}
 
+
+        /* STUDENT DIRECTORY */
+        .directory-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) repeat(3,minmax(150px,190px));gap:10px;margin-bottom:16px;align-items:center;}
+        .directory-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+        .directory-summary h3{font-size:18px;font-weight:800;color:var(--text-main);}
+        .directory-summary p{font-size:13px;color:var(--text-muted);font-weight:600;}
+        .student-directory-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:14px;max-height:680px;overflow-y:auto;padding:2px 6px 2px 2px;scrollbar-gutter:stable;}
+        .student-directory-grid::-webkit-scrollbar{width:6px;}
+        .student-directory-grid::-webkit-scrollbar-thumb{background:var(--input-border);border-radius:999px;}
+        .student-card{background:var(--input-bg);border:1px solid var(--glass-border);border-radius:16px;padding:16px;display:flex;gap:13px;align-items:flex-start;transition:all .2s;min-width:0;}
+        .student-card:hover{border-color:rgba(0,61,165,.28);box-shadow:0 12px 28px rgba(0,35,102,.08);transform:translateY(-1px);}
+        .student-avatar{width:58px;height:58px;border-radius:50%;object-fit:cover;flex-shrink:0;border:3px solid var(--accent-light);background:#fff;}
+        .student-avatar-fallback{display:flex;align-items:center;justify-content:center;background:var(--accent-primary);color:#fff;font-size:18px;font-weight:800;}
+        .student-card-main{min-width:0;flex:1;display:flex;flex-direction:column;gap:8px;}
+        .student-card-name{font-size:14px;font-weight:800;color:var(--text-main);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .student-card-id{font-family:monospace;font-size:12px;color:var(--text-muted);font-weight:700;}
+        .student-card-meta{display:flex;flex-wrap:wrap;gap:6px;}
+        .student-mini-chip{font-size:10px;font-weight:800;border-radius:999px;padding:4px 8px;background:var(--accent-light);color:var(--accent-primary);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .student-mini-chip.muted{background:rgba(100,116,139,.1);color:var(--text-muted);}
+        .student-mini-chip.ok{background:var(--success-bg);color:var(--success);}
+        .student-mini-chip.err{background:var(--danger-bg);color:var(--danger);}
+        .student-card-actions{display:flex;gap:6px;flex-wrap:wrap;}
+        .directory-empty{grid-column:1/-1;text-align:center;padding:54px 20px;color:var(--text-muted);font-weight:700;background:var(--input-bg);border:1px dashed var(--input-border);border-radius:18px;}
+        @media(max-width:900px){.directory-toolbar{grid-template-columns:1fr 1fr;}.student-directory-grid{max-height:none;overflow:visible;}}
+        @media(max-width:600px){.directory-toolbar{grid-template-columns:1fr;}.student-card{padding:14px;}.student-avatar{width:52px;height:52px;}}
         /* UPLOAD */
         .upload-zone{border:2px dashed var(--accent-primary);background:var(--accent-light);border-radius:20px;padding:48px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:16px;cursor:pointer;transition:all .3s;margin-bottom:20px;}
         .upload-zone:hover{background:rgba(0,61,165,.15);}
@@ -232,6 +257,7 @@
     <div class="card glass">
         <div class="tab-controls">
             <button class="tab-btn active" onclick="window.toggleTab('acc-manage',this)"><i class="ph-bold ph-users" style="font-size:13px;"></i> Manage Accounts</button>
+            <button class="tab-btn" onclick="window.toggleTab('acc-directory',this)"><i class="ph-bold ph-address-book" style="font-size:13px;"></i> Student Directory</button>
             <button class="tab-btn" onclick="window.toggleTab('acc-manual',this)"><i class="ph-bold ph-user-plus" style="font-size:13px;"></i> Create New</button>
             <button class="tab-btn" onclick="window.toggleTab('acc-bulk',this)"><i class="ph-bold ph-upload-simple" style="font-size:13px;"></i> Bulk Upload</button>
         </div>
@@ -289,7 +315,38 @@
             </div>
         </div>
 
-        <!-- TAB 2: CREATE NEW -->
+
+        <!-- TAB 2: STUDENT DIRECTORY -->
+        <div id="acc-directory" class="tab-content">
+            <div class="directory-summary">
+                <div>
+                    <h3>Student Directory</h3>
+                    <p>Browse every student profile with avatars, section, status, and enrolled subjects.</p>
+                </div>
+                <div class="chip chip-blue"><i class="ph-bold ph-users-three"></i>&nbsp;<b id="directoryCount">0</b>&nbsp;shown</div>
+            </div>
+            <div class="directory-toolbar">
+                <div class="search-box">
+                    <i class="ph-bold ph-magnifying-glass"></i>
+                    <input type="text" class="search-input" id="directorySearch" placeholder="Search student, number, email..." oninput="window.applyDirectoryFilters()">
+                </div>
+                <select class="sel" id="directorySection" onchange="window.applyDirectoryFilters()">
+                    <option value="">All Sections</option>
+                </select>
+                <select class="sel" id="directoryStatus" onchange="window.applyDirectoryFilters()">
+                    <option value="">All Status</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                </select>
+                <select class="sel" id="directoryCourse" onchange="window.applyDirectoryFilters()">
+                    <option value="">All Course/Year</option>
+                </select>
+            </div>
+            <div class="student-directory-grid" id="studentDirectoryGrid">
+                <div class="directory-empty"><span class="spin"></span> Loading students...</div>
+            </div>
+        </div>
+        <!-- TAB 3: CREATE NEW -->
         <div id="acc-manual" class="tab-content">
             <form id="createAccountForm">
                 <div class="form-grid">
@@ -325,7 +382,7 @@
             </form>
         </div>
 
-        <!-- TAB 3: BULK UPLOAD -->
+        <!-- TAB 4: BULK UPLOAD -->
         <div id="acc-bulk" class="tab-content">
             <div class="template-info">
                 <h4><i class="ph-bold ph-lightning" style="font-size:15px;"></i> Smart Auto-Fill Excel Template</h4>
@@ -455,6 +512,7 @@ let subjectsMap={};   // subjectCode -> {subjectCode, subjectName, profName, sch
 let sectionsMap={};   // sectionName -> {sectionName, yearLevel}
 let schedulesMap={};  // "subCode_section" -> {time, room, subjectCode, section}
 let allAccountsData=[];
+let allDirectoryStudents=[];
 let sortCol='studentName', sortDir='asc';
 let pendingAction=null;
 let pendingUploadRows=[];
@@ -558,6 +616,143 @@ function buildFilterOptions(){
         .map(s=>`<option value="${s.subjectCode}">${s.subjectCode}</option>`).join('');
     if(curSub)fSub.value=curSub;
 }
+function escapeHtml(value){
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function initialsForStudent(student){
+    const source=String(student.studentName || student.fullName || student.studentNo || 'S').trim();
+    const parts=source.split(/[\s,]+/).filter(Boolean);
+    const initials=(parts[0]?.[0]||'S')+(parts.length>1?(parts[parts.length-1]?.[0]||''):'');
+    return initials.toUpperCase().slice(0,2);
+}
+
+function buildDirectoryStudents(users,enrollments){
+    const enrollMap={};
+    (enrollments||[]).forEach(row=>{
+        const sno=String(row.studentNo||'').trim();
+        if(!sno)return;
+        if(!enrollMap[sno])enrollMap[sno]=[];
+        enrollMap[sno].push(row);
+    });
+
+    const seen=new Set();
+    const students=[];
+    (users||[])
+        .filter(row=>String(row.role||'student').toLowerCase()!=='admin' && (row.studentNo||row.username))
+        .forEach(row=>{
+            const sno=String(row.studentNo||row.username||row.id||'').trim();
+            if(!sno||seen.has(sno))return;
+            seen.add(sno);
+            const enrolled=enrollMap[sno]||[];
+            const subjects=[...new Set(enrolled.map(e=>e.subjectCode).filter(Boolean))];
+            const sections=[...new Set([row.section,...enrolled.map(e=>e.section)].filter(Boolean))];
+            students.push({
+                id:row.id,
+                studentNo:sno,
+                studentName:row.fullName||row.name||row.studentName||enrolled[0]?.studentName||sno,
+                email:row.email||'',
+                courseYear:row.courseYear||'',
+                section:row.section||enrolled[0]?.section||'',
+                sections,
+                status:row.status||'Active',
+                avatarUrl:row.avatarUrl||'',
+                subjects,
+                enrollments:enrolled
+            });
+        });
+
+    Object.keys(enrollMap).forEach(sno=>{
+        if(seen.has(sno))return;
+        const enrolled=enrollMap[sno]||[];
+        const subjects=[...new Set(enrolled.map(e=>e.subjectCode).filter(Boolean))];
+        const sections=[...new Set(enrolled.map(e=>e.section).filter(Boolean))];
+        students.push({
+            id:'',studentNo:sno,studentName:enrolled[0]?.studentName||sno,email:'',courseYear:'',
+            section:enrolled[0]?.section||'',sections,status:'Active',avatarUrl:'',subjects,enrollments:enrolled
+        });
+    });
+
+    return students.sort((a,b)=>(a.studentName||'').localeCompare(b.studentName||'')||(a.studentNo||'').localeCompare(b.studentNo||''));
+}
+
+function buildDirectoryFilterOptions(){
+    const sectionEl=document.getElementById('directorySection');
+    const courseEl=document.getElementById('directoryCourse');
+    if(!sectionEl||!courseEl)return;
+    const curSection=sectionEl.value;
+    const curCourse=courseEl.value;
+    const sections=[...new Set(allDirectoryStudents.flatMap(s=>s.sections&&s.sections.length?s.sections:[s.section]).filter(Boolean))].sort();
+    const courses=[...new Set(allDirectoryStudents.map(s=>s.courseYear).filter(Boolean))].sort();
+    sectionEl.innerHTML='<option value="">All Sections</option>'+sections.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    courseEl.innerHTML='<option value="">All Course/Year</option>'+courses.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    if(curSection)sectionEl.value=curSection;
+    if(curCourse)courseEl.value=curCourse;
+}
+
+window.applyDirectoryFilters=()=>{
+    const search=(document.getElementById('directorySearch')?.value||'').toLowerCase().trim();
+    const section=document.getElementById('directorySection')?.value||'';
+    const status=document.getElementById('directoryStatus')?.value||'';
+    const course=document.getElementById('directoryCourse')?.value||'';
+    const data=allDirectoryStudents.filter(st=>{
+        const hay=[st.studentName,st.studentNo,st.email,st.courseYear,st.section,(st.subjects||[]).join(' ')].join(' ').toLowerCase();
+        const sections=st.sections&&st.sections.length?st.sections:[st.section];
+        return (!search||hay.includes(search))&&(!section||sections.includes(section))&&(!status||st.status===status)&&(!course||st.courseYear===course);
+    });
+    renderDirectory(data);
+};
+
+function renderDirectory(data){
+    const grid=document.getElementById('studentDirectoryGrid');
+    const count=document.getElementById('directoryCount');
+    if(!grid)return;
+    if(count)count.textContent=data.length;
+    if(!data.length){
+        grid.innerHTML='<div class="directory-empty"><i class="ph-bold ph-user-circle-minus" style="font-size:26px;display:block;margin-bottom:8px;"></i>No students match your filters.</div>';
+        return;
+    }
+    window._directoryRows={};
+    grid.innerHTML=data.map((st,idx)=>{
+        const key='dir_'+idx;
+        const firstEnroll=st.enrollments&&st.enrollments[0]?st.enrollments[0]:{};
+        window._directoryRows[key]={sno:st.studentNo,enrollId:firstEnroll.id||'',subCode:firstEnroll.subjectCode||'',status:st.status};
+        const subjectChips=(st.subjects&&st.subjects.length?st.subjects:['No subject']).slice(0,4).map(sub=>`<span class="student-mini-chip">${escapeHtml(sub)}</span>`).join('');
+        const extra=st.subjects&&st.subjects.length>4?`<span class="student-mini-chip muted">+${st.subjects.length-4} more</span>`:'';
+        const statusCls=st.status==='Active'?'ok':'err';
+        const avatarHtml=st.avatarUrl
+            ? `<img class="student-avatar" src="${escapeHtml(st.avatarUrl)}" alt="${escapeHtml(st.studentName)} avatar" loading="lazy">`
+            : `<div class="student-avatar student-avatar-fallback">${escapeHtml(initialsForStudent(st))}</div>`;
+        return `<div class="student-card">
+            ${avatarHtml}
+            <div class="student-card-main">
+                <div>
+                    <div class="student-card-name" title="${escapeHtml(st.studentName)}">${escapeHtml(st.studentName)}</div>
+                    <div class="student-card-id">${escapeHtml(st.studentNo)}</div>
+                </div>
+                <div class="student-card-meta">
+                    <span class="student-mini-chip ${statusCls}">${escapeHtml(st.status||'Active')}</span>
+                    <span class="student-mini-chip muted">${escapeHtml(st.section||'No section')}</span>
+                    ${st.courseYear?`<span class="student-mini-chip muted">${escapeHtml(st.courseYear)}</span>`:''}
+                </div>
+                <div class="student-card-meta">${subjectChips}${extra}</div>
+                <div class="student-card-actions">
+                    <button class="action-btn btn-edit-row" data-rowkey="${key}" onclick="window._handleDirectoryEdit(this)"><i class="ph-bold ph-pencil-simple"></i> Edit</button>
+                    <button class="action-btn btn-toggle-row" data-rowkey="${key}" onclick="window._handleDirectoryToggle(this)"><i class="ph-bold ph-arrows-left-right"></i> Status</button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+window._handleDirectoryEdit=(btn)=>{
+    const d=window._directoryRows&&window._directoryRows[btn.dataset.rowkey];
+    if(d)window.openEditModal(d.sno,d.enrollId,d.subCode);
+};
+window._handleDirectoryToggle=(btn)=>{
+    const d=window._directoryRows&&window._directoryRows[btn.dataset.rowkey];
+    if(d)window.openToggleModal(d.sno,d.status);
+};
 
 // ===================== INIT =====================
 async function init(){
@@ -679,13 +874,17 @@ window.loadAccounts=async()=>{
                 enrollId:data.id,
                 status:um.status,
                 courseYear:um.courseYear,
+                avatarUrl:um.avatarUrl||'',
                 // Prefer user doc name if enrollment name is missing
                 studentName:data.studentName||um.fullName||data.studentNo
             });
         });
         allAccountsData=records;
+        allDirectoryStudents=buildDirectoryStudents(users,enrollments);
         buildFilterOptions();
+        buildDirectoryFilterOptions();
         applyFilters();
+        if(document.getElementById('acc-directory')?.classList.contains('active'))window.applyDirectoryFilters();
     }catch(e){
         console.error(e);
         tbody.innerHTML='<tr class="empty-msg"><td colspan="8" style="color:var(--danger);">Failed to load accounts.</td></tr>';
@@ -805,6 +1004,7 @@ window.toggleTab=(id,el)=>{
     document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     if(id==='acc-manage')window.loadAccounts();
+    if(id==='acc-directory'){ buildDirectoryFilterOptions(); window.applyDirectoryFilters(); }
 };
 
 // ===================== CONFIRM MODAL =====================

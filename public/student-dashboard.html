@@ -78,6 +78,13 @@
     .btn-modal { padding: 12px 24px; border-radius: 12px; font-weight: 700; border: none; cursor: pointer; transition: 0.3s; }
     .btn-shuffle { background: var(--accent-light); color: var(--accent-primary); }
     .btn-shuffle:hover { background: var(--accent-primary); color: #fff; }
+    .avatar-upload-panel { border: 1.5px dashed var(--accent-primary); background: var(--accent-light); border-radius: 18px; padding: 18px; margin-bottom: 22px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .avatar-upload-copy { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .avatar-upload-icon { width: 44px; height: 44px; border-radius: 14px; background: var(--accent-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+    .avatar-upload-copy h4 { font-size: 14px; font-weight: 800; color: var(--text-main); margin-bottom: 3px; }
+    .avatar-upload-copy p { font-size: 12px; color: var(--text-muted); font-weight: 600; line-height: 1.4; }
+    .btn-upload-avatar { background: var(--accent-primary); color: #fff; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-upload-avatar:hover { background: var(--accent-hover); transform: translateY(-1px); }
 
     .toast { position: fixed; bottom: 32px; right: 32px; background: var(--success); color: #fff; padding: 16px 24px; border-radius: 12px; font-weight: 600; box-shadow: 0 12px 24px rgba(16, 185, 129, 0.3); display: flex; align-items: center; gap: 12px; transform: translateX(150%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000;} .toast.show { transform: translateX(0); } .toast.error { background: var(--danger); }
     
@@ -240,6 +247,17 @@
             <h3>Choose your Avatar</h3>
             <button class="close-modal" onclick="window.closeAvatarModal()"><i class="ph-bold ph-x"></i></button>
         </div>
+        <div class="avatar-upload-panel">
+            <div class="avatar-upload-copy">
+                <div class="avatar-upload-icon"><i class="ph-bold ph-camera-plus"></i></div>
+                <div>
+                    <h4>Upload your own photo</h4>
+                    <p>JPG, PNG, GIF, or WebP. Maximum file size is 10 MB.</p>
+                </div>
+            </div>
+            <input type="file" id="avatarUploadInput" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
+            <button class="btn-modal btn-upload-avatar" id="avatarUploadBtn" onclick="window.triggerAvatarUpload()"><i class="ph-bold ph-upload-simple"></i> Upload</button>
+        </div>
         <div class="avatar-grid" id="avatarGrid">
             <!-- Avatars injected via JS -->
         </div>
@@ -276,8 +294,59 @@
     }
 
     // --- AVATAR LOGIC ---
+    const MAX_AVATAR_UPLOAD_BYTES = 10 * 1024 * 1024;
     const defaultAvatar = `https://api.dicebear.com/7.x/notionists/svg?seed=${user.studentNo}&backgroundColor=b6e3f4`;
     document.getElementById('avatarImg').src = user.avatarUrl || defaultAvatar;
+
+    function setStoredAvatar(url) {
+        document.getElementById('avatarImg').src = url;
+        user.avatarUrl = url;
+        try { localStorage.setItem('loggedInUser', JSON.stringify(user)); }
+        catch (error) { console.warn('Avatar saved to database but was too large for local cache.', error); }
+    }
+
+    function readImageFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('Could not read the selected image.'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function loadImage(src) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error('The selected image could not be loaded.'));
+            img.src = src;
+        });
+    }
+
+    async function resizeAvatar(file) {
+        const source = await readImageFile(file);
+        const image = await loadImage(source);
+        const maxSide = 512;
+        const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+        const width = Math.max(1, Math.round(image.width * scale));
+        const height = Math.max(1, Math.round(image.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(image, 0, 0, width, height);
+        return canvas.toDataURL('image/jpeg', 0.88);
+    }
+
+    async function saveAvatarUrl(url, successMessage = 'Avatar Updated!') {
+        setStoredAvatar(url);
+        const { error } = await supabase.from('users').update({ avatarUrl: url }).eq('studentNo', user.studentNo);
+        if (error) throw error;
+        window.showToast(successMessage);
+        window.closeAvatarModal();
+    }
 
     window.openAvatarModal = function() {
         document.getElementById('avatarModal').classList.add('open');
@@ -308,20 +377,46 @@
     }
 
     window.selectAvatar = async function(url) {
-        document.getElementById('avatarImg').src = url;
-        user.avatarUrl = url;
-        localStorage.setItem('loggedInUser', JSON.stringify(user));
         try {
-            const { error } = await supabase.from("users").update({ avatarUrl: url }).eq("studentNo", user.studentNo);
-            if (error) throw error;
-            window.showToast("Avatar Updated!");
-            window.closeAvatarModal();
+            await saveAvatarUrl(url);
         } catch(e) {
             console.error(e);
             window.showToast("Failed to save avatar", "error");
         }
     }
 
+    window.triggerAvatarUpload = function() {
+        document.getElementById('avatarUploadInput').click();
+    }
+
+    document.getElementById('avatarUploadInput').addEventListener('change', async (event) => {
+        const file = event.target.files && event.target.files[0];
+        event.target.value = '';
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            window.showToast('Please choose an image file.', 'error');
+            return;
+        }
+        if (file.size > MAX_AVATAR_UPLOAD_BYTES) {
+            window.showToast('Avatar must be 10 MB or smaller.', 'error');
+            return;
+        }
+
+        const btn = document.getElementById('avatarUploadBtn');
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph-bold ph-circle-notch" style="animation:spin .8s linear infinite;display:inline-block;"></i> Saving';
+        try {
+            const avatarUrl = await resizeAvatar(file);
+            await saveAvatarUrl(avatarUrl, 'Photo avatar saved!');
+        } catch (error) {
+            console.error(error);
+            window.showToast(error.message || 'Failed to upload avatar.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    });
     document.getElementById('sName').textContent = user.fullName;
     document.getElementById('sCourse').textContent = user.courseYear;
     document.getElementById('sSec').textContent = user.section;
