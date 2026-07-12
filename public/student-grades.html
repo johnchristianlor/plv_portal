@@ -200,43 +200,17 @@
 
     <script type="module">
         import { supabase } from "./supabase-adapter.js";
+        import { startStudentPresence } from "./student-presence.js";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'student') window.location.href = 'index.html';
+        const studentPresence = startStudentPresence(supabase, user);
 
-
-        // ─── HEARTBEAT / ONLINE TRACKING ─────────────────────────────────────────────
-        // Writes lastActiveAt every 2 min + on interaction.
-        // Admin counts students online only if lastActiveAt < 10 min ago.
-
-        const _HB_MS = 2 * 60 * 1000;   // heartbeat interval
-        const _DB_MS = 30 * 1000;        // activity debounce
-        
-        async function _ping() {
-            try { await supabase.from("users").update({ lastActiveAt: new Date().toISOString(), isOnline: true }).eq("studentNo", user.studentNo); }
-            catch(e) { /* silent */ }
-        }
-        _ping();
-        const _hbTimer = setInterval(_ping, _HB_MS);
-        
-        let _hbDebounce = null;
-        ['mousemove','keydown','click','touchstart','scroll'].forEach(ev =>
-            document.addEventListener(ev, () => {
-                if (_hbDebounce) return;
-                _hbDebounce = setTimeout(() => { _ping(); _hbDebounce = null; }, _DB_MS);
-            }, { passive: true })
-        );
-        
         window.logout = async function() {
-            clearInterval(_hbTimer);
-            try { await supabase.from("users").update({ isOnline: false, lastActiveAt: null }).eq("studentNo", user.studentNo); } catch(e) {}
+            await studentPresence.stop();
             localStorage.removeItem('loggedInUser');
             window.location.href = 'index.html';
         };
-        
-        window.addEventListener('beforeunload', () => {
-            supabase.from("users").update({ isOnline: false }).eq("studentNo", user.studentNo).then(() => {}).catch(() => {});
-        });
         // ──────────────────────────────────────────────────────────────────────────────
 
         window.showToast = function(message, type = 'success') {

@@ -186,7 +186,7 @@
             window.location.href = 'index.html';
         };
 
-        const INACTIVE_MS = 10 * 60 * 1000;
+        const INACTIVE_MS = 5 * 60 * 1000;
 
         function activeMillis(value) {
             if (!value) return 0;
@@ -199,7 +199,7 @@
             const cutoff = Date.now() - INACTIVE_MS;
             return (students || []).filter(student => {
                 const ms = activeMillis(student.lastActiveAt);
-                return ms ? ms >= cutoff : student.isOnline === true;
+                return student.isOnline !== false && ms >= cutoff;
             }).length;
         }
 
@@ -220,7 +220,7 @@
         }
 
         fetchStats();
-        setInterval(fetchStats, 60 * 1000);
+        setInterval(fetchStats, 30 * 1000);
 
         const themeToggleBtn = document.getElementById('themeToggle'); const themeIcon = document.getElementById('themeIcon'); const body = document.body;
         if (localStorage.getItem('theme') === 'dark') { body.classList.add('dark-theme'); themeIcon.className = 'ph-fill ph-moon'; } else { themeIcon.className = 'ph-fill ph-sun'; }

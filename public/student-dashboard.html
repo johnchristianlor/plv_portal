@@ -253,47 +253,17 @@
 
 <script type="module">
     import { supabase } from "./supabase-adapter.js";
+    import { startStudentPresence } from "./student-presence.js";
 
     const user = JSON.parse(localStorage.getItem('loggedInUser'));
     if (!user || user.role !== 'student') window.location.href = 'index.html';
-    
-
-    // ─── HEARTBEAT / ACTIVITY TRACKING ────────────────────────────────────────
-    // Pings Supabase every 2 min and on user activity so admin dashboard
-    // can detect true online status (active within last 10 minutes).
-    const HB_INTERVAL = 2 * 60 * 1000;  // 2 minutes
-    const HB_DEBOUNCE = 30 * 1000;       // 30 seconds
-
-    async function pingOnline() {
-        try {
-            const { error } = await supabase.from("users").update({ lastActiveAt: new Date().toISOString(), isOnline: true }).eq("studentNo", user.studentNo);
-            if (error) throw error;
-        } catch(e) { /* silent - don't break page */ }
-    }
-
-    pingOnline();
-    const _heartbeatTimer = setInterval(pingOnline, HB_INTERVAL);
-
-    let _actDebounce = null;
-    function onActivity() {
-        if (_actDebounce) return;
-        _actDebounce = setTimeout(() => { pingOnline(); _actDebounce = null; }, HB_DEBOUNCE);
-    }
-    ['mousemove','keydown','click','touchstart','scroll'].forEach(evt =>
-        document.addEventListener(evt, onActivity, { passive: true })
-    );
+    const studentPresence = startStudentPresence(supabase, user);
 
     window.logout = async function() {
-        clearInterval(_heartbeatTimer);
-        try { await supabase.from("users").update({ isOnline: false, lastActiveAt: null }).eq("studentNo", user.studentNo); }
-        catch(e) { /* silent */ }
+        await studentPresence.stop();
         localStorage.removeItem('loggedInUser');
         window.location.href = 'index.html';
     };
-
-    window.addEventListener('beforeunload', () => {
-        supabase.from("users").update({ isOnline: false }).eq("studentNo", user.studentNo).then(() => {}).catch(() => {});
-    });
 
     window.showToast = function(message, type = 'success') {
         const toast = document.getElementById('toast');
