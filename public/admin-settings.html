@@ -269,10 +269,11 @@
                             <label class="form-label">Send To</label>
                             <div style="position:relative;">
                                 <i class="ph-bold ph-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:16px;pointer-events:none;z-index:1;"></i>
-                                <input type="text" id="fRecipientSearch" class="form-control" placeholder="Search student or select All…" autocomplete="off" style="padding-left:40px;" oninput="window.filterRecipientDropdown()" onfocus="window.showRecipientDropdown()" onblur="setTimeout(()=>window.hideRecipientDropdown(),200)">
+                                <input type="text" id="fRecipientSearch" class="form-control" placeholder="Search student name or number..." autocomplete="off" style="padding-left:40px;" oninput="window.filterRecipientDropdown()" onfocus="window.showRecipientDropdown()" onblur="setTimeout(()=>window.hideRecipientDropdown(),200)">
                             </div>
                             <input type="hidden" id="fRecipient" value="all">
-                            <div id="fRecipientDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--glass-bg);backdrop-filter:blur(16px);border:1px solid var(--glass-border);border-radius:14px;box-shadow:0 16px 40px rgba(0,35,102,0.12);max-height:220px;overflow-y:auto;margin-top:4px;"></div>
+                            <div id="fRecipientDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--glass-bg);backdrop-filter:blur(16px);border:1px solid var(--glass-border);border-radius:14px;box-shadow:0 16px 40px rgba(0,35,102,0.12);max-height:260px;overflow-y:auto;margin-top:4px;"></div>
+                            <div id="fRecipientHint" style="font-size:11px;color:var(--text-muted);font-weight:700;margin-top:8px;line-height:1.4;">All students will see this file.</div>
                         </div>
                         <div class="form-group">
                             <label class="form-label">File Label (optional)</label>
@@ -510,79 +511,117 @@
         // ══════════════════════════════════════════
 
         // ── SEARCHABLE RECIPIENT PICKER ──
-        let allStudents = []; // { name, val } — populated from Supabase
+        let allStudents = [];
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, ch => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[ch]));
+        }
+
+        function recipientLabel(student) {
+            if (student.val === 'all') return 'All Students';
+            return student.name + ' (' + student.val + ')';
+        }
+
+        function selectedRecipientHint(val, label) {
+            if (val === 'all') return 'All students will see this file.';
+            return 'Only ' + label + ' will see this file.';
+        }
 
         async function loadStudentDropdowns() {
             try {
-                const { data: studentsRaw, error } = await supabase.from('users').select('*').eq('role', 'student');
+                const { data: studentsRaw, error } = await supabase
+                    .from('users')
+                    .select('studentNo,username,fullName,studentName,name,section,role,status')
+                    .eq('role', 'student');
                 if (error) throw error;
+
                 const filterSel = document.getElementById('fFilterRecipient');
-                const students = studentsRaw || [];
-                students.sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
-                students.forEach(u => {
-                    const name = u.fullName || u.studentName || u.username || u.studentNo || 'Unknown';
-                    const val = u.studentNo || u.username;
-                    if (!val) return;
-                    allStudents.push({ name, val });
-                    filterSel.innerHTML += `<option value="${val}">${name} (${val})</option>`;
+                const unique = new Map();
+                (studentsRaw || []).forEach(u => {
+                    const val = (u.studentNo || u.username || '').toString().trim();
+                    if (!val || unique.has(val)) return;
+                    const name = (u.fullName || u.studentName || u.name || u.username || val).toString().trim();
+                    unique.set(val, {
+                        name,
+                        val,
+                        section: u.section || '',
+                        searchText: [name, val, u.section || ''].join(' ').toLowerCase()
+                    });
                 });
-                // Set default display label
-                document.getElementById('fRecipientSearch').value = '📢 All Students';
-            } catch(e) { console.error('Dropdown load error:', e); window.showToast('Could not load student list', 'error'); }
+
+                allStudents = [...unique.values()].sort((a, b) => a.name.localeCompare(b.name));
+                filterSel.innerHTML = '<option value="">All Recipients</option><option value="all">All Students</option>' +
+                    allStudents.map(s => '<option value="' + escapeHtml(s.val) + '">' + escapeHtml(recipientLabel(s)) + '</option>').join('');
+
+                window.selectRecipient('all', 'All Students');
+            } catch(e) {
+                console.error('Dropdown load error:', e);
+                window.showToast('Could not load student list', 'error');
+            }
         }
         loadStudentDropdowns();
 
         function buildRecipientItems(filter) {
-            const allItem = { name: '📢 All Students', val: 'all' };
+            const allItem = { name: 'All Students', val: 'all', section: '', searchText: 'all students' };
             const list = [allItem, ...allStudents];
             const q = (filter || '').toLowerCase().trim();
-            return q ? list.filter(s => s.name.toLowerCase().includes(q) || s.val.toLowerCase().includes(q)) : list;
+            if (!q) return list;
+            return list.filter(s => s.searchText.includes(q));
         }
 
-        function renderRecipientDropdown(filter) {
+        function renderRecipientDropdown(filter = '') {
             const dd = document.getElementById('fRecipientDropdown');
             const items = buildRecipientItems(filter);
             if (!items.length) {
-                dd.innerHTML = `<div style="padding:14px 18px;font-size:13px;color:var(--text-muted);">No students found</div>`;
+                dd.innerHTML = '<div style="padding:14px 18px;font-size:13px;color:var(--text-muted);">No students found</div>';
                 return;
             }
+
             const currentVal = document.getElementById('fRecipient').value;
             dd.innerHTML = items.map(s => {
                 const active = s.val === currentVal ? 'background:var(--accent-light);color:var(--accent-primary);' : '';
-                return `<div onclick="window.selectRecipient('${s.val.replace(/'/g,"\'")}','${s.name.replace(/'/g,"\'")}')"
-                    style="padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;border-radius:10px;margin:3px 6px;transition:background 0.2s;${active}"
-                    onmouseenter="this.style.background='var(--accent-light)';this.style.color='var(--accent-primary)'"
-                    onmouseleave="this.style.background='${s.val === currentVal ? 'var(--accent-light)' : ''}';this.style.color='${s.val === currentVal ? 'var(--accent-primary)' : ''}'">
-                    ${s.name}${s.val !== 'all' ? `<span style="font-size:11px;color:var(--text-muted);margin-left:6px;">(${s.val})</span>` : ''}
-                </div>`;
+                const label = recipientLabel(s);
+                const section = s.section ? '<span style="font-size:11px;color:var(--text-muted);margin-left:6px;">' + escapeHtml(s.section) + '</span>' : '';
+                return '<div data-val="' + escapeHtml(s.val) + '" data-label="' + escapeHtml(label) + '" onclick="window.selectRecipientFromDropdown(this)" ' +
+                    'style="padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer;border-radius:10px;margin:3px 6px;transition:background 0.2s;' + active + '">' +
+                    escapeHtml(label) + section + '</div>';
             }).join('');
         }
 
-        window.selectRecipient = function(val, name) {
+        window.selectRecipientFromDropdown = function(el) {
+            window.selectRecipient(el.dataset.val, el.dataset.label);
+        };
+
+        window.selectRecipient = function(val, label) {
+            const cleanLabel = label || (val === 'all' ? 'All Students' : val);
             document.getElementById('fRecipient').value = val;
-            document.getElementById('fRecipientSearch').value = name;
+            document.getElementById('fRecipientSearch').value = cleanLabel;
+            document.getElementById('fRecipientHint').textContent = selectedRecipientHint(val, cleanLabel);
             window.hideRecipientDropdown();
         };
 
         window.showRecipientDropdown = function() {
             const dd = document.getElementById('fRecipientDropdown');
-            renderRecipientDropdown(document.getElementById('fRecipientSearch').value);
+            renderRecipientDropdown('');
             dd.style.display = 'block';
         };
 
         window.hideRecipientDropdown = function() {
             document.getElementById('fRecipientDropdown').style.display = 'none';
-            // If search is empty or doesn't match any student, reset to current hidden value
             const currentVal = document.getElementById('fRecipient').value;
-            if (!currentVal) {
-                window.selectRecipient('all', '📢 All Students');
-            }
+            if (!currentVal) window.selectRecipient('all', 'All Students');
         };
 
         window.filterRecipientDropdown = function() {
             const q = document.getElementById('fRecipientSearch').value;
-            // Clear hidden value while typing so user must pick from list
             document.getElementById('fRecipient').value = '';
+            document.getElementById('fRecipientHint').textContent = 'Choose a student from the list so only that student can see the file.';
             renderRecipientDropdown(q);
             document.getElementById('fRecipientDropdown').style.display = 'block';
         };
