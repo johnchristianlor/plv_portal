@@ -40,13 +40,23 @@ function getB2AuthToken(auth) {
     const storageApi = getB2StorageApi(auth);
     return auth.authorizationToken || storageApi.authorizationToken || '';
 }
+
+function getB2Allowed(auth) {
+    const storageApi = getB2StorageApi(auth);
+    return storageApi.allowed || auth.allowed || {};
+}
+
+function hasB2Capability(auth, capability) {
+    const capabilities = getB2Allowed(auth).capabilities || [];
+    return capabilities.includes('all') || capabilities.includes(capability);
+}
 async function authorizeB2(env) {
     const keyId = envValue(env, 'B2_KEY_ID', 'B2_APPLICATION_KEY_ID');
     const appKey = envValue(env, 'B2_APPLICATION_KEY');
     if (!keyId || !appKey) throw new Error('Backblaze application key variables are missing.');
 
     const credentials = btoa(keyId + ':' + appKey);
-    const response = await fetch('https://api.backblazeb2.com/b2api/v3/b2_authorize_account', {
+    const response = await fetch('https://api.backblazeb2.com/b2api/v4/b2_authorize_account', {
         headers: { authorization: 'Basic ' + credentials }
     });
 
@@ -151,7 +161,9 @@ async function createDownloadUrl(env, b2FileName) {
     const authorizationToken = getB2AuthToken(auth);
     if (!apiUrl || !downloadUrl || !authorizationToken) throw new Error('Backblaze authorization response is missing the API URL, download URL, or token.');
 
-    const response = await fetch(apiUrl + '/b2api/v3/b2_get_download_authorization', {
+    if (!hasB2Capability(auth, 'shareFiles')) throw new Error('Backblaze key needs the shareFiles permission to create private download links.');
+
+    const response = await fetch(apiUrl + '/b2api/v4/b2_get_download_authorization', {
         method: 'POST',
         headers: {
             authorization: authorizationToken,
@@ -195,4 +207,5 @@ export async function onRequestPost(context) {
         return json({ error: error.message || 'Could not open file.' }, 500);
     }
 }
+
 

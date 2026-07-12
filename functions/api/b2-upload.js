@@ -130,13 +130,53 @@ function getB2AuthToken(auth) {
     const storageApi = getB2StorageApi(auth);
     return auth.authorizationToken || storageApi.authorizationToken || '';
 }
+
+function getB2Allowed(auth) {
+    const storageApi = getB2StorageApi(auth);
+    return storageApi.allowed || auth.allowed || {};
+}
+
+function hasB2Capability(auth, capability) {
+    const capabilities = getB2Allowed(auth).capabilities || [];
+    return capabilities.includes('all') || capabilities.includes(capability);
+}
+
+function normalizeB2ObjectPrefix(prefix) {
+    const cleaned = String(prefix || '').trim().replace(/^\/+/, '');
+    if (!cleaned) return '';
+    return cleaned.endsWith('/') ? cleaned : cleaned + '/';
+}
+
+function getB2ObjectPrefix(env, auth) {
+    const allowedPrefix = getB2Allowed(auth).namePrefix || '';
+    return normalizeB2ObjectPrefix(envValue(env, 'B2_FILE_PREFIX') || allowedPrefix || 'plv_shared_files');
+}
+
+function assertB2UploadAllowed(env, auth, objectName) {
+    const allowed = getB2Allowed(auth);
+    const bucketId = envValue(env, 'B2_BUCKET_ID');
+    const buckets = Array.isArray(allowed.buckets) ? allowed.buckets : [];
+    const allowedPrefix = String(allowed.namePrefix || '');
+
+    if (allowed.capabilities && !hasB2Capability(auth, 'writeFiles')) {
+        throw new Error('Backblaze key needs the writeFiles permission to upload files.');
+    }
+
+    if (bucketId && buckets.length && !buckets.some(bucket => bucket.id === bucketId || bucket.bucketId === bucketId)) {
+        throw new Error('Backblaze key is not allowed to use the configured B2_BUCKET_ID.');
+    }
+
+    if (allowedPrefix && !objectName.startsWith(allowedPrefix)) {
+        throw new Error('Backblaze key is restricted to file prefix "' + allowedPrefix + '". Set B2_FILE_PREFIX to that same prefix or create a key without a prefix restriction.');
+    }
+}
 async function authorizeB2(env) {
     const keyId = envValue(env, 'B2_KEY_ID', 'B2_APPLICATION_KEY_ID');
     const appKey = envValue(env, 'B2_APPLICATION_KEY');
     if (!keyId || !appKey) throw new Error('Backblaze application key variables are missing.');
 
     const credentials = btoa(keyId + ':' + appKey);
-    const response = await fetch('https://api.backblazeb2.com/b2api/v3/b2_authorize_account', {
+    const response = await fetch('https://api.backblazeb2.com/b2api/v4/b2_authorize_account', {
         headers: { authorization: 'Basic ' + credentials }
     });
 
@@ -156,7 +196,7 @@ async function getUploadUrl(env, auth) {
     const authorizationToken = getB2AuthToken(auth);
     if (!apiUrl || !authorizationToken) throw new Error('Backblaze authorization response is missing the API URL or token.');
 
-    const response = await fetch(apiUrl + '/b2api/v3/b2_get_upload_url', {
+    const response = await fetch(apiUrl + '/b2api/v4/b2_get_upload_url', {
         method: 'POST',
         headers: {
             authorization: authorizationToken,
@@ -188,7 +228,9 @@ async function uploadToB2(env, file) {
     const upload = await getUploadUrl(env, auth);
     const buffer = await file.arrayBuffer();
     const checksum = await sha1Hex(buffer);
-    const objectName = 'plv_shared_files/' + new Date().toISOString().slice(0, 10) + '/' + Date.now() + '-' + safeFileName(file.name);
+    const objectPrefix = getB2ObjectPrefix(env, auth);
+    const objectName = objectPrefix + new Date().toISOString().slice(0, 10) + '/' + Date.now() + '-' + safeFileName(file.name);
+    assertB2UploadAllowed(env, auth, objectName);
 
     const response = await fetch(upload.uploadUrl, {
         method: 'POST',
@@ -239,4 +281,5 @@ export async function onRequestPost(context) {
         return json({ error: error.message || 'Upload failed.' }, 500);
     }
 }
+
 
