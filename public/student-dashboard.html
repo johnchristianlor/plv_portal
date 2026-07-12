@@ -291,7 +291,8 @@
                     <button class="btn-modal btn-save-crop" type="button" id="avatarSaveCropBtn" onclick="window.saveCroppedAvatar()"><i class="ph-bold ph-check"></i> Save Photo</button>
                 </div>
             </div>
-        </div>        <div class="avatar-grid" id="avatarGrid">
+        </div>
+        <div class="avatar-grid" id="avatarGrid">
             <!-- Avatars injected via JS -->
         </div>
         <div class="avatar-actions">
@@ -422,9 +423,14 @@
     }
 
     async function saveAvatarUrl(url, successMessage = 'Avatar Updated!') {
-        setStoredAvatar(url);
-        const { error } = await supabase.from('users').update({ avatarUrl: url }).eq('studentNo', user.studentNo);
+        const { data, error } = await supabase
+            .from('users')
+            .update({ avatarUrl: url })
+            .eq('studentNo', user.studentNo)
+            .select('avatarUrl')
+            .maybeSingle();
         if (error) throw error;
+        setStoredAvatar(data?.avatarUrl || url);
         window.showToast(successMessage);
         window.closeAvatarModal();
     }
@@ -555,6 +561,28 @@
         // If it still overflows after hitting minSize, the CSS wrapping takes over
     }
     setTimeout(() => { autoResizeText(document.getElementById("sName"), 40, 20); autoResizeText(document.getElementById("subTitle"), 22, 14); }, 200);
+
+
+    async function refreshStudentProfileFromDatabase() {
+        try {
+            const { data, error } = await supabase
+                .from('users')
+                .select('fullName,courseYear,section,email,status,avatarUrl')
+                .eq('studentNo', user.studentNo)
+                .maybeSingle();
+            if (error) throw error;
+            if (!data) return;
+            Object.assign(user, Object.fromEntries(Object.entries(data).filter(([, value]) => value !== null && value !== undefined && value !== '')));
+            localStorage.setItem('loggedInUser', JSON.stringify(user));
+            document.getElementById('sName').textContent = user.fullName || user.name || user.studentName || user.studentNo || 'Student';
+            document.getElementById('sCourse').textContent = user.courseYear || '—';
+            document.getElementById('sSec').textContent = user.section || '—';
+            document.getElementById('avatarImg').src = user.avatarUrl || defaultAvatar;
+            setTimeout(() => autoResizeText(document.getElementById('sName'), 40, 20), 50);
+        } catch (error) {
+            console.warn('Could not refresh student profile.', error);
+        }
+    }
 
     function getOrdinal(n) {
         const s = ["th", "st", "nd", "rd"];

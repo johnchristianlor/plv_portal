@@ -235,6 +235,23 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
         return data || null;
     }
 
+
+    async function enrichStudentProfile(userData) {
+        if (!userData || !userData.studentNo) return userData;
+        try {
+            const { data, error } = await supabase
+                .from('users')
+                .select('fullName,courseYear,section,email,status,avatarUrl')
+                .eq('studentNo', userData.studentNo)
+                .maybeSingle();
+            if (error) throw error;
+            return data ? { ...userData, ...Object.fromEntries(Object.entries(data).filter(([, value]) => value !== null && value !== undefined && value !== '')) } : userData;
+        } catch (error) {
+            console.warn('Student profile enrichment skipped.', error);
+            return userData;
+        }
+    }
+
     async function updateUserByStudentNo(studentNo, changes) {
         if (changes.password) {
             const { data, error } = await supabase.rpc('update_student_password', {
@@ -309,7 +326,8 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
         }
 
         try {
-            const userData = await findStudent(identifier, password);
+            let userData = await findStudent(identifier, password);
+            userData = await enrichStudentProfile(userData);
 
             if (!userData) {
                 window.showToast('Invalid Credentials.', 'error');
