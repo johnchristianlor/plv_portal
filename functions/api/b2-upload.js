@@ -1,4 +1,4 @@
-const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+﻿const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx']);
 
 function json(data, status = 200) {
@@ -112,6 +112,24 @@ async function sha1Hex(buffer) {
     return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
+function getB2StorageApi(auth) {
+    return (auth && auth.apiInfo && auth.apiInfo.storageApi) ? auth.apiInfo.storageApi : (auth || {});
+}
+
+function getB2ApiUrl(auth) {
+    const storageApi = getB2StorageApi(auth);
+    return storageApi.apiUrl || auth.apiUrl || '';
+}
+
+function getB2DownloadUrl(auth) {
+    const storageApi = getB2StorageApi(auth);
+    return storageApi.downloadUrl || auth.downloadUrl || '';
+}
+
+function getB2AuthToken(auth) {
+    const storageApi = getB2StorageApi(auth);
+    return auth.authorizationToken || storageApi.authorizationToken || '';
+}
 async function authorizeB2(env) {
     const keyId = envValue(env, 'B2_KEY_ID', 'B2_APPLICATION_KEY_ID');
     const appKey = envValue(env, 'B2_APPLICATION_KEY');
@@ -134,10 +152,14 @@ async function getUploadUrl(env, auth) {
     const bucketId = envValue(env, 'B2_BUCKET_ID');
     if (!bucketId) throw new Error('B2_BUCKET_ID is missing.');
 
-    const response = await fetch(auth.apiUrl + '/b2api/v3/b2_get_upload_url', {
+    const apiUrl = getB2ApiUrl(auth);
+    const authorizationToken = getB2AuthToken(auth);
+    if (!apiUrl || !authorizationToken) throw new Error('Backblaze authorization response is missing the API URL or token.');
+
+    const response = await fetch(apiUrl + '/b2api/v3/b2_get_upload_url', {
         method: 'POST',
         headers: {
-            authorization: auth.authorizationToken,
+            authorization: authorizationToken,
             'content-type': 'application/json'
         },
         body: JSON.stringify({ bucketId })
@@ -217,3 +239,4 @@ export async function onRequestPost(context) {
         return json({ error: error.message || 'Upload failed.' }, 500);
     }
 }
+

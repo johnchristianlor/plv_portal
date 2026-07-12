@@ -1,4 +1,4 @@
-function json(data, status = 200) {
+﻿function json(data, status = 200) {
     return new Response(JSON.stringify(data), {
         status,
         headers: { 'content-type': 'application/json; charset=utf-8' }
@@ -22,6 +22,24 @@ function encodeB2FileName(fileName) {
     return encodeURIComponent(fileName).replace(/%2F/g, '/');
 }
 
+function getB2StorageApi(auth) {
+    return (auth && auth.apiInfo && auth.apiInfo.storageApi) ? auth.apiInfo.storageApi : (auth || {});
+}
+
+function getB2ApiUrl(auth) {
+    const storageApi = getB2StorageApi(auth);
+    return storageApi.apiUrl || auth.apiUrl || '';
+}
+
+function getB2DownloadUrl(auth) {
+    const storageApi = getB2StorageApi(auth);
+    return storageApi.downloadUrl || auth.downloadUrl || '';
+}
+
+function getB2AuthToken(auth) {
+    const storageApi = getB2StorageApi(auth);
+    return auth.authorizationToken || storageApi.authorizationToken || '';
+}
 async function authorizeB2(env) {
     const keyId = envValue(env, 'B2_KEY_ID', 'B2_APPLICATION_KEY_ID');
     const appKey = envValue(env, 'B2_APPLICATION_KEY');
@@ -128,10 +146,15 @@ async function createDownloadUrl(env, b2FileName) {
 
     const auth = await authorizeB2(env);
     const validDurationInSeconds = Number(envValue(env, 'B2_DOWNLOAD_URL_SECONDS')) || 3600;
-    const response = await fetch(auth.apiUrl + '/b2api/v3/b2_get_download_authorization', {
+    const apiUrl = getB2ApiUrl(auth);
+    const downloadUrl = getB2DownloadUrl(auth);
+    const authorizationToken = getB2AuthToken(auth);
+    if (!apiUrl || !downloadUrl || !authorizationToken) throw new Error('Backblaze authorization response is missing the API URL, download URL, or token.');
+
+    const response = await fetch(apiUrl + '/b2api/v3/b2_get_download_authorization', {
         method: 'POST',
         headers: {
-            authorization: auth.authorizationToken,
+            authorization: authorizationToken,
             'content-type': 'application/json'
         },
         body: JSON.stringify({ bucketId, fileNamePrefix: b2FileName, validDurationInSeconds })
@@ -143,7 +166,7 @@ async function createDownloadUrl(env, b2FileName) {
     }
 
     const data = await response.json();
-    return auth.downloadUrl.replace(/\/$/, '') + '/file/' + encodeURIComponent(bucketName) + '/' + encodeB2FileName(b2FileName) + '?Authorization=' + encodeURIComponent(data.authorizationToken);
+    return downloadUrl.replace(/\/$/, '') + '/file/' + encodeURIComponent(bucketName) + '/' + encodeB2FileName(b2FileName) + '?Authorization=' + encodeURIComponent(data.authorizationToken);
 }
 
 export async function onRequestOptions() {
@@ -172,3 +195,4 @@ export async function onRequestPost(context) {
         return json({ error: error.message || 'Could not open file.' }, 500);
     }
 }
+
