@@ -227,12 +227,25 @@
         .qr-details { display:flex; flex-direction:column; gap:12px; min-width:0; }
         .qr-details h4 { font-size:17px; font-weight:800; color:var(--text-main); }
         .qr-details p { font-size:13px; line-height:1.6; color:var(--text-muted); font-weight:600; }
-        .qr-meta-grid { display:grid; grid-template-columns:repeat(3,minmax(120px,1fr)); gap:10px; }
+        .qr-meta-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; }
         .qr-meta { padding:10px 12px; border-radius:10px; background:var(--accent-light); }
         .qr-meta label { display:block; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.7px; color:var(--text-muted); margin-bottom:3px; }
         .qr-meta span { font-size:13px; font-weight:800; color:var(--text-main); word-break:break-word; }
         .qr-actions { display:flex; gap:10px; flex-wrap:wrap; }
-        @media (max-width:768px) { .qr-session-card { grid-template-columns:1fr; } .qr-box { width:100%; } .qr-meta-grid { grid-template-columns:1fr; } }
+        .qr-duration-field { display:flex; align-items:center; gap:10px; background:var(--input-bg); border:1px solid var(--input-border); border-radius:12px; padding:0 12px; }
+        .qr-duration-field input { border:none; background:transparent; padding:14px 0; min-width:0; flex:1; color:var(--text-main); font-weight:700; outline:none; }
+        .qr-duration-field span { font-size:12px; color:var(--text-muted); font-weight:800; text-transform:uppercase; letter-spacing:0.4px; }
+        .qr-expired { color:var(--danger) !important; }
+        .qr-large-modal-box { background:var(--glass-bg); backdrop-filter:blur(32px); border:1px solid var(--glass-border); border-radius:24px; width:min(94vw,680px); max-height:92vh; overflow:auto; padding:28px; box-shadow:0 24px 70px rgba(0,0,0,0.32); transform:scale(0.94); transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+        .modal-overlay.open .qr-large-modal-box { transform:scale(1); }
+        .qr-large-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:18px; }
+        .qr-large-head h3 { font-size:22px; font-weight:900; color:var(--text-main); display:flex; align-items:center; gap:10px; }
+        .qr-large-head p { margin-top:6px; color:var(--text-muted); font-size:13px; font-weight:600; line-height:1.5; }
+        .qr-close-btn { width:42px; height:42px; border-radius:12px; border:1px solid var(--input-border); background:var(--input-bg); color:var(--text-main); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px; flex-shrink:0; }
+        .qr-large-box { width:min(82vw,460px); min-height:min(82vw,460px); margin:0 auto 18px; padding:18px; border-radius:18px; background:#fff; border:1px solid rgba(0,35,102,0.08); display:flex; align-items:center; justify-content:center; }
+        .qr-large-box canvas, .qr-large-box img { width:min(72vw,420px) !important; height:min(72vw,420px) !important; }
+        .qr-large-footer { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
+        @media (max-width:768px) { .qr-session-card { grid-template-columns:1fr; } .qr-box { width:100%; } .qr-meta-grid { grid-template-columns:1fr; } .qr-large-modal-box { padding:20px; } }
         .btn-cancel-del { background:transparent; border:1.5px solid var(--input-border); color:var(--text-muted); font-weight:700; padding:12px 24px; border-radius:12px; cursor:pointer; font-size:14px; }
         .btn-confirm-del { background:var(--danger); color:#fff; border:none; font-weight:800; padding:12px 28px; border-radius:12px; cursor:pointer; font-size:14px; display:flex; align-items:center; gap:8px; }
         .btn-confirm-del:hover { opacity:0.9; transform:translateY(-1px); }
@@ -312,6 +325,13 @@
                         <label class="form-label">Date</label>
                         <input type="date" id="inputDate" class="form-control" required>
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">QR Duration</label>
+                        <div class="qr-duration-field">
+                            <input type="number" id="qrDurationMinutes" min="1" max="360" step="1" value="15" inputmode="numeric" aria-label="QR duration in minutes">
+                            <span>minutes</span>
+                        </div>
+                    </div>
                     <div class="form-group full" style="margin-top:4px; display:flex; flex-direction:row; gap:12px; flex-wrap:wrap; align-items:center;">
                         <button class="btn btn-primary" onclick="window.loadAttendanceRoster()" style="width:fit-content;">
                             <i class="ph-bold ph-users"></i> Load Student Roster
@@ -333,8 +353,11 @@
                             <div class="qr-meta"><label>Section</label><span id="qrMetaSection">-</span></div>
                             <div class="qr-meta"><label>Subject</label><span id="qrMetaSubject">-</span></div>
                             <div class="qr-meta"><label>Date</label><span id="qrMetaDate">-</span></div>
+                            <div class="qr-meta"><label>Expires</label><span id="qrMetaExpires">-</span></div>
+                            <div class="qr-meta"><label>Time Left</label><span id="qrMetaTimeLeft">-</span></div>
                         </div>
                         <div class="qr-actions">
+                            <button class="btn btn-outline" onclick="window.openLargeAttendanceQR()"><i class="ph-bold ph-arrows-out-simple"></i> Enlarge QR</button>
                             <button class="btn btn-outline" onclick="window.copyAttendanceQRPayload()"><i class="ph-bold ph-copy"></i> Copy QR Data</button>
                             <button class="btn btn-outline" onclick="window.downloadAttendanceQR()"><i class="ph-bold ph-download-simple"></i> Download QR</button>
                         </div>
@@ -495,6 +518,28 @@
         </div>
     </main>
 
+    <!-- LARGE QR MODAL -->
+    <div id="largeQrModal" class="modal-overlay">
+        <div class="qr-large-modal-box glass">
+            <div class="qr-large-head">
+                <div>
+                    <h3><i class="ph-bold ph-qr-code"></i> Attendance QR</h3>
+                    <p>Show this larger code to the class. Only scans completed before expiry will be accepted.</p>
+                </div>
+                <button class="qr-close-btn" onclick="window.closeLargeAttendanceQR()" aria-label="Close enlarged QR"><i class="ph-bold ph-x"></i></button>
+            </div>
+            <div class="qr-large-box" id="largeAttendanceQrBox"></div>
+            <div class="qr-large-footer">
+                <div class="qr-meta"><label>Section</label><span id="largeQrSection">-</span></div>
+                <div class="qr-meta"><label>Subject</label><span id="largeQrSubject">-</span></div>
+                <div class="qr-meta"><label>Expires</label><span id="largeQrExpires">-</span></div>
+                <div class="qr-meta"><label>Time Left</label><span id="largeQrTimeLeft">-</span></div>
+            </div>
+        </div>
+    </div>
+
+
+
     <!-- DELETE SELECTED MODAL -->
     <div id="deleteSelectedModal" class="modal-overlay">
         <div class="del-modal-box glass">
@@ -611,6 +656,8 @@
         let editingData = {};
         let subjectsBySection = {};
         let currentQrPayload = '';
+        let currentQrSession = null;
+        let qrCountdownTimer = null;
 
         async function fetchRows(table, builder = null) {
             let request = supabase.from(table).select('*');
@@ -652,6 +699,62 @@
             return { section, subjectCode, date };
         }
 
+        function getQrDurationMinutes() {
+            const raw = Number(document.getElementById('qrDurationMinutes').value || 15);
+            if(!Number.isFinite(raw) || raw < 1) return 15;
+            return Math.min(Math.round(raw), 360);
+        }
+
+        function formatQrDateTime(value) {
+            if(!value) return '-';
+            return new Date(value).toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+        }
+
+        function formatTimeLeft(expiresAt) {
+            const remaining = new Date(expiresAt).getTime() - Date.now();
+            if(!Number.isFinite(remaining) || remaining <= 0) return 'Expired';
+            const totalSeconds = Math.ceil(remaining / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            if(minutes >= 60) {
+                const hours = Math.floor(minutes / 60);
+                const mins = minutes % 60;
+                return hours + 'h ' + mins + 'm';
+            }
+            return minutes + ':' + String(seconds).padStart(2, '0');
+        }
+
+        function setQrTimeText(el, value) {
+            if(!el) return;
+            el.textContent = value;
+            el.classList.toggle('qr-expired', value === 'Expired');
+        }
+
+        function renderQrInto(elementId, size) {
+            const box = document.getElementById(elementId);
+            if(!box || !currentQrPayload) return;
+            box.innerHTML = '';
+            new QRCode(box, { text: currentQrPayload, width: size, height: size, correctLevel: QRCode.CorrectLevel.M });
+        }
+
+        function updateQrCountdown() {
+            if(!currentQrSession) return;
+            const value = formatTimeLeft(currentQrSession.expiresAt);
+            setQrTimeText(document.getElementById('qrMetaTimeLeft'), value);
+            setQrTimeText(document.getElementById('largeQrTimeLeft'), value);
+            if(value === 'Expired' && qrCountdownTimer) {
+                clearInterval(qrCountdownTimer);
+                qrCountdownTimer = null;
+            }
+        }
+
+        function startQrCountdown() {
+            if(qrCountdownTimer) clearInterval(qrCountdownTimer);
+            updateQrCountdown();
+            qrCountdownTimer = setInterval(updateQrCountdown, 1000);
+        }
+
+
         window.generateAttendanceQR = function() {
             const session = getSelectedSession();
             if(!session) return;
@@ -660,8 +763,10 @@
                 return;
             }
 
+            const durationMinutes = getQrDurationMinutes();
+            document.getElementById('qrDurationMinutes').value = durationMinutes;
             const generatedAt = new Date();
-            const expiresAt = new Date(generatedAt.getTime() + (6 * 60 * 60 * 1000));
+            const expiresAt = new Date(generatedAt.getTime() + (durationMinutes * 60 * 1000));
             const payload = {
                 type: 'plv_attendance_checkin',
                 version: 1,
@@ -674,14 +779,18 @@
             };
 
             currentQrPayload = encodeQrPayload(payload);
-            const box = document.getElementById('attendanceQrBox');
-            box.innerHTML = '';
-            new QRCode(box, { text: currentQrPayload, width: 196, height: 196, correctLevel: QRCode.CorrectLevel.M });
+            currentQrSession = { ...session, generatedAt: payload.generatedAt, expiresAt: payload.expiresAt, durationMinutes };
+            renderQrInto('attendanceQrBox', 196);
 
             document.getElementById('qrMetaSection').textContent = session.section;
             document.getElementById('qrMetaSubject').textContent = session.subjectCode;
             document.getElementById('qrMetaDate').textContent = session.date;
-            window.showToast('QR code generated for this attendance session.');
+            document.getElementById('qrMetaExpires').textContent = formatQrDateTime(payload.expiresAt);
+            document.getElementById('largeQrSection').textContent = session.section;
+            document.getElementById('largeQrSubject').textContent = session.subjectCode;
+            document.getElementById('largeQrExpires').textContent = formatQrDateTime(payload.expiresAt);
+            startQrCountdown();
+            window.showToast('QR code generated for ' + durationMinutes + ' minute' + (durationMinutes === 1 ? '' : 's') + '.');
         }
 
         window.copyAttendanceQRPayload = async function() {
@@ -705,6 +814,22 @@
             link.href = img ? img.src : canvas.toDataURL('image/png');
             link.click();
         }
+
+        window.openLargeAttendanceQR = function() {
+            if(!currentQrPayload || !currentQrSession) { window.showToast('Generate a QR code first.', 'error'); return; }
+            renderQrInto('largeAttendanceQrBox', 420);
+            document.getElementById('largeQrModal').classList.add('open');
+            updateQrCountdown();
+        }
+
+        window.closeLargeAttendanceQR = function() {
+            document.getElementById('largeQrModal').classList.remove('open');
+        }
+
+        document.getElementById('largeQrModal').addEventListener('click', (event) => {
+            if(event.target.id === 'largeQrModal') window.closeLargeAttendanceQR();
+        });
+
 
         // Toast
         window.showToast = function(msg, type='success') {
