@@ -524,6 +524,7 @@ import { supabase } from "./supabase-adapter.js";
 
 
 import { startAdminSessionGuard } from "./admin-session.js";
+import { avatarStaticUrl, resolveAvatarElement, defaultAvatarFor } from "./avatar-utils.js";
 const _u=JSON.parse(localStorage.getItem('loggedInUser'));
 if(!_u||_u.role!=='admin')location.href='index.html';
 const adminSessionGuard = startAdminSessionGuard(supabase, _u);
@@ -742,8 +743,10 @@ function renderDirectory(data){
         const subjectChips=(st.subjects&&st.subjects.length?st.subjects:['No subject']).slice(0,4).map(sub=>`<span class="student-mini-chip">${escapeHtml(sub)}</span>`).join('');
         const extra=st.subjects&&st.subjects.length>4?`<span class="student-mini-chip muted">+${st.subjects.length-4} more</span>`:'';
         const statusCls=st.status==='Active'?'ok':'err';
+        const staticAvatar=avatarStaticUrl(st.avatarUrl, st.studentNo || st.studentName);
+        const fallbackAvatar=defaultAvatarFor(st.studentNo || st.studentName);
         const avatarVisual=st.avatarUrl
-            ? `<img class="student-avatar" src="${escapeHtml(st.avatarUrl)}" alt="${escapeHtml(st.studentName)} avatar" loading="lazy">`
+            ? `<img class="student-avatar" src="${escapeHtml(staticAvatar || fallbackAvatar)}" data-avatar-value="${escapeHtml(st.avatarUrl)}" data-student-no="${escapeHtml(st.studentNo||'')}" alt="${escapeHtml(st.studentName)} avatar" loading="lazy">`
             : `<div class="student-avatar student-avatar-fallback">${escapeHtml(initialsForStudent(st))}</div>`;
         const avatarHtml=`<button class="student-avatar-btn" data-rowkey="${key}" onclick="window._handleAvatarPreview(this)" title="View avatar">${avatarVisual}</button>`;
         return `<div class="student-card">
@@ -766,6 +769,13 @@ function renderDirectory(data){
             </div>
         </div>`;
     }).join('');
+    resolveDirectoryAvatars(grid);
+}
+
+function resolveDirectoryAvatars(root){
+    root.querySelectorAll('img[data-avatar-value]').forEach(img=>{
+        resolveAvatarElement(img, img.dataset.avatarValue, { studentNo: img.dataset.studentNo, supabase, fallbackUrl: defaultAvatarFor(img.dataset.studentNo || 'student') });
+    });
 }
 
 
@@ -789,7 +799,10 @@ window.openAvatarPreview=(student)=>{
     document.getElementById('avatarPreviewName').textContent=student.studentName||'Student';
     document.getElementById('avatarPreviewId').textContent=student.studentNo||'—';
     if(student.avatarUrl){
-        visual.innerHTML=`<img src="${escapeHtml(student.avatarUrl)}" alt="${escapeHtml(student.studentName)} avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;">`;
+        const staticAvatar=avatarStaticUrl(student.avatarUrl, student.studentNo || student.studentName);
+        const fallbackAvatar=defaultAvatarFor(student.studentNo || student.studentName);
+        visual.innerHTML=`<img id="avatarPreviewImg" src="${escapeHtml(staticAvatar || fallbackAvatar)}" alt="${escapeHtml(student.studentName)} avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;">`;
+        resolveAvatarElement(document.getElementById('avatarPreviewImg'), student.avatarUrl, { studentNo: student.studentNo, supabase, fallbackUrl: fallbackAvatar });
     }else{
         visual.textContent=initialsForStudent(student);
     }

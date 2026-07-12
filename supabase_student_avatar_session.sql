@@ -1,4 +1,4 @@
-﻿-- PLV student avatar persistence and single-login security
+-- PLV student avatar persistence and single-login security
 -- Run this once in Supabase SQL Editor.
 
 alter table public.users
@@ -132,6 +132,10 @@ as $$
 declare
   v_avatar text;
 begin
+  if length(coalesce(p_avatar_url, '')) > 700 or lower(coalesce(p_avatar_url, '')) like 'data:image/%' then
+    raise exception 'Avatar must be a compact db: or b2: reference, not a base64 image.';
+  end if;
+
   update public.users
   set "avatarUrl" = p_avatar_url
   where "studentNo" = p_student_no
@@ -197,3 +201,6 @@ $$;
 
 grant execute on function public.start_admin_session(text,text) to anon, authenticated;
 grant execute on function public.validate_admin_session(text,text) to anon, authenticated;
+
+comment on column public.users."avatarUrl" is 'Compact avatar reference only. Use db:style:seed or b2:path. Do not store base64 data URLs.';
+comment on column public.users."activeSessionToken" is 'Short random browser-session token. New app tokens are 22 characters.';

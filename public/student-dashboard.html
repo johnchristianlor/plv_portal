@@ -307,11 +307,12 @@
     import { supabase } from "./supabase-adapter.js";
     import { startStudentPresence } from "./student-presence.js";
     import { startStudentSessionGuard } from "./student-session.js";
+    import { compactDicebearAvatar, resolveAvatarElement, uploadStudentAvatarBlob, defaultAvatarFor } from "./avatar-utils.js";
 
     const user = JSON.parse(localStorage.getItem('loggedInUser'));
     if (!user || user.role !== 'student') window.location.href = 'index.html';
     const studentPresence = startStudentPresence(supabase, user);
-        const studentSessionGuard = startStudentSessionGuard(supabase, user);
+    const studentSessionGuard = startStudentSessionGuard(supabase, user);
 
     window.logout = async function() {
         studentSessionGuard.stop();
@@ -332,11 +333,11 @@
 
     // --- AVATAR LOGIC ---
     const MAX_AVATAR_UPLOAD_BYTES = 10 * 1024 * 1024;
-    const defaultAvatar = `https://api.dicebear.com/7.x/notionists/svg?seed=${user.studentNo}&backgroundColor=b6e3f4`;
-    document.getElementById('avatarImg').src = user.avatarUrl || defaultAvatar;
+    const defaultAvatar = defaultAvatarFor(user);
+    resolveAvatarElement(document.getElementById('avatarImg'), user.avatarUrl, { user, supabase, fallbackUrl: defaultAvatar });
 
     function setStoredAvatar(url) {
-        document.getElementById('avatarImg').src = url;
+        resolveAvatarElement(document.getElementById('avatarImg'), url, { user, supabase, fallbackUrl: defaultAvatar });
         user.avatarUrl = url;
         try { localStorage.setItem('loggedInUser', JSON.stringify(user)); }
         catch (error) { console.warn('Avatar saved to database but was too large for local cache.', error); }
@@ -409,10 +410,10 @@
         renderCropPreview();
     }
 
-    function buildCroppedAvatarUrl() {
+    function buildCroppedAvatarBlob() {
         if (!cropState.image) throw new Error('No image selected.');
         const sourceSize = 260;
-        const outputSize = 512;
+        const outputSize = 256;
         const sourceGeo = getCropGeometry(sourceSize);
         const canvas = document.createElement('canvas');
         canvas.width = outputSize;
@@ -422,7 +423,9 @@
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, outputSize, outputSize);
         ctx.drawImage(cropState.image, sourceGeo.x * scale, sourceGeo.y * scale, sourceGeo.drawW * scale, sourceGeo.drawH * scale);
-        return canvas.toDataURL('image/jpeg', 0.9);
+        return new Promise((resolve, reject) => {
+            canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Could not prepare avatar image.')), 'image/jpeg', 0.78);
+        });
     }
 
     async function saveAvatarUrl(url, successMessage = 'Avatar Updated!') {
@@ -474,13 +477,14 @@
         for(let i=0; i<15; i++) {
             const randomStyle = styles[Math.floor(Math.random() * styles.length)];
             const randomSeed = Math.random().toString(36).substring(7);
-            const url = `https://api.dicebear.com/7.x/${randomStyle}/svg?seed=${randomSeed}&backgroundColor=transparent`;
+            const compactUrl = compactDicebearAvatar(randomStyle, randomSeed);
+            const displayUrl = `https://api.dicebear.com/7.x/${randomStyle}/svg?seed=${randomSeed}&backgroundColor=transparent`;
             
             const img = document.createElement('img');
-            img.src = url;
+            img.src = displayUrl;
             img.className = 'avatar-option';
             img.loading = 'lazy';
-            img.onclick = () => window.selectAvatar(url);
+            img.onclick = () => window.selectAvatar(compactUrl);
             grid.appendChild(img);
         }
     }
@@ -497,7 +501,8 @@
         btn.disabled = true;
         btn.innerHTML = '<i class="ph-bold ph-circle-notch" style="animation:spin .8s linear infinite;display:inline-block;"></i> Saving';
         try {
-            await saveAvatarUrl(buildCroppedAvatarUrl(), 'Photo avatar saved!');
+            const compactAvatarUrl = await uploadStudentAvatarBlob(await buildCroppedAvatarBlob(), user);
+            await saveAvatarUrl(compactAvatarUrl, 'Photo avatar saved!');
             window.cancelAvatarCrop();
         } catch (error) {
             console.error(error);
@@ -611,7 +616,7 @@
             document.getElementById('sName').textContent = user.fullName || user.name || user.studentName || user.studentNo || 'Student';
             document.getElementById('sCourse').textContent = user.courseYear || '-';
             document.getElementById('sSec').textContent = user.section || '-';
-            document.getElementById('avatarImg').src = user.avatarUrl || defaultAvatar;
+            resolveAvatarElement(document.getElementById('avatarImg'), user.avatarUrl, { user, supabase, fallbackUrl: defaultAvatar });
             setTimeout(() => autoResizeText(document.getElementById('sName'), 40, 20), 50);
         } catch (error) {
             console.warn('Could not refresh student profile.', error);
