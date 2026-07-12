@@ -70,7 +70,7 @@
         .chip-muted{background:rgba(100,116,139,.08);color:var(--text-muted);}
         .hint-bar{display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:12px;color:var(--text-muted);font-weight:600;padding:10px 14px;background:var(--accent-light);border-radius:10px;}
 
-        /* ===== RESPONSIVE GRID SCROLL — no scrollbars, drag + resize like Excel ===== */
+        /* ===== RESPONSIVE GRID SCROLL - drag + resize like Excel ===== */
         .grid-scroll-wrapper{width:100%;display:flex;flex-direction:column;gap:0;}
         .grid-scroll{
             width:100%;
@@ -184,7 +184,7 @@
         }
         .grid-table tbody tr:nth-child(even) td { background: var(--sticky-even-bg); }
 
-        /* Sticky cells — always use solid sticky bg so scrolling content doesn't bleed through */
+        /* Sticky cells - always use solid sticky bg so scrolling content does not bleed through */
         .grid-table tbody td.col-rank,
         .grid-table tbody td.col-sno,
         .grid-table tbody td.col-name { background: var(--sticky-odd-bg); }
@@ -192,7 +192,7 @@
         .grid-table tbody tr:nth-child(even) td.col-sno,
         .grid-table tbody tr:nth-child(even) td.col-name { background: var(--sticky-even-bg); }
 
-        /* Hover — entire row */
+        /* Hover - entire row */
         .grid-table tbody tr:hover td { background: var(--sticky-hover-bg) !important; }
         .grid-table tbody tr:hover td.col-rank,
         .grid-table tbody tr:hover td.col-sno,
@@ -299,6 +299,63 @@
         .grid-density-compact .btn-edit-row{width:24px;height:24px;}
         .table-footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:8px;}
         .table-footer span{font-size:12px;color:var(--text-muted);font-weight:600;}
+
+        /* ===== PROFESSIONAL MASTER SHEET POLISH ===== */
+        .records-card{border-radius:18px;padding:20px;background:rgba(255,255,255,.82);}
+        .dark-theme .records-card{background:rgba(10,15,30,.72);}
+        .toolbar{display:grid;grid-template-columns:minmax(220px,1.25fr) repeat(4,minmax(135px,.62fr)) auto auto auto auto;gap:10px;align-items:center;}
+        .toolbar .search-box{min-width:0;}
+        .toolbar .sel,.toolbar .btn,.toolbar .vt-btn{height:42px;}
+        .chips{margin-bottom:12px;}
+        .chip{border:1px solid rgba(148,163,184,.18);box-shadow:0 1px 0 rgba(255,255,255,.55) inset;}
+        .hint-bar{border:1px solid rgba(0,61,165,.12);background:rgba(0,61,165,.06);}
+        .sheet-status-bar{border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.94),rgba(248,250,252,.84));box-shadow:0 1px 0 rgba(255,255,255,.72) inset;}
+        .dark-theme .sheet-status-bar{background:linear-gradient(180deg,rgba(15,23,42,.85),rgba(15,23,42,.64));}
+        .grid-scroll{border-radius:12px;border:1px solid rgba(100,116,139,.22);background:var(--sticky-odd-bg);box-shadow:0 12px 26px rgba(15,23,42,.06);}
+        .grid-table{border-collapse:separate!important;border-spacing:0;min-width:max-content;width:max-content;}
+        .grid-table thead th{background:#f1f5fb;color:#475569;border-right:1px solid rgba(100,116,139,.16);border-bottom:1px solid rgba(100,116,139,.24);font-size:10px;font-weight:800;letter-spacing:.45px;text-transform:uppercase;vertical-align:bottom;}
+        .dark-theme .grid-table thead th{background:#111827;color:#cbd5e1;border-color:rgba(148,163,184,.16);}
+        .group-header th{height:30px;border-bottom:1px solid rgba(100,116,139,.16)!important;}
+        .gh-mid{background:#eaf3ff!important;color:#1d4ed8!important;}
+        .gh-fin{background:#f0ecff!important;color:#6d28d9!important;}
+        .gh-grade{background:#eafaf3!important;color:#047857!important;}
+        .dark-theme .gh-mid{background:rgba(37,99,235,.18)!important;color:#93c5fd!important;}
+        .dark-theme .gh-fin{background:rgba(109,40,217,.2)!important;color:#c4b5fd!important;}
+        .dark-theme .gh-grade{background:rgba(4,120,87,.2)!important;color:#86efac!important;}
+        .grid-table tbody td{height:52px;border-right:1px solid rgba(100,116,139,.12);border-bottom:1px solid rgba(100,116,139,.14);background:#fff;font-size:12px;}
+        .grid-table tbody tr:nth-child(even) td{background:#f8fafc;}
+        .dark-theme .grid-table tbody td{background:#0b1220;border-color:rgba(148,163,184,.12);}
+        .dark-theme .grid-table tbody tr:nth-child(even) td{background:#0f172a;}
+        .grid-table tbody tr:hover td{background:#eff6ff!important;}
+        .dark-theme .grid-table tbody tr:hover td{background:rgba(59,130,246,.16)!important;}
+        .grid-table tbody tr.row-selected td{background:#dbeafe!important;box-shadow:inset 0 1px 0 rgba(37,99,235,.16),inset 0 -1px 0 rgba(37,99,235,.16);}
+        .dark-theme .grid-table tbody tr.row-selected td{background:rgba(37,99,235,.24)!important;}
+        .col-rank{width:64px;min-width:64px;}
+        .col-sno{left:64px;min-width:132px;}
+        .col-name{left:196px;min-width:230px;box-shadow:8px 0 18px -12px rgba(15,23,42,.42);}
+        .grid-table thead .col-rank,.grid-table thead .col-sno,.grid-table thead .col-name{background:#e9eff8;}
+        .dark-theme .grid-table thead .col-rank,.dark-theme .grid-table thead .col-sno,.dark-theme .grid-table thead .col-name{background:#0f172a;}
+        .student-name-cell{gap:10px;}
+        .student-avatar{width:32px;height:32px;border-radius:10px;opacity:1;background:linear-gradient(135deg,var(--accent-primary),#2563eb);box-shadow:0 4px 12px rgba(0,61,165,.18);}
+        .student-name-text{max-width:172px;font-size:13px;font-weight:800;}
+        .sno-pill{font-size:11px;border-radius:8px;padding:5px 8px;background:#eef2ff;color:#334155;border:1px solid rgba(51,65,85,.08);}
+        .dark-theme .sno-pill{background:rgba(59,130,246,.14);color:#dbeafe;}
+        .sheet-meta{display:flex;flex-direction:column;gap:2px;min-width:96px;}
+        .sheet-meta-main{font-size:12px;font-weight:800;color:var(--text-main);}
+        .sheet-meta-sub{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.35px;}
+        .assessment-head{display:flex;flex-direction:column;align-items:center;gap:3px;max-width:116px;margin:0 auto;}
+        .assessment-title{font-size:11px;font-weight:800;color:var(--text-main);line-height:1.25;white-space:normal;text-align:center;}
+        .assessment-meta{font-size:9px;font-weight:700;color:var(--text-muted);}
+        .score-pill{display:inline-flex;align-items:baseline;justify-content:center;gap:2px;min-width:58px;padding:5px 8px;border-radius:999px;background:#eef2ff;color:#1e3a8a;border:1px solid rgba(30,58,138,.12);}
+        .dark-theme .score-pill{background:rgba(59,130,246,.16);color:#bfdbfe;}
+        .score-pill.empty{background:transparent;border:1px dashed rgba(100,116,139,.32);color:var(--text-muted);}
+        .sc-bar{width:62px;height:5px;margin-top:5px;}
+        .status-cell .badge{min-width:72px;justify-content:center;border-radius:999px;padding:5px 10px;}
+        .grade-stack{display:flex;flex-direction:column;align-items:center;gap:2px;}
+        .grade-label{font-size:9px;font-weight:800;color:var(--text-muted);text-transform:uppercase;}
+        .percent-cell{font-size:13px;font-weight:900;}
+        @media(max-width:1280px){.toolbar{grid-template-columns:minmax(220px,1fr) repeat(2,minmax(140px,.7fr));}.toolbar .view-toggle,.toolbar .btn{width:100%;justify-content:center;}}
+
 
         /* ===== RANKING VIEW ===== */
         .ranking-view{display:flex;flex-direction:column;gap:12px;}
@@ -430,7 +487,7 @@
             <li class="nav-item"><a href="admin-subjects.html"><i class="ph ph-notebook"></i> Manage Subjects</a></li>
             <li class="nav-item"><a href="admin-schedule.html"><i class="ph-fill ph-clock"></i> Manage Schedules</a></li>
             <li class="nav-item"><a href="admin-accounts.html"><i class="ph-fill ph-users"></i> Student Accounts</a></li>
-            <li class="nav-item"><a href="admin-activities.html"><i class="ph-fill ph-clipboard-text"></i> Activities Setup</a></li>
+            <li class="nav-item"><a href="admin-assessments.html"><i class="ph-fill ph-clipboard-text"></i> Create Assessments</a></li>
             <li class="nav-item"><a href="admin-grades.html"><i class="ph-fill ph-exam"></i> Input Grades</a></li>
             <li class="nav-item"><a href="admin-attendance.html"><i class="ph-fill ph-calendar-check"></i> Attendance</a></li>
             <li class="nav-item"><a href="admin-settings.html"><i class="ph-fill ph-gear"></i> System Settings</a></li>
@@ -609,17 +666,17 @@
 
 <nav class="mobile-nav-bar">
         <ul>
-            <li><a href="admin-dashboard.html"><i class="ph-fill ph-squares-four"></i>Dashboard</a></li>
-            <li><a href="admin-records.html" class="active"><i class="ph ph-pen"></i>Records</a></li>
-            <li><a href="admin-sections.html"><i class="ph-fill ph-users-three"></i>Sections</a></li>
-            <li><a href="admin-subjects.html"><i class="ph ph-notebook"></i>Subjects</a></li>
-            <li><a href="admin-schedule.html"><i class="ph-fill ph-clock"></i>Schedules</a></li>
-            <li><a href="admin-accounts.html"><i class="ph-fill ph-users"></i>Accounts</a></li>
-            <li><a href="admin-activities.html"><i class="ph-fill ph-clipboard-text"></i>Activities</a></li>
-            <li><a href="admin-grades.html"><i class="ph-fill ph-exam"></i>Grades</a></li>
-            <li><a href="admin-attendance.html"><i class="ph-fill ph-calendar-check"></i>Attendance</a></li>
-            <li><a href="admin-settings.html"><i class="ph-fill ph-gear"></i>Settings</a></li>
-            <li><a href="#" onclick="window.logout()"><i class="ph ph-sign-out"></i>Logout</a></li>
+            <li><a href="admin-dashboard.html" id="mnav-dash"><i class="ph-fill ph-squares-four"></i>Dashboard</a></li>
+            <li><a href="admin-records.html" id="mnav-rec" class="active"><i class="ph ph-pen"></i>Records</a></li>
+            <li><a href="admin-sections.html" id="mnav-sec"><i class="ph-fill ph-users-three"></i>Sections</a></li>
+            <li><a href="admin-subjects.html" id="mnav-sub"><i class="ph ph-notebook"></i>Subjects</a></li>
+            <li><a href="admin-schedule.html" id="mnav-sch"><i class="ph-fill ph-clock"></i>Schedules</a></li>
+            <li><a href="admin-accounts.html" id="mnav-acc"><i class="ph-fill ph-users"></i>Accounts</a></li>
+            <li><a href="admin-assessments.html" id="mnav-ass"><i class="ph-fill ph-clipboard-text"></i>Assessments</a></li>
+            <li><a href="admin-grades.html" id="mnav-grd"><i class="ph-fill ph-exam"></i>Grades</a></li>
+            <li><a href="admin-attendance.html" id="mnav-att"><i class="ph-fill ph-calendar-check"></i>Attendance</a></li>
+            <li><a href="admin-settings.html" id="mnav-set"><i class="ph-fill ph-gear"></i>Settings</a></li>
+            <li><a href="#" onclick="window.logout()" id="mnav-out"><i class="ph ph-sign-out"></i>Logout</a></li>
         </ul>
     </nav>
 
@@ -916,15 +973,17 @@ function renderGrid(rows,acts){
     let sh=`<tr>
         <th class="col-rank ${sc('rank')}" onclick="window.sortBy('rank')" style="text-align:center;" title="Sort by rank"><i class="ph-bold ph-trophy" style="font-size:13px;"></i></th>
         <th class="col-sno ${sc('studentNo')}" onclick="window.sortBy('studentNo')">Student No.</th>
-        <th class="col-name ${sc('studentName')}" onclick="window.sortBy('studentName')">Full Name</th>
+        <th class="col-name ${sc('studentName')}" onclick="window.sortBy('studentName')">Student</th>
         <th class="${sc('section')}" onclick="window.sortBy('section')">Section</th>
         <th class="${sc('subjectCode')}" onclick="window.sortBy('subjectCode')">Subject</th>`;
     allActs.forEach(a=>{
         const s=sortCol===`act_${a.id}`;
         sh+=`<th class="sc-cell ${s?(sortDir==='asc'?'sort-asc':'sort-desc'):''}" onclick="window.sortBy('act_${a.id}')" style="text-align:center;min-width:96px;">
-            ${ct(a.category)}
-            <div style="margin-top:2px;white-space:normal;line-height:1.3;font-size:10px;max-width:110px;">${a.title}</div>
-            <div style="font-size:9px;color:var(--text-muted);margin-top:1px;">${a.date||''} &bull; /${a.perfectScore}</div>
+            <div class="assessment-head">
+                ${ct(a.category)}
+                <div class="assessment-title">${a.title}</div>
+                <div class="assessment-meta">${a.date||'No date'} / ${a.perfectScore}</div>
+            </div>
         </th>`;
     });
     sh+=`<th class="gc ${sc('midGrade')}" onclick="window.sortBy('midGrade')" style="text-align:center;">Midterm<br>Grade</th>
@@ -969,8 +1028,8 @@ function renderGrid(rows,acts){
                     <span class="student-name-text" title="${row.studentName}">${row.studentName}</span>
                 </div>
             </td>
-            <td style="font-size:12px;">${row.section}</td>
-            <td style="font-size:12px;font-weight:800;color:var(--accent-primary);">${row.subjectCode}</td>`;
+            <td><div class="sheet-meta"><span class="sheet-meta-main">${row.section}</span><span class="sheet-meta-sub">Section</span></div></td>
+            <td><div class="sheet-meta"><span class="sheet-meta-main" style="color:var(--accent-primary);">${row.subjectCode}</span><span class="sheet-meta-sub">Subject</span></div></td>`;
         allActs.forEach(a=>{
             const sc=row.sba[a.id];
             const sv=sc?Number(sc.score):null;
@@ -979,18 +1038,18 @@ function renderGrid(rows,acts){
             const fc=pct>=75?'sc-fill-hi':pct>=50?'sc-fill-mid':'sc-fill-lo';
             if(sv!==null){
                 html+=`<td class="sc-cell" data-act="${a.id}" data-sno="${row.studentNo}" data-sid="${sc.id}" data-max="${mx}">
-                    <div><span class="sc-num">${sv}</span><span class="sc-max">/${mx}</span></div>
+                    <div class="score-pill"><span class="sc-num">${sv}</span><span class="sc-max">/${mx}</span></div>
                     <div class="sc-bar"><div class="sc-fill ${fc}" style="width:${pct}%;"></div></div>
                 </td>`;
             }else{
-                html+=`<td class="sc-cell" data-act="${a.id}" data-sno="${row.studentNo}" data-sid="" data-max="${mx}"><span class="sc-blank">&#8212;</span></td>`;
+                html+=`<td class="sc-cell" data-act="${a.id}" data-sno="${row.studentNo}" data-sid="" data-max="${mx}"><span class="score-pill empty">&#8212;</span></td>`;
             }
         });
-        html+=`<td class="gc">${mS}</td>
-            <td class="gc">${fS}</td>
-            <td class="gc">${aS}</td>
-            <td style="text-align:center;font-size:13px;font-weight:700;color:${row.scorePercent>=75?'var(--success)':row.scorePercent>=50?'var(--warn)':'var(--danger)'};">${pctStr}</td>
-            <td style="text-align:center;"><span class="badge ${bCls}">${row.status}</span></td>
+        html+=`<td class="gc"><div class="grade-stack">${mS}<span class="grade-label">Midterm</span></div></td>
+            <td class="gc"><div class="grade-stack">${fS}<span class="grade-label">Final</span></div></td>
+            <td class="gc"><div class="grade-stack">${aS}<span class="grade-label">Average</span></div></td>
+            <td class="percent-cell" style="text-align:center;color:${row.scorePercent>=75?'var(--success)':row.scorePercent>=50?'var(--warn)':'var(--danger)'};">${pctStr}</td>
+            <td class="status-cell" style="text-align:center;"><span class="badge ${bCls}">${row.status}</span></td>
             <td style="text-align:center;">
                 <button class="btn-edit-row" title="Edit scores and grades" onclick="window.openEditModal('${row.enrollId}','${row.studentNo}','${sName}','${row.subjectCode}')">
                     <i class="ph-bold ph-pencil-simple"></i>

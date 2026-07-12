@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scores | PLV Grades Portal</title>
+    <link rel="icon" type="image/png" href="https://res.cloudinary.com/dfdlqf6ng/image/upload/v1772078917/PamantasanNgLungsodNgValenzuelaLogo_t53djy.png">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        :root { --bg-body: #f0f4f8; --text-main: #0f172a; --text-muted: #64748b; --glass-bg: rgba(255, 255, 255, 0.75); --glass-border: rgba(255, 255, 255, 0.9); --glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.9); --glass-shadow: 0 24px 48px -12px rgba(0, 35, 102, 0.08); --accent-primary: #003DA5; --accent-light: rgba(0, 61, 165, 0.08); --accent-gold: #D4AF37; --accent-gold-light: rgba(212, 175, 55, 0.15); --hero-bg: linear-gradient(135deg, #001f5c 0%, #003DA5 100%); --hero-text: #ffffff; --blob-1: #cce0ff; --blob-2: #ffeb99; --blob-3: #e0ebff; --cat-written: #10b981; --cat-perf: #3b82f6; --cat-exam: #e11d48; --item-bg: rgba(255, 255, 255, 0.8); --item-hover: rgba(255, 255, 255, 1); --item-border: rgba(0, 0, 0, 0.06); --score-bg: rgba(0, 0, 0, 0.03); --success: #10b981; --danger: #e11d48; }
+        .dark-theme { --bg-body: #040914; --text-main: #f8fafc; --text-muted: #94a3b8; --glass-bg: rgba(10, 15, 30, 0.6); --glass-border: rgba(255, 255, 255, 0.06); --glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.04); --glass-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.8); --accent-primary: #3b82f6; --accent-light: rgba(59, 130, 246, 0.15); --accent-gold: #FCD34D; --accent-gold-light: rgba(252, 211, 77, 0.15); --hero-bg: linear-gradient(135deg, #020617 0%, #0f172a 100%); --hero-text: #ffffff; --blob-1: #001f5c; --blob-2: #422b00; --blob-3: #001233; --cat-written: #34d399; --cat-perf: #60a5fa; --cat-exam: #fb7185; --item-bg: rgba(0, 0, 0, 0.3); --item-hover: rgba(0, 0, 0, 0.5); --item-border: rgba(255, 255, 255, 0.08); --score-bg: rgba(0, 0, 0, 0.4); --success: #34d399; --danger: #fb7185; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease; }
+        body { background-color: var(--bg-body); color: var(--text-main); min-height: 100vh; display: flex; overflow-x: hidden; position: relative; }
+        .ambient-mesh { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; overflow: hidden; z-index: -1; pointer-events: none; } .blob { position: absolute; filter: blur(120px); opacity: 0.6; border-radius: 50%; animation: float 18s infinite alternate ease-in-out; } .blob-1 { width: 600px; height: 600px; background: var(--blob-1); top: -10%; left: -10%; } .blob-2 { width: 700px; height: 700px; background: var(--blob-2); bottom: -20%; right: -10%; animation-delay: -5s; } .blob-3 { width: 500px; height: 500px; background: var(--blob-3); top: 40%; left: 40%; animation-delay: -10s; } @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(60px, 40px) scale(1.1); } }
+        .glass { background: var(--glass-bg); backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px); border: 1px solid var(--glass-border); box-shadow: var(--glass-highlight), var(--glass-shadow); border-radius: 28px; }
+        .sidebar { width: 300px; height: 100vh; padding: 40px 24px; display: flex; flex-direction: column; position: sticky; top: 0; z-index: 10; border-right: 1px solid var(--glass-border); background: rgba(var(--bg-body), 0.3); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); } .logo-container { display: flex; align-items: center; gap: 14px; margin-bottom: 48px; padding: 0 12px; } .logo-img { width: 52px; height: 52px; border-radius: 50%; box-shadow: 0 8px 16px rgba(0,0,0,0.1); } .logo-text h2 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: var(--text-main); line-height: 1.1; } .logo-text p { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+        .nav-menu { list-style: none; flex: 1; display: flex; flex-direction: column; gap: 8px; } .nav-item a { text-decoration: none; color: var(--text-muted); font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 16px; padding: 14px 18px; border-radius: 18px; cursor: pointer; } .nav-item a i { font-size: 22px; transition: transform 0.3s ease; } .nav-item a:hover { background: var(--accent-light); color: var(--accent-primary); } .nav-item a.active { background: var(--accent-primary); color: #fff; box-shadow: 0 10px 24px -8px var(--accent-primary); }
+        .main-wrapper { flex: 1; padding: 40px 48px; display: flex; flex-direction: column; gap: 36px; max-width: 1700px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; } .header h1 { font-size: 28px; font-weight: 800; letter-spacing: -1px; line-height: 1; margin-bottom: 6px;} .header-actions { display: flex; align-items: center; gap: 16px; }
+        .icon-btn { width: 48px; height: 48px; border-radius: 50%; display: flex; justify-content: center; align-items: center; background: var(--glass-bg); border: 1px solid var(--glass-border); box-shadow: var(--glass-highlight), 0 4px 12px rgba(0,0,0,0.02); font-size: 20px; color: var(--text-muted); cursor: pointer; transition: all 0.3s ease; } .icon-btn:hover { color: var(--accent-primary); transform: translateY(-2px); }
+        .theme-toggle { background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.6)); border: 1px solid rgba(255,255,255,0.8); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04), inset 0 2px 4px rgba(255,255,255,0.8); color: #d97706; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); position: relative; } .theme-toggle:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 8px 24px rgba(217, 119, 6, 0.2), inset 0 2px 4px rgba(255,255,255,1); color: #b45309 !important; border-color: rgba(255,255,255,0.8) !important; } .dark-theme .theme-toggle { background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9)); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 2px 4px rgba(255,255,255,0.05); color: #93c5fd; } .dark-theme .theme-toggle:hover { box-shadow: 0 8px 24px rgba(147, 197, 253, 0.2), inset 0 2px 4px rgba(255,255,255,0.1); color: #bfdbfe !important; transform: translateY(-3px) scale(1.05); border-color: rgba(255,255,255,0.1) !important; } .theme-toggle i { transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease; }
+        .bento-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 32px; align-items: stretch; } .card { padding: 32px; display: flex; flex-direction: column; position: relative; overflow: hidden; } .card-category { grid-column: span 4; display: flex; flex-direction: column;}
+        .card-hero-summary { grid-column: span 12; background: var(--hero-bg); color: var(--hero-text); border: 1px solid rgba(255,255,255,0.1); padding: 40px 48px; display: flex; flex-direction: column; gap: 24px; } .card-hero-summary::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at bottom right, rgba(212, 175, 55, 0.25), transparent 60%); pointer-events: none; }
+        .hero-top-row { display: flex; justify-content: space-between; align-items: center; width: 100%; position: relative; z-index: 1;} .summary-title h2 { font-size: 34px; font-weight: 800; line-height: 1.1; letter-spacing: -1px; margin-bottom: 8px;} .summary-title p { font-size: 15px; color: rgba(255,255,255,0.8); font-weight: 500; }
+        
+        /* CONTROLS STYLING */
+        .term-toggle { display: flex; background: rgba(0,0,0,0.25); padding: 4px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); box-shadow: inset 0 2px 8px rgba(0,0,0,0.2); } 
+        .term-btn { background: transparent; color: rgba(255,255,255,0.7); border: none; padding: 10px 24px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.3s; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.5px; } 
+        .term-btn:hover { color: #fff; } .term-btn.active { background: var(--accent-gold); color: var(--text-main); box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3); }
+        
+        /* MINI DROPDOWN */
+        .mini-sort { background: transparent; border: 1px solid var(--glass-border); color: var(--text-muted); font-size: 12px; font-weight: 700; padding: 6px 10px; border-radius: 8px; outline: none; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; transition: all 0.3s; }
+        .mini-sort:hover, .mini-sort:focus { border-color: var(--accent-primary); color: var(--accent-primary); }
+        .mini-sort option { background: var(--bg-body); color: var(--text-main); }
+
+        .summary-stats { display: flex; align-items: center; justify-content: space-between; width: 100%; position: relative; z-index: 1; flex-wrap: wrap; gap: 24px;} .stats-left { display: flex; align-items: center; gap: 40px; } .stat-divider { width: 1px; height: 48px; background: rgba(255,255,255,0.15); }
+        
+        /* UPDATED STAT BOX STYLE FOR DUAL VALUES */
+        .stat-box { display: flex; flex-direction: column; gap: 6px; } 
+        .stat-box span.label { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 1.5px; line-height: 1;} 
+        .stat-box span.value { font-size: 34px; font-weight: 800; line-height: 1; display: flex; align-items: baseline; gap: 4px; color: #fff;} 
+        .stat-box span.value small { font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.6); }
+        .stat-box span.sub-value { font-size: 12px; font-weight: 600; color: var(--accent-gold); background: rgba(0,0,0,0.2); padding: 4px 10px; border-radius: 6px; display: inline-block; width: fit-content; margin-top: 2px;}
+
+        .stat-final { background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.05)); padding: 18px 32px; border-radius: 20px; border: 1px solid rgba(212, 175, 55, 0.4); box-shadow: 0 12px 32px rgba(0,0,0,0.2), inset 0 2px 0 rgba(255,255,255,0.1); align-items: center; justify-content: center; text-align: center; } .stat-final span.label { color: #FCD34D; font-weight: 800; letter-spacing: 2px; } .stat-final span.value { color: #fff; text-shadow: 0 2px 12px rgba(212, 175, 55, 0.3); font-size: 40px;}
+        
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; position: relative; z-index: 2; flex-wrap: wrap; gap: 12px; } 
+        .cat-title { display: flex; align-items: center; gap: 14px; } .cat-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; justify-content: center; align-items: center; font-size: 24px; color: #fff; box-shadow: 0 8px 16px rgba(0,0,0,0.1); flex-shrink: 0; } 
+        .cat-text-group { display: flex; flex-direction: column; gap: 2px; } .cat-text-group h3 { font-size: 18px; font-weight: 800; color: var(--text-main); letter-spacing: -0.5px; line-height: 1;} .cat-text-group span { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; }
+        
+        .icon-written { background: linear-gradient(135deg, var(--cat-written), #047857); } .icon-perf { background: linear-gradient(135deg, var(--cat-perf), #1e3a8a); } .icon-exam { background: linear-gradient(135deg, var(--cat-exam), #9f1239); }
+        .activities-container { display: flex; flex-direction: column; gap: 16px; flex: 1; }
+        .activity-item { background: var(--item-bg); border: 1px solid var(--item-border); border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 20px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); animation: fadeUp 0.4s ease forwards; } @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .activity-item:hover { transform: translateY(-4px); background: var(--item-hover); box-shadow: 0 20px 40px -12px rgba(0,0,0,0.1); border-color: rgba(0, 61, 165, 0.15); } .dark-theme .activity-item:hover { border-color: rgba(59, 130, 246, 0.3); }
+        .act-top { display: flex; justify-content: space-between; align-items: center; gap: 16px;} .act-title-area { flex: 1; } .act-title-area h4 { font-size: 16px; font-weight: 700; color: var(--text-main); margin-bottom: 6px; line-height: 1.3; } .act-date { font-size: 12px; font-weight: 600; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+        .act-score-area { display: flex; align-items: baseline; justify-content: center; gap: 3px; background: var(--score-bg); padding: 10px 18px; border-radius: 14px; border: 1px solid var(--item-border); min-width: 90px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); transition: all 0.3s ease; } .activity-item:hover .act-score-area { background: var(--bg-body); border-color: var(--accent-light); }
+        .score-num { font-size: 20px; font-weight: 800; color: var(--text-main); line-height: 1; letter-spacing: -0.5px;} .score-div { font-size: 15px; font-weight: 600; color: var(--text-muted); } .score-total { font-size: 14px; font-weight: 700; color: var(--text-muted); }
+        .progress-wrapper { width: 100%; height: 6px; background: rgba(0,0,0,0.06); border-radius: 100px; overflow: hidden; } .dark-theme .progress-wrapper { background: rgba(255,255,255,0.1); } .progress-fill { height: 100%; border-radius: 100px; transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .activity-item.written .progress-fill { background: var(--cat-written); } .activity-item.perf .progress-fill { background: var(--cat-perf); } .activity-item.exam .progress-fill { background: var(--cat-exam); }
+        .activity-item.written:hover .progress-fill { box-shadow: 0 0 12px rgba(16, 185, 129, 0.4); } .activity-item.perf:hover .progress-fill { box-shadow: 0 0 12px rgba(59, 130, 246, 0.4); } .activity-item.exam:hover .progress-fill { box-shadow: 0 0 12px rgba(225, 29, 72, 0.4); }
+        .toast { position: fixed; bottom: 32px; right: 32px; background: var(--success); color: #fff; padding: 16px 24px; border-radius: 12px; font-weight: 600; box-shadow: 0 12px 24px rgba(16, 185, 129, 0.3); display: flex; align-items: center; gap: 12px; transform: translateX(150%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000;} .toast.show { transform: translateX(0); } .toast.error { background: var(--danger); }
+        @media (max-width: 1400px) { .card { padding: 24px; } .hero-top-row { flex-direction: column; align-items: flex-start; gap: 24px; } .stats-left { gap: 24px; } }
+        @media (max-width: 1100px) { .bento-grid { grid-template-columns: repeat(12, 1fr); } .card-category { grid-column: span 12; } .stat-divider { display: none; } .summary-stats { flex-direction: column; align-items: flex-start; gap: 24px;} .stats-left { flex-direction: column; align-items: flex-start; } }
+        @media (max-width: 992px) { body { flex-direction: column; } .sidebar { width: 100%; height: auto; position: static; flex-direction: row; padding: 20px 32px; justify-content: space-between; align-items: center; border-right: none; border-bottom: 1px solid var(--glass-border); z-index: 100; backdrop-filter: blur(32px); } .logo-container { margin-bottom: 0; padding: 0;} .nav-menu { display: none; } .main-wrapper { padding: 32px; } }
+        @media (max-width: 768px) { .header { flex-direction: column; align-items: flex-start; gap: 20px; } .header-actions { width: 100%; justify-content: flex-end; } .main-wrapper { padding: 20px; } .term-toggle { width: 100%; justify-content: space-between; } .term-btn { width: 50%; text-align: center; } .stat-final { width: 100%; align-items: flex-start; text-align: left; } }
+    
+        /* ===== MOBILE NAVIGATION ===== */
+        .mobile-nav-bar {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--glass-bg);
+            backdrop-filter: blur(32px);
+            -webkit-backdrop-filter: blur(32px);
+            border-top: 1px solid var(--glass-border);
+            box-shadow: 0 -8px 32px rgba(0,0,0,0.1);
+            z-index: 200;
+            padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+        }
+        .mobile-nav-bar ul {
+            display: flex;
+            list-style: none;
+            align-items: center;
+            padding: 0 8px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            gap: 2px;
+        }
+        .mobile-nav-bar ul::-webkit-scrollbar { display: none; }
+        .mobile-nav-bar ul li { flex: 0 0 auto; scroll-snap-align: start; }
+        .mobile-nav-bar ul li a {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            text-decoration: none;
+            color: var(--text-muted);
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            padding: 8px 14px;
+            border-radius: 14px;
+            transition: all 0.3s;
+            cursor: pointer;
+            min-width: 62px;
+            white-space: nowrap;
+        }
+        .mobile-nav-bar ul li a i { font-size: 22px; }
+        .mobile-nav-bar ul li a:hover,
+        .mobile-nav-bar ul li a.active {
+            color: var(--accent-primary);
+            background: var(--accent-light);
+        }
+        @media (max-width: 992px) {
+            .mobile-nav-bar { display: block; }
+            .main-wrapper { padding: 24px 20px; padding-bottom: 90px !important; }
+        }
+        @media (max-width: 768px) {
+            .main-wrapper { padding: 16px 12px; padding-bottom: 90px !important; }
+            .header h1 { font-size: 22px; }
+            .header { gap: 8px; }
+            .card { padding: 20px 16px; }
+            .bento-grid { gap: 16px; }
+        }
+
+        </style>
+</head>
+<body>
+    <div class="ambient-mesh"><div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div></div>
+    <aside class="sidebar">
+        <div class="logo-container">
+            <img src="https://res.cloudinary.com/dfdlqf6ng/image/upload/v1772078917/PamantasanNgLungsodNgValenzuelaLogo_t53djy.png" alt="PLV Logo" class="logo-img">
+            <div class="logo-text"><h2>PLV</h2><p>Pamantasan ng<br>Lungsod ng Valenzuela</p></div>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="student-dashboard.html"><i class="ph-fill ph-squares-four"></i> Dashboard</a></li>
+            <li class="nav-item"><a href="student-assessments.html"><i class="ph-fill ph-clipboard-text"></i> Assessments</a></li>
+            <li class="nav-item"><a href="student-scores.html" class="active"><i class="ph-fill ph-chart-bar"></i> Scores</a></li>
+            <li class="nav-item"><a href="student-grades.html"><i class="ph ph-exam"></i> Grades</a></li>
+            <li class="nav-item"><a href="student-attendance.html"><i class="ph-fill ph-calendar-dots"></i> Attendance</a></li>
+            <li class="nav-item"><a href="student-settings.html"><i class="ph-fill ph-gear"></i> Settings</a></li>
+            <li class="nav-item" style="margin-top:auto;"><a onclick="window.logout()"><i class="ph ph-sign-out"></i> Logout</a></li>
+        </ul>
+    </aside>
+
+    <main class="main-wrapper">
+        <header class="header">
+            <div><h1>Score Breakdown</h1><p id="hSubject" style="color: var(--text-muted); font-weight: 600; font-size: 15px;">Loading Subject...</p></div>
+            <div class="header-actions"><div class="icon-btn theme-toggle" id="themeToggle"><i class="ph-fill ph-sun" id="themeIcon"></i></div></div>
+        </header>
+
+        <div class="bento-grid">
+            <div class="card glass card-hero-summary">
+                <div class="hero-top-row">
+                    <div class="summary-title"><h2>Academic Standing</h2><p>Review your recorded assessment scores.</p></div>
+                    <div class="term-toggle">
+                        <button class="term-btn active" data-target="midterm" onclick="window.renderView('midterm')">Midterm</button>
+                        <button class="term-btn" data-target="final" onclick="window.renderView('final')">Final Term</button>
+                    </div>
+                </div>
+                <div class="summary-stats">
+                    <div class="stats-left">
+                        <div class="stat-box">
+                            <span class="label">Written (30%)</span>
+                            <span class="value" id="stat-written">-- <small>%</small></span>
+                            <span class="sub-value" id="rate-written">Rating: --</span>
+                        </div>
+                        <div class="stat-divider"></div>
+                        <div class="stat-box">
+                            <span class="label">Performance (30%)</span>
+                            <span class="value" id="stat-perf">-- <small>%</small></span>
+                            <span class="sub-value" id="rate-perf">Rating: --</span>
+                        </div>
+                        <div class="stat-divider"></div>
+                        <div class="stat-box">
+                            <span class="label">Exams (40%)</span>
+                            <span class="value" id="stat-exam">-- <small>%</small></span>
+                            <span class="sub-value" id="rate-exam">Rating: --</span>
+                        </div>
+                    </div>
+                    <div class="stat-box stat-final"><span class="label">TENTATIVE FINAL</span><span class="value" id="stat-final">--<small style="font-size: 20px; color: #fff;">%</small></span></div>
+                </div>
+            </div>
+
+            <div class="card glass card-category">
+                <div class="card-header">
+                    <div class="cat-title"><div class="cat-icon icon-written"><i class="ph-bold ph-pencil-simple"></i></div><div class="cat-text-group"><h3>Written Output</h3><span style="color: var(--cat-written);">30% Weight</span></div></div>
+                    <select class="mini-sort" onchange="window.updateSort('written', this.value)">
+                        <option value="newest">Newest</option><option value="oldest">Oldest</option><option value="highest">Highest</option><option value="lowest">Lowest</option>
+                    </select>
+                </div>
+                <div class="activities-container" id="written-container">Loading...</div>
+            </div>
+
+            <div class="card glass card-category">
+                <div class="card-header">
+                    <div class="cat-title"><div class="cat-icon icon-perf"><i class="ph-bold ph-code"></i></div><div class="cat-text-group"><h3>Performance Based</h3><span style="color: var(--cat-perf);">30% Weight</span></div></div>
+                    <select class="mini-sort" onchange="window.updateSort('perf', this.value)">
+                        <option value="newest">Newest</option><option value="oldest">Oldest</option><option value="highest">Highest</option><option value="lowest">Lowest</option>
+                    </select>
+                </div>
+                <div class="activities-container" id="perf-container">Loading...</div>
+            </div>
+
+            <div class="card glass card-category">
+                <div class="card-header">
+                    <div class="cat-title"><div class="cat-icon icon-exam"><i class="ph-bold ph-exam"></i></div><div class="cat-text-group"><h3>Major Exams</h3><span style="color: var(--cat-exam);">40% Weight</span></div></div>
+                    <select class="mini-sort" onchange="window.updateSort('exam', this.value)">
+                        <option value="newest">Newest</option><option value="oldest">Oldest</option><option value="highest">Highest</option><option value="lowest">Lowest</option>
+                    </select>
+                </div>
+                <div class="activities-container" id="exam-container">Loading...</div>
+            </div>
+        </div>
+    </main>
+
+    <div id="toast" class="toast"><i id="toast-icon" class="ph-fill ph-check-circle" style="font-size: 24px;"></i><span id="toast-msg">Action Successful!</span></div>
+
+    <script type="module">
+        import { supabase } from "./supabase-adapter.js";
+        import { startStudentPresence } from "./student-presence.js";
+        import { startStudentSessionGuard } from "./student-session.js";
+
+        const user = JSON.parse(localStorage.getItem('loggedInUser'));
+        if (!user || user.role !== 'student') window.location.href = 'index.html';
+        const studentPresence = startStudentPresence(supabase, user);
+        const studentSessionGuard = startStudentSessionGuard(supabase, user);
+
+        window.logout = async function() {
+            studentSessionGuard.stop();
+            await studentPresence.stop();
+            localStorage.removeItem('loggedInUser');
+            window.location.href = 'index.html';
+        };
+        // ──────────────────────────────────────────────────────────────────────────────
+
+        window.showToast = function(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            document.getElementById('toast-msg').innerText = message;
+            toast.className = 'toast'; 
+            if(type === 'error') { toast.classList.add('error'); icon.className = 'ph-fill ph-warning-circle'; } else { icon.className = 'ph-fill ph-check-circle'; }
+            toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        let scoresData = { midterm: { written: [], perf: [], exam: [] }, final: { written: [], perf: [], exam: [] } };
+        let scoresMap = {};
+        let currentTerm = 'midterm';
+        let sortState = { written: 'newest', perf: 'newest', exam: 'newest' };
+
+        async function loadData() {
+            try {
+                // Get Enrollment to know Section and Subject
+                const { data: enrollments, error: enrollError } = await supabase.from("enrollments").select("*").eq("studentNo", user.studentNo);
+                if (enrollError) throw enrollError;
+                if(!enrollments || !enrollments.length) { document.getElementById('hSubject').innerText="No subjects enrolled"; window.showToast("No subjects found", "error"); return; }
+                
+                const enroll = enrollments[0];
+                const studentSection = enroll.section; // Get Student's Section
+                
+                const { data: subject, error: subjectError } = await supabase.from("subjects").select("*").eq("subjectCode", enroll.subjectCode).limit(1).maybeSingle();
+                if (subjectError) throw subjectError;
+                if(subject) document.getElementById('hSubject').innerText = `${subject.subjectCode}: ${subject.subjectName}`;
+
+                const { data: scores, error: scoresError } = await supabase.from("scores").select("*").eq("studentNo", user.studentNo);
+                if (scoresError) throw scoresError;
+                (scores || []).forEach(s => { scoresMap[s.activityId] = s.score; });
+
+                const { data: activities, error: activitiesError } = await supabase.from("activities").select("*").eq("subjectCode", enroll.subjectCode).eq("section", studentSection);
+                if (activitiesError) throw activitiesError;
+                
+                (activities || []).forEach(a => {
+                    if(scoresData[a.term] && scoresData[a.term][a.category]) { scoresData[a.term][a.category].push(a); }
+                });
+                
+                window.renderView('midterm');
+            } catch(e) { console.error(e); window.showToast("Failed to load scores", "error"); }
+        }
+
+        window.updateSort = function(category, value) {
+            sortState[category] = value;
+            window.renderView(currentTerm); 
+        }
+
+        window.renderView = function(term) {
+            currentTerm = term;
+            document.querySelectorAll('.term-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`.term-btn[data-target="${term}"]`).classList.add('active');
+
+            const cats = ['written', 'perf', 'exam'];
+            let totalWeightedPercentage = 0;
+
+            cats.forEach(cat => {
+                const container = document.getElementById(`${cat}-container`); 
+                container.innerHTML = '';
+                
+                let list = [...scoresData[term][cat]]; 
+                const currentSort = sortState[cat]; 
+
+                list.sort((a, b) => {
+                    const scoreA = scoresMap[a.id] || 0;
+                    const percentA = a.perfectScore > 0 ? (scoreA / a.perfectScore) : 0;
+                    const scoreB = scoresMap[b.id] || 0;
+                    const percentB = b.perfectScore > 0 ? (scoreB / b.perfectScore) : 0;
+
+                    switch(currentSort) {
+                        case 'newest': return new Date(b.date) - new Date(a.date);
+                        case 'oldest': return new Date(a.date) - new Date(b.date);
+                        case 'highest': return percentB - percentA;
+                        case 'lowest': return percentA - percentB;
+                        default: return 0;
+                    }
+                });
+
+                let totalScore = 0; 
+                let totalPerfect = 0;
+                
+                list.forEach(act => {
+                    const myScore = scoresMap[act.id] !== undefined ? scoresMap[act.id] : 0;
+                    totalScore += myScore; 
+                    totalPerfect += act.perfectScore;
+                    
+                    const pct = (myScore / act.perfectScore) * 100;
+                    const dStr = new Date(act.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    
+                    container.innerHTML += `<div class="activity-item ${cat}"><div class="act-top"><div class="act-title-area"><h4>${act.title}</h4><span class="act-date"><i class="ph-fill ph-calendar-blank"></i> ${dStr}</span></div><div class="act-score-area"><span class="score-num">${myScore}</span><span class="score-div">/</span><span class="score-total">${act.perfectScore}</span></div></div><div class="progress-wrapper"><div class="progress-fill" style="width: ${pct}%;"></div></div></div>`;
+                });
+                
+                if(list.length === 0) container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No scores yet.</p>';
+                
+                let rating = 0;
+                if(totalPerfect > 0) { rating = (totalScore / totalPerfect) * 60 + 40; }
+
+                let weightFactor = (cat === 'exam') ? 0.4 : 0.3;
+                let weightedPercentage = rating * weightFactor;
+
+                totalWeightedPercentage += weightedPercentage;
+
+                document.getElementById(`stat-${cat}`).innerHTML = `${weightedPercentage.toFixed(2)} <small>%</small>`;
+                document.getElementById(`rate-${cat}`).innerHTML = `Rating: ${rating.toFixed(2)}`;
+            });
+            
+            document.getElementById('stat-final').innerHTML = `${totalWeightedPercentage.toFixed(2)}<small style="font-size: 20px; color: #fff;">%</small>`;
+        }
+        
+        loadData();
+
+        const themeToggleBtn = document.getElementById('themeToggle'); const themeIcon = document.getElementById('themeIcon'); const body = document.body;
+        if (localStorage.getItem('theme') === 'dark') { body.classList.add('dark-theme'); themeIcon.className = 'ph-fill ph-moon'; } else { themeIcon.className = 'ph-fill ph-sun'; }
+        themeToggleBtn.addEventListener('click', () => { body.classList.toggle('dark-theme'); const isDark = body.classList.contains('dark-theme'); localStorage.setItem('theme', isDark ? 'dark' : 'light'); themeIcon.style.transform = 'rotate(360deg)'; setTimeout(() => { themeIcon.className = isDark ? 'ph-fill ph-moon' : 'ph-fill ph-sun'; themeIcon.style.transform = 'rotate(0deg)'; }, 150); });
+    </script>
+    <!-- MOBILE BOTTOM NAV -->
+    <nav class="mobile-nav-bar">
+        <ul>
+            <li><a href="student-dashboard.html" id="mnav-dash"><i class="ph-fill ph-squares-four"></i>Dashboard</a></li>
+            <li><a href="student-assessments.html" id="mnav-ass"><i class="ph-fill ph-clipboard-text"></i>Assessments</a></li>
+            <li><a href="student-scores.html" id="mnav-sco" class="active"><i class="ph-fill ph-chart-bar"></i>Scores</a></li>
+            <li><a href="student-grades.html" id="mnav-grd"><i class="ph ph-exam"></i>Grades</a></li>
+            <li><a href="student-attendance.html" id="mnav-att"><i class="ph ph-calendar-dots"></i>Attendance</a></li>
+            <li><a href="student-settings.html" id="mnav-set"><i class="ph-fill ph-gear"></i>Settings</a></li>
+            <li><a href="#" onclick="window.logout()" id="mnav-out"><i class="ph ph-sign-out"></i>Logout</a></li>
+        </ul>
+    </nav>
+
+    <script>
+        (function() {
+            var el = document.getElementById('mnav-sco');
+            if (el) el.classList.add('active');
+        })();
+    </script>
+</body>
+</html>
