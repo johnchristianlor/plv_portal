@@ -302,7 +302,7 @@
                         <div class="form-group" style="display:flex;align-items:flex-end;">
                             <div id="fProgress" style="display:none;flex:1;">
                                 <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-                                    <span id="fProgressLabel" style="font-size:12px;font-weight:700;color:var(--text-muted);">Uploading to Cloudinary...</span>
+                                    <span id="fProgressLabel" style="font-size:12px;font-weight:700;color:var(--text-muted);">Uploading to Backblaze...</span>
                                     <span id="fProgressPct" style="font-size:12px;font-weight:800;color:var(--accent-primary);">0%</span>
                                 </div>
                                 <div style="background:var(--glass-border);border-radius:100px;height:8px;overflow:hidden;">
@@ -348,10 +348,7 @@
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
         window.logout = function() { localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
 
-
-        // ── Cloudinary Config ──
-        const CLOUD_NAME = 'dfdlqf6ng';
-        const UPLOAD_PRESET = 'plv_files';
+        const B2_UPLOAD_ENDPOINT = '/api/b2-upload';
 
         window.toggleTab = function(showId, element) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -509,7 +506,7 @@
         themeToggleBtn.addEventListener('click', () => { body.classList.toggle('dark-theme'); const isDark = body.classList.contains('dark-theme'); localStorage.setItem('theme', isDark ? 'dark' : 'light'); themeIcon.style.transform = 'rotate(360deg)'; setTimeout(() => { themeIcon.className = isDark ? 'ph-fill ph-moon' : 'ph-fill ph-sun'; themeIcon.style.transform = 'rotate(0deg)'; }, 150); });
 
         // ══════════════════════════════════════════
-        //  FILE SHARING — Cloudinary upload + Supabase metadata
+        //  FILE SHARING - Backblaze upload + Supabase metadata
         // ══════════════════════════════════════════
 
         // ── SEARCHABLE RECIPIENT PICKER ──
@@ -633,7 +630,48 @@
             return bytes > 1024 * 1024 ? (bytes / 1024 / 1024).toFixed(1) + ' MB' : Math.round(bytes / 1024) + ' KB';
         }
 
-        // ── SEND FILE: upload to Cloudinary, save metadata to Supabase ──
+        async function getAdminAccessToken() {
+            const { data, error } = await supabase.auth.getSession();
+            if (error) throw error;
+            const token = data?.session?.access_token;
+            if (!token) throw new Error('Your admin session expired. Please log out and log in again.');
+            return token;
+        }
+
+        function uploadFileToBackblaze(file, accessToken, onProgress) {
+            return new Promise((resolve, reject) => {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', B2_UPLOAD_ENDPOINT);
+                xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
+
+                xhr.upload.onprogress = (e) => {
+                    if (!e.lengthComputable) return;
+                    const progress = Math.min(85, Math.max(10, Math.round((e.loaded / e.total) * 85)));
+                    onProgress(progress);
+                };
+
+                xhr.onload = () => {
+                    let response = {};
+                    try { response = JSON.parse(xhr.responseText || '{}'); }
+                    catch (error) { response = {}; }
+
+                    if (xhr.status >= 200 && xhr.status < 300 && response.fileUrl) {
+                        resolve(response);
+                        return;
+                    }
+
+                    reject(new Error(response.error || 'Backblaze upload failed.'));
+                };
+
+                xhr.onerror = () => reject(new Error('Network error during upload.'));
+                xhr.send(formData);
+            });
+        }
+
+        // -- SEND FILE: upload to Backblaze through Cloudflare, save metadata to Supabase --
         window.sendFile = async function() {
             const file = fFileInput.files[0];
             if (!file) { window.showToast('Please choose a file first.', 'error'); return; }
@@ -652,48 +690,25 @@
             progressWrap.style.display = 'block';
             bar.style.width = '10%';
             pct.textContent = '10%';
-            pLabel.textContent = 'Uploading to Cloudinary...';
+            pLabel.textContent = 'Uploading to Backblaze...';
 
             try {
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('upload_preset', UPLOAD_PRESET);
-                formData.append('folder', 'plv_shared_files');
-
-                const downloadURL = await new Promise((resolve, reject) => {
-                    const xhr = new XMLHttpRequest();
-                    xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`);
-                    xhr.upload.onprogress = (e) => {
-                        if (e.lengthComputable) {
-                            const p = Math.round((e.loaded / e.total) * 85);
-                            bar.style.width = p + '%';
-                            pct.textContent = p + '%';
-                        }
-                    };
-                    xhr.onload = () => {
-                        if (xhr.status === 200) {
-                            const res = JSON.parse(xhr.responseText);
-                            if (res.secure_url) resolve(res.secure_url);
-                            else reject(new Error(res.error?.message || 'Cloudinary upload failed'));
-                        } else {
-                            reject(new Error(`Upload failed: HTTP ${xhr.status}`));
-                        }
-                    };
-                    xhr.onerror = () => reject(new Error('Network error during upload'));
-                    xhr.send(formData);
+                const accessToken = await getAdminAccessToken();
+                const uploadResult = await uploadFileToBackblaze(file, accessToken, (progress) => {
+                    bar.style.width = progress + '%';
+                    pct.textContent = progress + '%';
                 });
 
                 bar.style.width = '90%';
                 pct.textContent = '90%';
                 pLabel.textContent = 'Saving to database...';
 
-                // Save metadata to Supabase — permanent, survives logout & device changes
                 await insertRow('sharedFiles', {
                     fileName: label,
                     originalName: file.name,
-                    fileUrl: downloadURL,
+                    fileUrl: uploadResult.fileUrl,
                     fileType: getFileType(file.name),
-                    fileSize: file.size,
+                    fileSize: uploadResult.fileSize || file.size,
                     recipientStudentNo: recipient,
                     uploadedBy: user.name || user.fullName || user.username || 'Admin',
                     uploadedAt: new Date().toISOString()
@@ -703,7 +718,7 @@
                 pct.textContent = '100%';
 
                 setTimeout(() => {
-                    window.showToast('File sent successfully! ✓');
+                    window.showToast('File sent successfully!');
                     btn.disabled = false;
                     btn.innerHTML = '<i class="ph-bold ph-paper-plane-tilt"></i> Send File';
                     progressWrap.style.display = 'none';
@@ -712,8 +727,7 @@
                     document.getElementById('fLabel').value = '';
                     document.getElementById('fPreview').style.display = 'none';
                     btn.disabled = true;
-                    // Reset recipient picker to All Students
-                    window.selectRecipient('all', '📢 All Students');
+                    window.selectRecipient('all', 'All Students');
                     window.loadSentFiles();
                 }, 600);
 
@@ -727,7 +741,7 @@
             }
         };
 
-        // ── LOAD SENT FILES from Supabase ──
+        // -- LOAD SENT FILES from Supabase ──
         let allSentFiles = [];
 
         window.loadSentFiles = async function() {
