@@ -271,13 +271,31 @@
                 </div>
             </div>
             <input type="file" id="avatarUploadInput" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
-            <button class="btn-modal btn-upload-avatar" id="avatarUploadBtn" onclick="window.triggerAvatarUpload()"><i class="ph-bold ph-upload-simple"></i> Upload</button>
+            <button class="btn-modal btn-upload-avatar" type="button" id="avatarUploadBtn" onclick="window.triggerAvatarUpload()"><i class="ph-bold ph-upload-simple"></i> Upload</button>
         </div>
-        <div class="avatar-grid" id="avatarGrid">
+        <div class="avatar-crop-editor" id="avatarCropEditor">
+            <div class="avatar-crop-head">
+                <div>
+                    <h4>Crop your photo</h4>
+                    <p>Drag to position, then zoom until it fits nicely.</p>
+                </div>
+                <button class="close-modal" type="button" onclick="window.cancelAvatarCrop()"><i class="ph-bold ph-x"></i></button>
+            </div>
+            <div class="avatar-crop-stage" id="avatarCropStage">
+                <canvas id="avatarCropCanvas" width="260" height="260"></canvas>
+            </div>
+            <div class="avatar-crop-controls">
+                <div class="avatar-crop-zoom"><i class="ph-bold ph-minus"></i><input type="range" id="avatarZoomRange" min="1" max="3" step="0.01" value="1"><i class="ph-bold ph-plus"></i></div>
+                <div class="avatar-crop-actions">
+                    <button class="btn-modal btn-cancel-crop" type="button" onclick="window.cancelAvatarCrop()">Cancel</button>
+                    <button class="btn-modal btn-save-crop" type="button" id="avatarSaveCropBtn" onclick="window.saveCroppedAvatar()"><i class="ph-bold ph-check"></i> Save Photo</button>
+                </div>
+            </div>
+        </div>        <div class="avatar-grid" id="avatarGrid">
             <!-- Avatars injected via JS -->
         </div>
         <div class="avatar-actions">
-            <button class="btn-modal btn-shuffle" onclick="window.generateRandomAvatars()"><i class="ph-bold ph-shuffle"></i> Shuffle New</button>
+            <button class="btn-modal btn-shuffle" type="button" onclick="window.generateRandomAvatars()"><i class="ph-bold ph-shuffle"></i> Shuffle New</button>
         </div>
     </div>
 </div>
@@ -462,20 +480,21 @@
         }
     };
 
-    document.getElementById('avatarZoomRange').addEventListener('input', (event) => {
+    const zoomRange = document.getElementById('avatarZoomRange');
+    if (zoomRange) zoomRange.addEventListener('input', (event) => {
         cropState.zoom = Number(event.target.value) || 1;
         renderCropPreview();
     });
 
     const cropStage = document.getElementById('avatarCropStage');
-    cropStage.addEventListener('pointerdown', (event) => {
+    if (cropStage) cropStage.addEventListener('pointerdown', (event) => {
         if (!cropState.image) return;
         cropState.dragging = true;
         cropState.lastX = event.clientX;
         cropState.lastY = event.clientY;
         cropStage.setPointerCapture(event.pointerId);
     });
-    cropStage.addEventListener('pointermove', (event) => {
+    if (cropStage) cropStage.addEventListener('pointermove', (event) => {
         if (!cropState.dragging) return;
         cropState.offsetX += event.clientX - cropState.lastX;
         cropState.offsetY += event.clientY - cropState.lastY;
@@ -483,8 +502,8 @@
         cropState.lastY = event.clientY;
         renderCropPreview();
     });
-    cropStage.addEventListener('pointerup', () => { cropState.dragging = false; });
-    cropStage.addEventListener('pointercancel', () => { cropState.dragging = false; });
+    if (cropStage) cropStage.addEventListener('pointerup', () => { cropState.dragging = false; });
+    if (cropStage) cropStage.addEventListener('pointercancel', () => { cropState.dragging = false; });
 
     window.selectAvatar = async function(url) {
         try {
