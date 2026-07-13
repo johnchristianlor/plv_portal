@@ -793,6 +793,83 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
   z-index:auto!important;
 }
 
+
+
+/* ===== EXCEL-LIKE FREEZE PANE MASK ===== */
+.records-card.freeze-pane-on .grid-table tbody td:not(.col-rank):not(.col-sno):not(.col-name){
+  position:relative!important;
+  z-index:1!important;
+}
+.records-card.freeze-pane-on .grid-table thead tr.group-header th:not(.col-rank):not(.col-sno):not(.col-name){z-index:28!important;}
+.records-card.freeze-pane-on .grid-table thead tr:not(.group-header) th:not(.col-rank):not(.col-sno):not(.col-name){z-index:27!important;}
+.records-card.freeze-pane-on .grid-table tbody td.col-rank,
+.records-card.freeze-pane-on .grid-table tbody td.col-sno,
+.records-card.freeze-pane-on .grid-table tbody td.col-name{
+  z-index:70!important;
+  background:#ffffff!important;
+  background-clip:padding-box!important;
+}
+.records-card.freeze-pane-on .grid-table tbody tr:nth-child(even) td.col-rank,
+.records-card.freeze-pane-on .grid-table tbody tr:nth-child(even) td.col-sno,
+.records-card.freeze-pane-on .grid-table tbody tr:nth-child(even) td.col-name{
+  background:#f8fafc!important;
+}
+.records-card.freeze-pane-on .grid-table tbody tr:hover td.col-rank,
+.records-card.freeze-pane-on .grid-table tbody tr:hover td.col-sno,
+.records-card.freeze-pane-on .grid-table tbody tr:hover td.col-name{
+  background:#eff6ff!important;
+}
+.records-card.freeze-pane-on .grid-table tbody tr.row-selected td.col-rank,
+.records-card.freeze-pane-on .grid-table tbody tr.row-selected td.col-sno,
+.records-card.freeze-pane-on .grid-table tbody tr.row-selected td.col-name{
+  background:#dbeafe!important;
+}
+.records-card.freeze-pane-on .grid-table thead .col-rank,
+.records-card.freeze-pane-on .grid-table thead .col-sno,
+.records-card.freeze-pane-on .grid-table thead .col-name{
+  z-index:90!important;
+  background:#eaf2ff!important;
+  background-clip:padding-box!important;
+}
+.records-card.freeze-pane-on .grid-table thead tr.group-header .col-rank,
+.records-card.freeze-pane-on .grid-table thead tr.group-header .col-sno,
+.records-card.freeze-pane-on .grid-table thead tr.group-header .col-name{
+  z-index:92!important;
+  background:#e3efff!important;
+}
+.records-card.freeze-pane-on .grid-table .col-name{
+  box-shadow:16px 0 0 #fff, 30px 0 24px -18px rgba(15,23,42,.55)!important;
+}
+.records-card.freeze-pane-on .grid-table tbody tr:nth-child(even) .col-name{box-shadow:16px 0 0 #f8fafc, 30px 0 24px -18px rgba(15,23,42,.55)!important;}
+.records-card.freeze-pane-on .grid-table tbody tr:hover .col-name{box-shadow:16px 0 0 #eff6ff, 30px 0 24px -18px rgba(15,23,42,.55)!important;}
+.records-card.freeze-pane-on .grid-table tbody tr.row-selected .col-name{box-shadow:16px 0 0 #dbeafe, 30px 0 24px -18px rgba(15,23,42,.55)!important;}
+.records-card.freeze-pane-on .grid-table .col-name::after{
+  display:block!important;
+  right:-16px!important;
+  width:16px!important;
+  background:linear-gradient(90deg,rgba(148,163,184,.58),rgba(148,163,184,0))!important;
+  opacity:1!important;
+}
+body.dark-theme .records-card.freeze-pane-on .grid-table tbody td.col-rank,
+body.dark-theme .records-card.freeze-pane-on .grid-table tbody td.col-sno,
+body.dark-theme .records-card.freeze-pane-on .grid-table tbody td.col-name{background:#0f1728!important;}
+body.dark-theme .records-card.freeze-pane-on .grid-table tbody tr:nth-child(even) td.col-rank,
+body.dark-theme .records-card.freeze-pane-on .grid-table tbody tr:nth-child(even) td.col-sno,
+body.dark-theme .records-card.freeze-pane-on .grid-table tbody tr:nth-child(even) td.col-name{background:#111c31!important;}
+body.dark-theme .records-card.freeze-pane-on .grid-table tbody tr:hover td.col-rank,
+body.dark-theme .records-card.freeze-pane-on .grid-table tbody tr:hover td.col-sno,
+body.dark-theme .records-card.freeze-pane-on .grid-table tbody tr:hover td.col-name{background:#132037!important;}
+body.dark-theme .records-card.freeze-pane-on .grid-table tbody tr.row-selected td.col-rank,
+body.dark-theme .records-card.freeze-pane-on .grid-table tbody tr.row-selected td.col-sno,
+body.dark-theme .records-card.freeze-pane-on .grid-table tbody tr.row-selected td.col-name{background:#172b4a!important;}
+body.dark-theme .records-card.freeze-pane-on .grid-table thead .col-rank,
+body.dark-theme .records-card.freeze-pane-on .grid-table thead .col-sno,
+body.dark-theme .records-card.freeze-pane-on .grid-table thead .col-name{background:#14233a!important;}
+body.dark-theme .records-card.freeze-pane-on .grid-table .col-name{box-shadow:16px 0 0 #0f1728, 30px 0 24px -18px rgba(0,0,0,.85)!important;}
+body.dark-theme .records-card.freeze-pane-on .grid-table tbody tr:nth-child(even) .col-name{box-shadow:16px 0 0 #111c31, 30px 0 24px -18px rgba(0,0,0,.85)!important;}
+body.dark-theme .records-card.freeze-pane-on .grid-table tbody tr:hover .col-name{box-shadow:16px 0 0 #132037, 30px 0 24px -18px rgba(0,0,0,.85)!important;}
+body.dark-theme .records-card.freeze-pane-on .grid-table tbody tr.row-selected .col-name{box-shadow:16px 0 0 #172b4a, 30px 0 24px -18px rgba(0,0,0,.85)!important;}
+
 </style>
 </head>
 <body>
