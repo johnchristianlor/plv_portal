@@ -1,4 +1,4 @@
-﻿-- PLV secure assessment tables for Supabase
+-- PLV secure assessment tables for Supabase
 -- Run this in Supabase SQL Editor before using the assessment pages.
 
 create extension if not exists pgcrypto;
@@ -66,7 +66,7 @@ create or replace function public.plv_current_role()
 returns text language sql stable as $$
   select coalesce(
     nullif(auth.jwt() -> 'app_metadata' ->> 'role', ''),
-    (select role from public.users where uid = auth.uid()::text or email = auth.jwt() ->> 'email' limit 1),
+    (select role from public.users where uid::text = auth.uid()::text or email = auth.jwt() ->> 'email' limit 1),
     'anon'
   );
 $$;
@@ -74,7 +74,7 @@ $$;
 create or replace function public.plv_current_student_no()
 returns text language sql stable as $$
   select coalesce(
-    (select "studentNo" from public.users where uid = auth.uid()::text or email = auth.jwt() ->> 'email' limit 1),
+    (select "studentNo" from public.users where uid::text = auth.uid()::text or email = auth.jwt() ->> 'email' limit 1),
     auth.jwt() -> 'user_metadata' ->> 'studentNo',
     auth.jwt() -> 'user_metadata' ->> 'student_no'
   );
@@ -83,7 +83,7 @@ $$;
 create or replace function public.plv_current_section()
 returns text language sql stable as $$
   select coalesce(
-    (select section from public.users where uid = auth.uid()::text or email = auth.jwt() ->> 'email' limit 1),
+    (select section from public.users where uid::text = auth.uid()::text or email = auth.jwt() ->> 'email' limit 1),
     auth.jwt() -> 'user_metadata' ->> 'section'
   );
 $$;
