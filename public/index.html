@@ -303,12 +303,34 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
             if (found.error) continue;
             const profile = (found.data || []).find(row => row.role === 'student');
             if (profile) {
+                const sessionToken = createSessionToken();
+                try {
+                    const { data: secureData, error: secureError } = await supabase.rpc('login_student_secure', {
+                        p_identifier: identifier,
+                        p_password: password,
+                        p_session_token: sessionToken
+                    });
+                    const secureUser = normalizeRpcUser(secureData);
+                    if (secureError) throw secureError;
+                    if (secureUser) {
+                        return {
+                            ...profile,
+                            ...secureUser,
+                            uid: data.user.id,
+                            email: secureUser.email || profile.email || data.user.email,
+                            role: 'student',
+                            activeSessionToken: secureUser.activeSessionToken || sessionToken
+                        };
+                    }
+                } catch (secureError) {
+                    console.warn('Student session token could not be synced yet.', secureError);
+                }
                 return {
                     ...profile,
                     uid: data.user.id,
                     email: profile.email || data.user.email,
                     role: 'student',
-                    activeSessionToken: profile.activeSessionToken || createSessionToken()
+                    activeSessionToken: profile.activeSessionToken || sessionToken
                 };
             }
         }
@@ -485,6 +507,24 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
                 isFirstLogin: false,
                 isOnline: true
             });
+            const sessionToken = pendingUser.activeSessionToken || createSessionToken();
+            try {
+                const { data: secureData, error: secureError } = await supabase.rpc('login_student_secure', {
+                    p_identifier: pendingUser.studentNo || pendingUser.username || pendingUser.email || pendingUser.id,
+                    p_password: newPass,
+                    p_session_token: sessionToken
+                });
+                if (secureError) throw secureError;
+                const secureUser = normalizeRpcUser(secureData);
+                if (secureUser && secureUser.activeSessionToken) {
+                    pendingUser.activeSessionToken = secureUser.activeSessionToken;
+                } else {
+                    pendingUser.activeSessionToken = sessionToken;
+                }
+            } catch (syncError) {
+                console.warn('First-login session token sync skipped.', syncError);
+                pendingUser.activeSessionToken = sessionToken;
+            }
             window.showToast('Password Changed! Redirecting...', 'success');
             pendingUser.password = newPass;
             pendingUser.isFirstLogin = false;

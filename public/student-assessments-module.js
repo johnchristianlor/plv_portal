@@ -42,16 +42,28 @@ function toast(message) {
 
 async function getToken() {
     const { data } = await supabase.auth.getSession();
-    if (!data.session || !data.session.access_token) throw new Error('Please login again.');
-    return data.session.access_token;
+    if (data.session && data.session.access_token) return data.session.access_token;
+    return '';
+}
+
+function getStudentSessionHeaders() {
+    const headers = {};
+    const sessionToken = user && (user.activeSessionToken || user.sessionToken);
+    const studentNo = user && user.studentNo;
+    if (studentNo && sessionToken) {
+        headers['x-student-no'] = studentNo;
+        headers['x-student-session'] = sessionToken;
+    }
+    return headers;
 }
 
 async function api(path, options = {}) {
+    const token = await getToken();
     const response = await fetch('/api/assessments/' + path, {
         ...options,
         headers: {
             'content-type': 'application/json',
-            authorization: 'Bearer ' + await getToken(),
+            ...(token ? { authorization: 'Bearer ' + token } : getStudentSessionHeaders()),
             ...(options.headers || {})
         }
     });
