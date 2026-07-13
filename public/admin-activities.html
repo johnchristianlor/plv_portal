@@ -1,11 +1,1114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="refresh" content="0; url=admin-assessments.html">
-<title>Create Assessments | PLV Grades Portal</title>
-<script>window.location.replace('admin-assessments.html');</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activities & Scoring | PLV Grades Portal</title>
+    <link rel="icon" type="image/png" href="https://res.cloudinary.com/dfdlqf6ng/image/upload/v1772078917/PamantasanNgLungsodNgValenzuelaLogo_t53djy.png">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        /* CORE DESIGN PRESERVED */
+        :root { --bg-body: #f0f4f8; --text-main: #0f172a; --text-muted: #64748b; --glass-bg: rgba(255, 255, 255, 0.75); --glass-border: rgba(255, 255, 255, 0.9); --glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.9); --glass-shadow: 0 24px 48px -12px rgba(0, 35, 102, 0.08); --accent-primary: #003DA5; --accent-hover: #00287A; --accent-light: rgba(0, 61, 165, 0.08); --accent-gold: #D4AF37; --input-bg: rgba(255, 255, 255, 0.9); --input-border: rgba(0, 35, 102, 0.1); --blob-1: #cce0ff; --blob-2: #ffeb99; --blob-3: #e0ebff; --success: #10b981; --danger: #e11d48; }
+        .dark-theme { --bg-body: #040914; --text-main: #f8fafc; --text-muted: #94a3b8; --glass-bg: rgba(10, 15, 30, 0.6); --glass-border: rgba(255, 255, 255, 0.06); --glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.04); --glass-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.8); --accent-primary: #3b82f6; --accent-hover: #60a5fa; --accent-light: rgba(59, 130, 246, 0.15); --accent-gold: #FCD34D; --input-bg: rgba(0, 0, 0, 0.4); --input-border: rgba(255, 255, 255, 0.1); --blob-1: #001f5c; --blob-2: #422b00; --blob-3: #001233; --success: #34d399; --danger: #fb7185; }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; transition: 0.4s ease; }
+        body { background-color: var(--bg-body); color: var(--text-main); min-height: 100vh; display: flex; overflow-x: hidden; position: relative; }
+        .ambient-mesh { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; overflow: hidden; z-index: -1; pointer-events: none; } .blob { position: absolute; filter: blur(120px); opacity: 0.6; border-radius: 50%; animation: float 18s infinite alternate ease-in-out; } .blob-1 { width: 600px; height: 600px; background: var(--blob-1); top: -10%; left: -10%; } .blob-2 { width: 700px; height: 700px; background: var(--blob-2); bottom: -20%; right: -10%; animation-delay: -5s; } .blob-3 { width: 500px; height: 500px; background: var(--blob-3); top: 40%; left: 40%; animation-delay: -10s; } @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(60px, 40px) scale(1.1); } }
+
+        .glass { background: var(--glass-bg); backdrop-filter: blur(32px); border: 1px solid var(--glass-border); box-shadow: var(--glass-highlight), var(--glass-shadow); border-radius: 28px; }
+        .sidebar { width: 300px; height: 100vh; padding: 40px 24px; display: flex; flex-direction: column; position: sticky; top: 0; z-index: 10; border-right: 1px solid var(--glass-border); background: rgba(var(--bg-body), 0.3); backdrop-filter: blur(24px); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; }
+        .logo-container { display: flex; align-items: center; gap: 14px; margin-bottom: 48px; padding: 0 12px; } .logo-img { width: 52px; height: 52px; border-radius: 50%; box-shadow: 0 8px 16px rgba(0,0,0,0.1); } .logo-text h2 { font-size: 22px; font-weight: 800; color: var(--text-main); line-height: 1.1; } .logo-text p { font-size: 11px; font-weight: 800; color: var(--accent-primary); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+        .nav-menu { list-style: none; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+        .sidebar::-webkit-scrollbar { width:6px; }
+        .sidebar::-webkit-scrollbar-thumb { background:var(--input-border); border-radius:999px; }
+        .sidebar::-webkit-scrollbar-track { background:transparent; } .nav-item a { text-decoration: none; color: var(--text-muted); font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 16px; padding: 14px 18px; border-radius: 18px; cursor: pointer; } .nav-item a i { font-size: 22px; transition: transform 0.3s ease; } .nav-item a:hover { background: var(--accent-light); color: var(--accent-primary); } .nav-item a.active { background: var(--accent-primary); color: #fff; box-shadow: 0 10px 24px -8px var(--accent-primary); }
+        .main-wrapper { flex: 1; padding: 40px 48px; display: flex; flex-direction: column; gap: 32px; max-width: 1600px; margin: 0 auto; width: 100%; }
+        .header { display: flex; justify-content: space-between; align-items: center; } .header h1 { font-size: 28px; font-weight: 800; letter-spacing: -1px; } .header p { color: var(--text-muted); font-weight: 600; font-size: 15px; } .header-actions { display: flex; align-items: center; gap: 16px; }
+        .icon-btn { width: 48px; height: 48px; border-radius: 50%; display: flex; justify-content: center; align-items: center; background: var(--glass-bg); border: 1px solid var(--glass-border); box-shadow: var(--glass-highlight), 0 4px 12px rgba(0,0,0,0.02); font-size: 20px; color: var(--text-muted); cursor: pointer; transition: all 0.3s ease; } .theme-toggle { background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.6)); border: 1px solid rgba(255,255,255,0.8); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04), inset 0 2px 4px rgba(255,255,255,0.8); color: #d97706; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); position: relative; } .theme-toggle:hover { transform: translateY(-3px) scale(1.05); } .dark-theme .theme-toggle { background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9)); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 2px 4px rgba(255,255,255,0.05); color: #93c5fd; }
+
+        .card { padding: 32px; display: flex; flex-direction: column; position: relative; overflow: hidden; margin-bottom: 24px;}
+        .tab-controls { display: flex; background: rgba(0,0,0,0.05); padding: 6px; border-radius: 14px; margin-bottom: 24px; width: fit-content; } .dark-theme .tab-controls { background: rgba(255,255,255,0.05); }
+        .tab-btn { background: transparent; border: none; padding: 10px 24px; border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--text-muted); cursor: pointer; transition: all 0.3s; }
+        .tab-btn.active { background: var(--glass-bg); color: var(--accent-primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .tab-content { display: none; } .tab-content.active { display: block; animation: fadeIn 0.3s ease; } @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .form-section-title { grid-column: span 2; font-size: 14px; font-weight: 800; color: var(--accent-primary); border-bottom: 1px solid var(--glass-border); padding-bottom: 8px; margin-top: 8px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;}
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; } .form-group { display: flex; flex-direction: column; gap: 8px; } .form-group.full { grid-column: span 2; }
+        .form-label { font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-control { background: var(--input-bg); border: 1px solid var(--input-border); padding: 14px 16px; border-radius: 12px; font-size: 15px; color: var(--text-main); font-weight: 500; outline: none; transition: all 0.3s; } .form-control:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 4px var(--accent-light); } select.form-control option { background: var(--bg-body); color: var(--text-main); }
+
+        .btn { padding: 14px 24px; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; border: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.3s; }
+        .btn-primary { background: var(--accent-primary); color: #fff; box-shadow: 0 8px 16px var(--accent-light); } .btn-primary:hover { background: var(--accent-hover); transform: translateY(-2px); }
+        .btn-outline { background: transparent; border: 1px solid var(--accent-primary); color: var(--accent-primary); } .btn-outline:hover { background: var(--accent-light); }
+        .btn-secondary { background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-main); } .btn-secondary:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
+
+        /* Table Controls & Search */
+        .table-controls-wrapper { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 16px; }
+        .search-wrapper { position: relative; width: 300px; }
+        .search-wrapper i { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 18px; }
+        .search-input { width: 100%; padding: 12px 16px 12px 48px; border-radius: 12px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-main); font-size: 14px; font-weight: 500; outline: none; }
+        .search-input:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-light); }
+
+        .table-container { width: 100%; overflow-x: auto; margin-top: 10px; border-radius: 16px;}
+        .modern-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; text-align: left; }
+        .modern-table th { padding: 0 16px 8px; font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--glass-border); }
+        .modern-table td { padding: 12px 16px; background: var(--input-bg); border-top: 1px solid var(--input-border); border-bottom: 1px solid var(--input-border); font-size: 14px; font-weight: 600; vertical-align: middle; }
+        .modern-table td:first-child { border-left: 1px solid var(--input-border); border-radius: 12px 0 0 12px; }
+        .modern-table td:last-child { border-right: 1px solid var(--input-border); border-radius: 0 12px 12px 0; }
+
+        /* Checkbox Styling */
+        .check-col { width: 40px; text-align: center; }
+        .custom-checkbox { width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--text-muted); appearance: none; cursor: pointer; position: relative; transition: all 0.2s; }
+        .custom-checkbox:checked { background: var(--accent-primary); border-color: var(--accent-primary); }
+        .custom-checkbox:checked::after { content: '✓'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 12px; font-weight: bold; }
+
+        .btn-icon-danger { width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(225, 29, 72, 0.2); background: rgba(225, 29, 72, 0.05); color: var(--danger); display: flex; justify-content: center; align-items: center; cursor: pointer; transition: all 0.3s; }
+        .btn-icon-danger:hover { background: var(--danger); color: #fff; transform: scale(1.1); box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3); }
+
+        .btn-bulk-delete { background: var(--danger); color: white; border:none; padding: 12px 20px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3); display: none; align-items: center; gap: 8px; transition: all 0.3s; }
+        .btn-bulk-delete.visible { display: inline-flex; animation: fadeIn 0.3s ease; }
+
+        .score-input { width: 100px; padding: 10px; text-align: center; font-weight: 700; color: var(--accent-primary); border: 1px solid var(--input-border); border-radius: 8px; background: var(--glass-bg); } .score-divider { font-size: 13px; color: var(--text-muted); margin-left: 8px; font-weight: 700;}
+        .upload-zone { border: 2px dashed var(--accent-primary); background: var(--accent-light); border-radius: 20px; padding: 48px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; cursor: pointer; transition: all 0.3s; margin-bottom: 24px;} .upload-zone:hover { background: rgba(0, 61, 165, 0.15); border-color: var(--accent-hover); } .dark-theme .upload-zone:hover { background: rgba(59, 130, 246, 0.2); } .upload-icon { font-size: 48px; color: var(--accent-primary); } .upload-text h4 { font-size: 18px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;} .upload-text p { font-size: 13px; color: var(--text-muted); font-weight: 500;}
+        .progress-container { width: 100%; height: 8px; background: rgba(0,0,0,0.1); border-radius: 100px; margin-top: 20px; overflow: hidden; display: none; } .progress-bar { width: 0%; height: 100%; background: var(--accent-primary); transition: width 0.3s ease; border-radius: 100px; }
+
+        .toast { position: fixed; bottom: 32px; right: 32px; background: var(--success); color: #fff; padding: 16px 24px; border-radius: 12px; font-weight: 600; box-shadow: 0 12px 24px rgba(16, 185, 129, 0.3); display: flex; align-items: center; gap: 12px; transform: translateX(150%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000;} .toast.show { transform: translateX(0); } .toast.error { background: var(--danger); }
+
+        /* CUSTOM MODAL */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; backdrop-filter: blur(4px); }
+        .modal-overlay.open { display: flex; opacity: 1; }
+        .modal-box { background: var(--glass-bg); padding: 32px; border-radius: 24px; max-width: 400px; text-align: center; border: 1px solid var(--glass-border); box-shadow: 0 20px 40px rgba(0,0,0,0.2); transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .modal-overlay.open .modal-box { transform: scale(1); }
+        .modal-icon { width: 64px; height: 64px; background: rgba(225, 29, 72, 0.1); color: var(--danger); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 32px; margin: 0 auto 16px; animation: pulse-red 2s infinite; }
+        .modal-box h3 { font-size: 20px; font-weight: 800; color: var(--text-main); margin-bottom: 8px; }
+        .modal-box p { font-size: 14px; color: var(--text-muted); font-weight: 500; margin-bottom: 24px; line-height: 1.5; }
+        .modal-actions { display: flex; gap: 12px; justify-content: center; }
+        .btn-modal-cancel { background: transparent; border: 1px solid var(--text-muted); color: var(--text-muted); font-weight: 700; padding: 12px 24px; border-radius: 12px; cursor: pointer;}
+        .btn-modal-cancel:hover { background: rgba(0,0,0,0.05); color: var(--text-main); }
+        .btn-modal-delete { background: var(--danger); color: white; border: none; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3); font-weight: 700; padding: 12px 24px; border-radius: 12px; cursor: pointer;}
+        .btn-modal-delete:hover { background: #be123c; transform: translateY(-2px); }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(225, 29, 72, 0); } 100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); } }
+
+        /* ===== SMART TEMPLATE BUILDER STYLES ===== */
+        .bulk-step-box { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 20px; padding: 28px 32px; margin-bottom: 8px; }
+        .bulk-step-header { display: flex; align-items: flex-start; gap: 18px; margin-bottom: 24px; }
+        .bulk-step-num { width: 40px; height: 40px; border-radius: 50%; background: var(--accent-primary); color: #fff; font-size: 18px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 12px var(--accent-light); }
+        .bulk-step-title { font-size: 17px; font-weight: 800; color: var(--text-main); margin-bottom: 4px; }
+        .bulk-step-sub { font-size: 13px; color: var(--text-muted); font-weight: 500; line-height: 1.5; }
+        .template-builder { padding-left: 58px; }
+
+        .bulk-divider { display: flex; align-items: center; gap: 16px; margin: 20px 0; }
+        .bulk-divider-line { flex: 1; height: 1px; background: var(--glass-border); }
+        .bulk-divider-text { font-size: 11px; font-weight: 800; color: var(--text-muted); letter-spacing: 2px; white-space: nowrap; }
+
+        .section-summary-pill { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+        .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 100px; font-size: 12px; font-weight: 700; background: var(--accent-light); color: var(--accent-primary); border: 1px solid rgba(0,61,165,0.15); }
+        .dark-theme .pill { border-color: rgba(59,130,246,0.2); }
+
+        .activity-defs-container { display: flex; flex-direction: column; gap: 12px; }
+        .act-def-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 44px; gap: 10px; align-items: end; padding: 16px 20px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 14px; position: relative; animation: fadeIn 0.2s ease; }
+        .act-def-row:hover { border-color: var(--accent-primary); }
+        .act-def-row .form-label { font-size: 11px; }
+        .act-def-row .form-control { padding: 10px 12px; font-size: 13px; border-radius: 8px; }
+        .act-def-num { position: absolute; top: -10px; left: 16px; background: var(--accent-primary); color: #fff; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 100px; letter-spacing: 0.5px; }
+        .btn-remove-act { width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(225,29,72,0.25); background: rgba(225,29,72,0.06); color: var(--danger); display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 16px; align-self: end; flex-shrink: 0; transition: all 0.2s; }
+        .btn-remove-act:hover { background: var(--danger); color: #fff; }
+
+        .empty-acts-msg { text-align: center; padding: 32px; color: var(--text-muted); font-size: 14px; font-weight: 600; border: 2px dashed var(--glass-border); border-radius: 14px; }
+        .empty-acts-msg i { font-size: 32px; display: block; margin-bottom: 8px; opacity: 0.4; }
+
+        /* Spinner */
+        .spin-ring { width: 18px; height: 18px; border: 2px solid var(--accent-light); border-top-color: var(--accent-primary); border-radius: 50%; animation: spin 0.6s linear infinite; flex-shrink: 0; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 1024px) { body { flex-direction: column; } .sidebar { width: 100%; height: auto; flex-direction: row; padding: 20px; justify-content: space-between; align-items: center; z-index: 100; border-right: none; border-bottom: 1px solid var(--glass-border); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable;} .nav-menu { display: none; } .form-grid { grid-template-columns: 1fr; } .form-group.full, .form-section-title { grid-column: span 1; } .search-wrapper { width: 100%; order: 2; } .table-controls-wrapper { flex-direction: column; align-items: flex-start; } .btn-bulk-delete { width: 100%; order: 1; justify-content: center; } .act-def-row { grid-template-columns: 1fr 1fr; } .template-builder { padding-left: 0; } }
+        @media (max-width: 600px) { .act-def-row { grid-template-columns: 1fr; } .bulk-step-box { padding: 20px 16px; } }
+
+        /* ===== MOBILE NAVIGATION ===== */
+        .mobile-nav-bar { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--glass-bg); backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px); border-top: 1px solid var(--glass-border); box-shadow: 0 -8px 32px rgba(0,0,0,0.1); z-index: 200; padding: 6px 0 max(6px, env(safe-area-inset-bottom)); }
+        .mobile-nav-bar ul { display: flex; list-style: none; align-items: center; padding: 0 12px; overflow-x: auto; gap: 4px; }
+        .mobile-nav-bar ul li a { display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: var(--text-muted); font-size: 9px; font-weight: 700; text-transform: uppercase; padding: 8px 14px; border-radius: 14px; min-width: 60px; }
+        .mobile-nav-bar ul li a i { font-size: 22px; }
+        .mobile-nav-bar ul li a.active { color: var(--accent-primary); background: var(--accent-light); }
+        @media (max-width: 1024px) { .mobile-nav-bar { display: block; } .main-wrapper { padding-bottom: 90px !important; } }
+    </style>
 </head>
-<body><p>Redirecting to Create Assessments...</p></body>
+<body>
+    <div class="ambient-mesh"><div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div></div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="logo-container">
+            <img src="https://res.cloudinary.com/dfdlqf6ng/image/upload/v1772078917/PamantasanNgLungsodNgValenzuelaLogo_t53djy.png" alt="PLV Logo" class="logo-img">
+            <div class="logo-text"><h2>PLV Admin</h2><p>System Management</p></div>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="admin-dashboard.html"><i class="ph-fill ph-squares-four"></i> Dashboard Overview</a></li>
+            <li class="nav-item"><a href="admin-records.html"><i class="ph ph-pen"></i> Student Records</a></li>
+            <li class="nav-item"><a href="admin-sections.html"><i class="ph-fill ph-users-three"></i> Manage Sections</a></li>
+            <li class="nav-item"><a href="admin-subjects.html"><i class="ph ph-notebook"></i> Manage Subjects</a></li>
+            <li class="nav-item"><a href="admin-schedule.html"><i class="ph-fill ph-clock"></i> Manage Schedules</a></li>
+            <li class="nav-item"><a href="admin-accounts.html"><i class="ph-fill ph-users"></i> Student Accounts</a></li>
+            <li class="nav-item"><a href="admin-activities.html" class="active"><i class="ph-fill ph-list-checks"></i> Activities Setup</a></li>
+            <li class="nav-item"><a href="admin-assessments.html"><i class="ph-fill ph-clipboard-text"></i> Create Assessments</a></li>
+            <li class="nav-item"><a href="admin-grades.html"><i class="ph-fill ph-exam"></i> Input Grades</a></li>
+            <li class="nav-item"><a href="admin-attendance.html"><i class="ph-fill ph-calendar-check"></i> Attendance</a></li>
+            <li class="nav-item"><a href="admin-settings.html"><i class="ph-fill ph-gear"></i> System Settings</a></li>
+            <li class="nav-item" style="margin-top:auto;"><a onclick="window.logout()"><i class="ph ph-sign-out"></i> Logout</a></li>
+        </ul>
+    </aside>
+
+    <main class="main-wrapper">
+        <header class="header">
+            <div><h1>Activities Setup</h1><p>Create, upload, and manage class activities.</p></div>
+            <div class="header-actions"><div class="icon-btn theme-toggle" id="themeToggle"><i class="ph-fill ph-sun" id="themeIcon"></i></div></div>
+        </header>
+
+        <div class="card glass">
+            <!-- 3 Tabs Layout -->
+            <div class="tab-controls">
+                <button class="tab-btn active" onclick="window.toggleTab('act-manual', this)">Manual Entry</button>
+                <button class="tab-btn" onclick="window.toggleTab('act-bulk', this)">Bulk Excel Upload</button>
+                <button class="tab-btn" onclick="window.toggleTab('act-manage', this)">Manage & Delete</button>
+            </div>
+
+            <!-- MANUAL ENTRY: 2 STEP PROCESS -->
+            <div id="act-manual" class="tab-content active">
+                <form id="activityForm">
+                    <div class="form-grid">
+                        <div class="form-section-title"><i class="ph-bold ph-file-text"></i> Step 1: Activity Details</div>
+                        <div class="form-group"><label class="form-label">Subject Code</label>
+                            <!-- CHANGED TO DROPDOWN -->
+                            <select id="subCode" class="form-control" required>
+                                <option value="">Loading Subjects...</option>
+                            </select>
+                        </div>
+                        <div class="form-group"><label class="form-label">Class Section</label><select id="sectionSelect" class="form-control" required><option value="">Loading Sections...</option></select></div>
+                        <div class="form-group"><label class="form-label">Grading Period</label><select class="form-control" id="aTerm" required><option value="midterm">Midterm</option><option value="final">Final Term</option></select></div>
+                        <div class="form-group"><label class="form-label">Category</label><select class="form-control" id="aCat" required><option value="written">Written Output (30%)</option><option value="perf">Performance Based (30%)</option><option value="exam">Major Exam (40%)</option></select></div>
+                        <div class="form-group"><label class="form-label">Date</label><input type="date" id="aDate" class="form-control" required></div>
+                        <div class="form-group"><label class="form-label">Total Perfect Score</label><input type="number" id="perfectScore" class="form-control" placeholder="e.g. 50" min="1" required></div>
+                        <div class="form-group full"><label class="form-label">Activity Title</label><input type="text" id="aTitle" class="form-control" placeholder="e.g. Quiz 1: Algorithms" required></div>
+                        <div class="form-group full" style="margin-top: 10px;"><button type="submit" id="loadRosterBtn" class="btn btn-secondary"><i class="ph-bold ph-users"></i> Load Student Roster</button></div>
+                    </div>
+                </form>
+
+                <div id="roster-container" style="display: none; margin-top: 32px; border-top: 1px solid var(--glass-border); padding-top: 24px;">
+                    <div class="form-section-title"><i class="ph-bold ph-pencil-simple"></i> Step 2: Input Scores</div>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Encoding scores for section <strong id="display-section" style="color: var(--accent-primary);"></strong>. Perfect score is <strong id="display-perfect" style="color: var(--accent-primary);"></strong>.</p>
+                    <form id="scoreForm">
+                        <div class="table-container">
+                            <table class="modern-table">
+                                <thead><tr><th>Student No.</th><th>Student Name</th><th>Score</th></tr></thead>
+                                <tbody id="roster-body"></tbody>
+                            </table>
+                        </div>
+                        <div class="form-group full" style="margin-top: 24px;"><button type="submit" id="saveScoreBtn" class="btn btn-primary"><i class="ph-bold ph-floppy-disk"></i> Save Activity & Scores</button></div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- BULK UPLOAD (EXCEL) -->
+            <div id="act-bulk" class="tab-content">
+
+                <!-- STEP 1: GENERATE SMART TEMPLATE -->
+                <div class="bulk-step-box" id="step1-box">
+                    <div class="bulk-step-header">
+                        <div class="bulk-step-num">1</div>
+                        <div>
+                            <h3 class="bulk-step-title">Generate Your Personalized Template</h3>
+                            <p class="bulk-step-sub">Select a section — the system will auto-fetch all enrolled students and their subjects.</p>
+                        </div>
+                    </div>
+
+                    <div class="template-builder">
+                        <!-- Section picker -->
+                        <div class="form-group" style="max-width:320px;">
+                            <label class="form-label">Class Section</label>
+                            <select id="tmplSection" class="form-control" onchange="window.onTmplSectionChange()">
+                                <option value="">Select Section...</option>
+                            </select>
+                        </div>
+
+                        <!-- Loading indicator -->
+                        <div id="tmplLoadingMsg" style="display:none; align-items:center; gap:10px; color:var(--accent-primary); font-weight:600; font-size:14px; margin-top:8px;">
+                            <div class="spin-ring"></div> Fetching students & subjects...
+                        </div>
+
+                        <!-- Activities definition panel -->
+                        <div id="tmplActivitiesPanel" style="display:none; margin-top:28px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+                                <div>
+                                    <h4 style="font-size:15px; font-weight:800; color:var(--text-main);">Define Activities to Include</h4>
+                                    <p style="font-size:13px; color:var(--text-muted); margin-top:2px;">Each activity becomes a column in the Excel. Students are rows — just fill in scores.</p>
+                                </div>
+                                <button class="btn btn-outline" style="padding:10px 18px; font-size:13px;" onclick="window.addActivityRow()">
+                                    <i class="ph-bold ph-plus"></i> Add Activity
+                                </button>
+                            </div>
+
+                            <!-- Section + subject summary -->
+                            <div id="tmplSectionSummary" class="section-summary-pill"></div>
+
+                            <!-- Activity rows -->
+                            <div id="activityDefinitions" class="activity-defs-container"></div>
+
+                            <!-- Generate button -->
+                            <div style="margin-top:24px; display:flex; gap:12px; flex-wrap:wrap;">
+                                <button class="btn btn-primary" onclick="window.generateSmartTemplate()" id="generateBtn">
+                                    <i class="ph-bold ph-microsoft-excel-logo"></i> Generate & Download Template
+                                </button>
+                                <button class="btn btn-secondary" onclick="window.addActivityRow()" style="font-size:13px; padding:12px 18px;">
+                                    <i class="ph-bold ph-plus-circle"></i> Add More Activities
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DIVIDER -->
+                <div class="bulk-divider">
+                    <div class="bulk-divider-line"></div>
+                    <span class="bulk-divider-text">THEN FILL & UPLOAD</span>
+                    <div class="bulk-divider-line"></div>
+                </div>
+
+                <!-- STEP 2: UPLOAD FILLED TEMPLATE -->
+                <div class="bulk-step-box" id="step2-box">
+                    <div class="bulk-step-header">
+                        <div class="bulk-step-num">2</div>
+                        <div>
+                            <h3 class="bulk-step-title">Upload Your Filled Template</h3>
+                            <p class="bulk-step-sub">Fill in the scores in the Excel file, then upload it here. The system will auto-save everything.</p>
+                        </div>
+                    </div>
+
+                    <div class="upload-zone" onclick="window.simulateUpload()" style="margin-top:20px;">
+                        <i class="ph-fill ph-upload-simple upload-icon"></i>
+                        <div class="upload-text">
+                            <h4>Click to Upload Filled Excel (.xlsx)</h4>
+                            <p>Upload the template you downloaded and filled with scores.</p>
+                        </div>
+                    </div>
+                    <div class="progress-container" id="progressBarContainer"><div class="progress-bar" id="progressBar"></div></div>
+
+                    <!-- Upload result log -->
+                    <div id="uploadLog" style="display:none; margin-top:20px; padding:20px; background:var(--accent-light); border-radius:16px; border:1px solid rgba(0,61,165,0.12);">
+                        <p style="font-size:14px; font-weight:800; color:var(--accent-primary); margin-bottom:10px;"><i class="ph-bold ph-list-checks"></i> Upload Summary</p>
+                        <div id="uploadLogContent" style="font-size:13px; color:var(--text-muted); line-height:2;"></div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- MANAGE / DELETE SUBMENU -->
+            <div id="act-manage" class="tab-content">
+                <div class="table-controls-wrapper">
+                    <div class="search-wrapper">
+                        <i class="ph-bold ph-magnifying-glass"></i>
+                        <input type="text" class="search-input" id="actSearch" placeholder="Search by title, subject..." onkeyup="window.handleSearch()">
+                    </div>
+                    <button class="btn btn-bulk-delete" id="bulkDeleteBtn" onclick="window.confirmBulkDelete()">
+                        <i class="ph-bold ph-trash"></i> Delete Selected (<span id="selectCount">0</span>)
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table class="modern-table">
+                        <thead>
+                            <tr>
+                                <th class="check-col"><input type="checkbox" class="custom-checkbox" id="selectAll" onclick="window.toggleSelectAll()"></th>
+                                <th>Date</th>
+                                <th>Section</th>
+                                <th>Subject</th>
+                                <th>Title</th>
+                                <th>Category</th>
+                                <th>Total Pts</th>
+                                <th style="text-align:center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="manageBody"><tr><td colspan="8">Loading activities...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- TOAST -->
+    <div id="toast" class="toast"><i id="toast-icon" class="ph-fill ph-check-circle" style="font-size: 24px;"></i><span id="toast-msg">Success!</span></div>
+
+    <!-- CUSTOM CONFIRMATION MODAL -->
+    <div id="customModal" class="modal-overlay">
+        <div class="modal-box glass">
+            <div class="modal-icon" id="modalIcon"><i class="ph-fill ph-warning-circle"></i></div>
+            <h3 id="modalTitle">Delete Activity?</h3>
+            <p id="modalDesc">This action cannot be undone. The activity and <b>all associated student scores</b> will be permanently removed.</p>
+            <div class="modal-actions">
+                <button class="btn-modal-cancel" onclick="window.closeModal()">Cancel</button>
+                <button class="btn-modal-delete" id="modalConfirmBtn" onclick="window.confirmAction()">Yes, Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUPABASE LOGIC -->
+    <script type="module">
+        import { supabase } from "./supabase-adapter.js";
+
+
+import { startAdminSessionGuard } from "./admin-session.js";
+const user = JSON.parse(localStorage.getItem('loggedInUser'));
+        if (!user || user.role !== 'admin') window.location.href = 'index.html';
+
+        const adminSessionGuard = startAdminSessionGuard(supabase, user);
+        window.logout = function() { adminSessionGuard.stop(); localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
+
+        // UI & Tab Handling
+        window.toggleTab = function(showId, element) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            element.classList.add('active');
+            document.getElementById(showId).classList.add('active');
+            if(showId === 'act-manage') window.loadActivities();
+        }
+
+        window.showToast = function(message, type='success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            document.getElementById('toast-msg').innerText = message;
+            toast.className = 'toast';
+            if(type === 'error') { toast.classList.add('error'); icon.className = 'ph-fill ph-warning-circle'; } else { icon.className = 'ph-fill ph-check-circle'; }
+            toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        let activeSubjectCode = "";
+        document.getElementById('aDate').valueAsDate = new Date();
+
+        async function insertRow(table, row) {
+            const { data, error } = await supabase.from(table).insert(row).select('*').single();
+            if (error) throw error;
+            return data;
+        }
+
+        async function deleteById(table, id) {
+            const { error } = await supabase.from(table).delete().eq('id', id);
+            if (error) throw error;
+        }
+
+        // 1. Load Sections Dropdown from 'sections' collection
+        window.loadSections = async function() {
+            const select = document.getElementById('sectionSelect');
+            try {
+                const { data, error } = await supabase.from("sections").select("*").order("sectionName", { ascending: true });
+                if (error) throw error;
+                const sections = (data || []).map(d => d.sectionName);
+                sections.sort();
+
+                select.innerHTML = '<option value="">Select Class Section</option>';
+                sections.forEach(sec => { select.innerHTML += `<option value="${sec}">${sec}</option>`; });
+            } catch(e) { console.error(e); }
+        }
+        window.loadSections();
+
+        // 1.5 Load Subjects Dropdown from 'subjects' collection
+        window.loadSubjects = async function() {
+            const select = document.getElementById('subCode');
+            try {
+                const { data, error } = await supabase.from("subjects").select("*").order("subjectCode", { ascending: true });
+                if (error) throw error;
+                const subjects = data || [];
+                subjects.sort((a,b) => a.subjectCode.localeCompare(b.subjectCode));
+
+                select.innerHTML = '<option value="">Select Subject</option>';
+                subjects.forEach(sub => {
+                    select.innerHTML += `<option value="${sub.subjectCode}">${sub.subjectCode}: ${sub.subjectName}</option>`;
+                });
+            } catch(e) { console.error(e); }
+        }
+        window.loadSubjects();
+
+        // Helper: Check Duplicate
+        async function checkDuplicate(sub, term, cat, title, section) {
+            const { data, error } = await supabase.from("activities").select("id").eq("subjectCode", sub).eq("term", term).eq("category", cat).eq("title", title).eq("section", section);
+            if (error) throw error;
+            return !!(data && data.length);
+        }
+
+        // 2. Manual Entry Logic
+        document.getElementById('activityForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('loadRosterBtn');
+
+            const sub = document.getElementById('subCode').value;
+            const sec = document.getElementById('sectionSelect').value;
+            const term = document.getElementById('aTerm').value;
+            const cat = document.getElementById('aCat').value;
+            const title = document.getElementById('aTitle').value;
+
+            if(!sub || !sec) {
+                window.showToast("Please select Subject and Section", "error");
+                return;
+            }
+
+            const isDup = await checkDuplicate(sub, term, cat, title, sec);
+            if(isDup) { window.showToast("Activity already exists for this section!", "error"); return; }
+
+            btn.innerHTML = 'Loading...'; btn.disabled = true;
+            const perfScore = document.getElementById('perfectScore').value;
+            const tbody = document.getElementById('roster-body'); tbody.innerHTML = '';
+
+            try {
+                // Fetch enrollments for specific section AND subject
+                const { data: students, error } = await supabase.from("enrollments").select("*").eq("section", sec).eq("subjectCode", sub);
+                if (error) throw error;
+                if(!students || !students.length) { window.showToast("No students found in this section for this subject.", "error"); btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-users"></i> Load Student Roster'; return; }
+                students.sort((a,b) => a.studentName.localeCompare(b.studentName));
+
+                students.forEach(data => {
+                    tbody.innerHTML += `<tr><td>${data.studentNo}</td><td>${data.studentName}</td><td><div style="display: flex; align-items: center;"><input type="number" class="score-input stud-score" data-sno="${data.studentNo}" min="0" max="${perfScore}" required placeholder="0"><span class="score-divider">/ ${perfScore}</span></div></td></tr>`;
+                });
+
+                document.getElementById('display-section').innerText = sec;
+                document.getElementById('display-perfect').innerText = perfScore;
+                document.getElementById('roster-container').style.display = 'block';
+            } catch(e) { console.error(e); window.showToast("Database Error", "error"); }
+            btn.innerHTML = '<i class="ph-bold ph-users"></i> Load Student Roster'; btn.disabled = false;
+        });
+
+        document.getElementById('scoreForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('saveScoreBtn'); btn.innerHTML = 'Saving...'; btn.disabled = true;
+            try {
+                // IMPORTANT: Save Section in Activity Doc
+                const actRef = await insertRow("activities", {
+                    subjectCode: document.getElementById('subCode').value,
+                    section: document.getElementById('sectionSelect').value,
+                    term: document.getElementById('aTerm').value,
+                    category: document.getElementById('aCat').value,
+                    title: document.getElementById('aTitle').value,
+                    perfectScore: Number(document.getElementById('perfectScore').value),
+                    date: document.getElementById('aDate').value || new Date().toISOString()
+                });
+                const inputs = document.querySelectorAll('.stud-score');
+                for(let inp of inputs) { await insertRow("scores", { activityId: actRef.id, studentNo: inp.dataset.sno, score: Number(inp.value) }); }
+                window.showToast('Activity and all student scores saved!');
+                document.getElementById('activityForm').reset(); document.getElementById('roster-container').style.display = 'none';
+                window.loadActivities();
+            } catch(e) { console.error(e); window.showToast("Failed to save scores", "error"); }
+            btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Save Activity & Scores'; btn.disabled = false;
+        });
+
+        // =============================================
+        // SMART TEMPLATE BUILDER LOGIC
+        // =============================================
+        let tmplStudentData = []; // { studentNo, studentName, subjectCode }[]
+        let tmplSubjects = [];    // unique subject codes for selected section
+        let actRowCount = 0;
+
+        // Populate template section selector (reuse same sections data)
+        async function populateTmplSections() {
+            const sel = document.getElementById('tmplSection');
+            try {
+                const { data, error } = await supabase.from("sections").select("*").order("sectionName", { ascending: true });
+                if (error) throw error;
+                const secs = (data || []).map(d => d.sectionName);
+                secs.sort();
+                sel.innerHTML = '<option value="">Select Section...</option>';
+                secs.forEach(s => sel.innerHTML += `<option value="${s}">${s}</option>`);
+            } catch(e) { console.error(e); }
+        }
+        populateTmplSections();
+
+        window.onTmplSectionChange = async function() {
+            const sec = document.getElementById('tmplSection').value;
+            const panel = document.getElementById('tmplActivitiesPanel');
+            const loadMsg = document.getElementById('tmplLoadingMsg');
+            if(!sec) { panel.style.display = 'none'; return; }
+
+            loadMsg.style.display = 'flex';
+            panel.style.display = 'none';
+            tmplStudentData = [];
+            tmplSubjects = [];
+
+            try {
+                const { data: enrollments, error } = await supabase.from("enrollments").select("*").eq("section", sec);
+                if (error) throw error;
+
+                const subjectSet = new Set();
+                const studentMap = {}; // studentNo => { studentNo, studentName, subjects: Set }
+
+                (enrollments || []).forEach(data => {
+                    if(!studentMap[data.studentNo]) {
+                        studentMap[data.studentNo] = { studentNo: data.studentNo, studentName: data.studentName || '', subjects: new Set() };
+                    }
+                    if(data.subjectCode) studentMap[data.studentNo].subjects.add(data.subjectCode);
+                    if(data.subjectCode) subjectSet.add(data.subjectCode);
+                });
+
+                tmplStudentData = Object.values(studentMap).sort((a,b) => a.studentName.localeCompare(b.studentName));
+                tmplSubjects = Array.from(subjectSet).sort();
+
+                if(tmplStudentData.length === 0) {
+                    window.showToast("No students found in this section.", "error");
+                    loadMsg.style.display = 'none';
+                    return;
+                }
+
+                // Show summary pills
+                const summary = document.getElementById('tmplSectionSummary');
+                summary.innerHTML = `
+                    <span class="pill"><i class="ph-bold ph-users-three"></i> Section: ${sec}</span>
+                    <span class="pill"><i class="ph-bold ph-student"></i> ${tmplStudentData.length} Students</span>
+                    ${tmplSubjects.map(s => `<span class="pill"><i class="ph-bold ph-book-open"></i> ${s}</span>`).join('')}
+                `;
+
+                // Add a default first activity row if empty
+                if(document.getElementById('activityDefinitions').children.length === 0) {
+                    window.addActivityRow();
+                }
+
+                loadMsg.style.display = 'none';
+                panel.style.display = 'block';
+
+            } catch(e) {
+                console.error(e);
+                window.showToast("Error fetching students.", "error");
+                loadMsg.style.display = 'none';
+            }
+        }
+
+        window.addActivityRow = function() {
+            actRowCount++;
+            const container = document.getElementById('activityDefinitions');
+
+            // Remove empty state if exists
+            const empty = container.querySelector('.empty-acts-msg');
+            if(empty) empty.remove();
+
+            const today = new Date().toISOString().split('T')[0];
+
+            const row = document.createElement('div');
+            row.className = 'act-def-row';
+            row.setAttribute('data-row-id', actRowCount);
+            row.innerHTML = `
+                <div class="act-def-num">Activity ${actRowCount}</div>
+                <div class="form-group">
+                    <label class="form-label">Activity Title *</label>
+                    <input type="text" class="form-control act-title" placeholder="e.g. Quiz 1: Sorting Algorithms" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Subject *</label>
+                    <select class="form-control act-subject" required>
+                        <option value="">Select Subject</option>
+                        ${tmplSubjects.map(s => `<option value="${s}">${s}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Term *</label>
+                    <select class="form-control act-term" required>
+                        <option value="midterm">Midterm</option>
+                        <option value="final">Final Term</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Category *</label>
+                    <select class="form-control act-category" required>
+                        <option value="written">Written (30%)</option>
+                        <option value="perf">Performance (30%)</option>
+                        <option value="exam">Major Exam (40%)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Date & Max Score</label>
+                    <div style="display:flex; gap:6px;">
+                        <input type="date" class="form-control act-date" value="${today}" style="flex:1.2;">
+                        <input type="number" class="form-control act-perfect" placeholder="Max" min="1" style="flex:0.8; text-align:center;" value="50">
+                    </div>
+                </div>
+                <button class="btn-remove-act" onclick="window.removeActivityRow(this)" title="Remove this activity">
+                    <i class="ph-bold ph-trash"></i>
+                </button>
+            `;
+            container.appendChild(row);
+        }
+
+        window.removeActivityRow = function(btn) {
+            const row = btn.closest('.act-def-row');
+            row.style.opacity = '0';
+            row.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                row.remove();
+                // Re-number remaining rows
+                document.querySelectorAll('.act-def-row').forEach((r, i) => {
+                    const num = r.querySelector('.act-def-num');
+                    if(num) num.textContent = `Activity ${i+1}`;
+                });
+                // Show empty state if none left
+                if(document.getElementById('activityDefinitions').children.length === 0) {
+                    document.getElementById('activityDefinitions').innerHTML = `
+                        <div class="empty-acts-msg"><i class="ph-bold ph-clipboard-text"></i>No activities defined yet. Click "Add Activity" to start.</div>
+                    `;
+                }
+            }, 200);
+        }
+
+        window.generateSmartTemplate = function() {
+            const sec = document.getElementById('tmplSection').value;
+            if(!sec || tmplStudentData.length === 0) {
+                window.showToast("Please select a section first.", "error");
+                return;
+            }
+
+            const rows = document.querySelectorAll('.act-def-row');
+            if(rows.length === 0) {
+                window.showToast("Please add at least one activity.", "error");
+                return;
+            }
+
+            // Collect activity definitions
+            const activities = [];
+            let hasError = false;
+            rows.forEach((row, idx) => {
+                const title = row.querySelector('.act-title').value.trim();
+                const subject = row.querySelector('.act-subject').value;
+                const term = row.querySelector('.act-term').value;
+                const category = row.querySelector('.act-category').value;
+                const date = row.querySelector('.act-date').value;
+                const perfect = row.querySelector('.act-perfect').value;
+                if(!title || !subject) {
+                    row.querySelector('.act-title').style.borderColor = !title ? 'var(--danger)' : '';
+                    row.querySelector('.act-subject').style.borderColor = !subject ? 'var(--danger)' : '';
+                    hasError = true;
+                }
+                activities.push({ title, subject, term, category, date, perfect: Number(perfect) || 50 });
+            });
+
+            if(hasError) {
+                window.showToast("Please fill in all activity titles and subjects.", "error");
+                return;
+            }
+
+            // Build one workbook
+            const wb = XLSX.utils.book_new();
+
+            // Group activities by subject so we can make sheets (one sheet per subject)
+            const bySubject = {};
+            activities.forEach(act => {
+                if(!bySubject[act.subject]) bySubject[act.subject] = [];
+                bySubject[act.subject].push(act);
+            });
+
+            // Also collect activities that span all subjects in a combined "All Activities" sheet
+            // FORMAT: Row 1 = metadata header, Row 2 = field labels, Row 3+ = student data
+            // Columns: [LOCKED] Student_No | [LOCKED] Student_Name | [LOCKED] Subject_Code |
+            //          [ACT 1] Score | [ACT 2] Score | ...
+
+            Object.entries(bySubject).forEach(([subjectCode, acts]) => {
+                // Get students enrolled in this subject within the section
+                const studentsForSubject = tmplStudentData.filter(st => st.subjects.has(subjectCode));
+                if(studentsForSubject.length === 0) return;
+
+                // === BUILD SHEET DATA ===
+                const sheetData = [];
+
+                // ROW 1: Info banner (merged cells visually labeled)
+                sheetData.push([`PLV Activity Score Template`, `Section: ${sec}`, `Subject: ${subjectCode}`, `Generated: ${new Date().toLocaleDateString()}`, ...new Array(acts.length - 1).fill('')]);
+
+                // ROW 2: Empty separator
+                sheetData.push(new Array(3 + acts.length).fill(''));
+
+                // ROW 3: Activity metadata — Term
+                sheetData.push(['', '', 'TERM →', ...acts.map(a => a.term === 'midterm' ? 'Midterm' : 'Final Term')]);
+
+                // ROW 4: Activity metadata — Category
+                sheetData.push(['', '', 'CATEGORY →', ...acts.map(a => a.category === 'written' ? 'Written' : a.category === 'perf' ? 'Performance' : 'Exam')]);
+
+                // ROW 5: Activity metadata — Date
+                sheetData.push(['', '', 'DATE →', ...acts.map(a => a.date)]);
+
+                // ROW 6: Activity metadata — Max Score
+                sheetData.push(['', '', 'MAX SCORE →', ...acts.map(a => a.perfect)]);
+
+                // ROW 7: Column headers
+                const headerRow = ['Student No.', 'Student Name', 'Subject Code', ...acts.map(a => a.title)];
+                sheetData.push(headerRow);
+
+                // ROW 8+: Student rows (pre-filled, score cells left blank)
+                studentsForSubject.forEach(st => {
+                    sheetData.push([
+                        st.studentNo,
+                        st.studentName,
+                        subjectCode,
+                        ...new Array(acts.length).fill('')  // empty score cells for admin to fill
+                    ]);
+                });
+
+                const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+                // === COLUMN WIDTHS ===
+                ws['!cols'] = [
+                    { wch: 16 },  // Student No
+                    { wch: 30 },  // Student Name
+                    { wch: 14 },  // Subject Code
+                    ...acts.map(() => ({ wch: 22 }))  // Activity columns
+                ];
+
+                // === CELL STYLING (SheetJS community = limited, but we set types) ===
+                // Mark metadata rows with light shading via number format trick
+                // The header row is row index 6 (0-based)
+                const headerRowIdx = 6;
+                const numCols = 3 + acts.length;
+
+                // Set header row cells to bold text (best effort with SheetJS community)
+                for(let c = 0; c < numCols; c++) {
+                    const cellAddr = XLSX.utils.encode_cell({ r: headerRowIdx, c });
+                    if(!ws[cellAddr]) continue;
+                    ws[cellAddr].s = { font: { bold: true }, fill: { fgColor: { rgb: "003DA5" } }, alignment: { horizontal: "center" } };
+                }
+
+                // Style metadata label cells
+                [2,3,4,5].forEach(r => {
+                    const cell = XLSX.utils.encode_cell({ r, c: 2 });
+                    if(ws[cell]) ws[cell].s = { font: { bold: true, italic: true }, fill: { fgColor: { rgb: "EEF4FF" } } };
+                });
+
+                // Freeze top 7 rows and first 3 columns so student data is easy to scroll
+                ws['!freeze'] = { xSplit: 3, ySplit: headerRowIdx + 1 };
+
+                // Sheet name = subject code (max 31 chars)
+                const sheetName = subjectCode.substring(0, 31);
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            });
+
+            if(wb.SheetNames.length === 0) {
+                window.showToast("No student-subject matches found. Check enrollments.", "error");
+                return;
+            }
+
+            // Write the workbook
+            XLSX.writeFile(wb, `Activity_Template_${sec.replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`);
+            window.showToast(`Template generated! ${wb.SheetNames.length} sheet(s) for ${sec}.`);
+        }
+
+        // =============================================
+        // SMART UPLOAD — reads column-based format
+        // =============================================
+        window.simulateUpload = function() {
+            const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx, .xls';
+            input.onchange = e => {
+                const file = e.target.files[0]; if(!file) return;
+                const pContainer = document.getElementById('progressBarContainer');
+                const pBar = document.getElementById('progressBar');
+                pContainer.style.display = 'block'; pBar.style.width = '5%';
+                window.showToast(`Reading ${file.name}...`);
+
+                const reader = new FileReader();
+                reader.onload = async (ev) => {
+                    try {
+                        const data = new Uint8Array(ev.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        pBar.style.width = '15%';
+
+                        let totalSaved = 0, totalSkipped = 0, totalErrors = 0;
+                        const logLines = [];
+
+                        const totalSheets = workbook.SheetNames.length;
+                        let processedSheets = 0;
+
+                        for(const sheetName of workbook.SheetNames) {
+                            const ws = workbook.Sheets[sheetName];
+                            const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+                            // Find the header row (contains "Student No." in col 0)
+                            let headerRowIdx = -1;
+                            for(let r = 0; r < raw.length; r++) {
+                                if(String(raw[r][0]).trim() === 'Student No.') { headerRowIdx = r; break; }
+                            }
+                            if(headerRowIdx < 0) {
+                                logLines.push(`⚠️ Sheet "${sheetName}": Header row not found — skipped.`);
+                                totalSheets; processedSheets++;
+                                continue;
+                            }
+
+                            // Read metadata rows just above header
+                            // Row headerRowIdx-4 = Term, -3 = Category, -2 = Date, -1 = Max Score
+                            const termRow      = raw[headerRowIdx - 4] || [];
+                            const catRow       = raw[headerRowIdx - 3] || [];
+                            const dateRow      = raw[headerRowIdx - 2] || [];
+                            const perfectRow   = raw[headerRowIdx - 1] || [];
+                            const headerRow    = raw[headerRowIdx];
+
+                            // Activities start at column index 3
+                            const activityCols = [];
+                            for(let c = 3; c < headerRow.length; c++) {
+                                const title = String(headerRow[c] || '').trim();
+                                if(!title) continue;
+
+                                let termVal = String(termRow[c] || '').toLowerCase();
+                                termVal = termVal.includes('final') ? 'final' : 'midterm';
+
+                                let catVal = String(catRow[c] || '').toLowerCase();
+                                catVal = catVal.includes('perf') ? 'perf' : catVal.includes('exam') ? 'exam' : 'written';
+
+                                let dateVal = String(dateRow[c] || '').trim();
+                                if(!dateVal) dateVal = new Date().toISOString().split('T')[0];
+
+                                let perfectVal = Number(perfectRow[c]) || 50;
+
+                                activityCols.push({ colIdx: c, title, term: termVal, category: catVal, date: dateVal, perfect: perfectVal });
+                            }
+
+                            if(activityCols.length === 0) {
+                                logLines.push(`⚠️ Sheet "${sheetName}": No activity columns found — skipped.`);
+                                processedSheets++;
+                                continue;
+                            }
+
+                            // Student rows start after header row
+                            const studentRows = raw.slice(headerRowIdx + 1).filter(r => String(r[0]).trim() !== '');
+
+                            // For each activity column, save activity + scores
+                            for(const act of activityCols) {
+                                // Determine subject and section from student rows
+                                const subjectCode = String(studentRows[0]?.[2] || sheetName).trim();
+                                // Section: try to extract from row 0 of sheet info row
+                                const infoRow0 = raw[0] || [];
+                                const sectionMatch = String(infoRow0[1] || '').match(/Section:\s*(.+)/i);
+                                const section = sectionMatch ? sectionMatch[1].trim() : sheetName;
+
+                                // Check duplicate
+                                const isDup = await checkDuplicate(subjectCode, act.term, act.category, act.title, section);
+                                if(isDup) {
+                                    logLines.push(`⏭️ "${act.title}" (${subjectCode}) — already exists, skipped.`);
+                                    totalSkipped++;
+                                    continue;
+                                }
+
+                                try {
+                                    const actRef = await insertRow("activities", {
+                                        subjectCode,
+                                        section,
+                                        term: act.term,
+                                        category: act.category,
+                                        title: act.title,
+                                        perfectScore: act.perfect,
+                                        date: act.date
+                                    });
+
+                                    let savedScores = 0;
+                                    for(const row of studentRows) {
+                                        const sNo = String(row[0] || '').trim();
+                                        const scoreRaw = row[act.colIdx];
+                                        const score = scoreRaw !== '' && scoreRaw !== undefined ? Number(scoreRaw) : 0;
+                                        if(!sNo) continue;
+                                        await insertRow("scores", { activityId: actRef.id, studentNo: sNo, score });
+                                        savedScores++;
+                                    }
+                                    logLines.push(`✅ "${act.title}" (${subjectCode}) — saved with ${savedScores} student scores.`);
+                                    totalSaved++;
+                                } catch(innerErr) {
+                                    console.error(innerErr);
+                                    logLines.push(`❌ "${act.title}" — error saving.`);
+                                    totalErrors++;
+                                }
+                            }
+
+                            processedSheets++;
+                            pBar.style.width = `${15 + (processedSheets / workbook.SheetNames.length) * 80}%`;
+                        }
+
+                        pBar.style.width = '100%';
+                        setTimeout(() => { pContainer.style.display = 'none'; pBar.style.width = '0%'; }, 800);
+
+                        // Show upload log
+                        const log = document.getElementById('uploadLog');
+                        const logContent = document.getElementById('uploadLogContent');
+                        logContent.innerHTML = logLines.map(l => `<div style="margin-bottom:2px;">${l}</div>`).join('') +
+                            `<div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--glass-border); font-weight:800; color:var(--text-main);">
+                                ✅ ${totalSaved} saved &nbsp;|&nbsp; ⏭️ ${totalSkipped} skipped &nbsp;|&nbsp; ❌ ${totalErrors} errors
+                            </div>`;
+                        log.style.display = 'block';
+
+                        if(totalSaved > 0) {
+                            window.showToast(`Upload complete! ${totalSaved} activit${totalSaved===1?'y':'ies'} saved.`);
+                            window.loadActivities();
+                        } else {
+                            window.showToast("No new activities saved.", "error");
+                        }
+
+                    } catch(err) {
+                        console.error(err);
+                        window.showToast("Error reading file. Make sure you used the generated template.", "error");
+                        document.getElementById('progressBarContainer').style.display = 'none';
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            };
+            input.click();
+        }
+
+        // Keep old downloadTemplate as alias (won't be called but just in case)
+        window.downloadTemplate = window.generateSmartTemplate;
+
+        // 4. Manage/Delete Logic
+        let allActivitiesData = [];
+
+        window.loadActivities = async function() {
+            const tbody = document.getElementById('manageBody');
+            tbody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
+            try {
+                const { data: activities, error } = await supabase.from("activities").select("*");
+                if (error) throw error;
+                if(!activities || !activities.length) { tbody.innerHTML = '<tr><td colspan="8">No activities found.</td></tr>'; allActivitiesData = []; return; }
+
+                let records = activities.map(d => ({ ...d, dateStr: d.date ? d.date.split('T')[0] : 'N/A' }));
+
+                records.sort((a,b) => b.date.localeCompare(a.date));
+                allActivitiesData = records;
+
+                window.renderTable(records);
+            } catch(e) { console.error(e); tbody.innerHTML = '<tr><td colspan="8">Error loading data.</td></tr>'; }
+        }
+
+        window.renderTable = function(data) {
+            const tbody = document.getElementById('manageBody');
+            tbody.innerHTML = '';
+
+            if(data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8">No matching activities found.</td></tr>';
+                return;
+            }
+
+            data.forEach(d => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="check-col"><input type="checkbox" class="custom-checkbox row-checkbox" data-id="${d.id}" onclick="window.updateBulkBtn()"></td>
+                        <td>${d.dateStr}</td>
+                        <td>${d.section || '-'}</td>
+                        <td>${d.subjectCode}</td>
+                        <td>${d.title}</td>
+                        <td>${d.category.toUpperCase()}</td>
+                        <td>${d.perfectScore}</td>
+                        <td style="text-align:center;">
+                            <button class="btn-icon-danger" onclick="window.openDeleteModal('${d.id}')"><i class="ph-bold ph-trash"></i></button>
+                        </td>
+                    </tr>`;
+            });
+            window.updateBulkBtn();
+        }
+
+        window.handleSearch = function() {
+            const query = document.getElementById('actSearch').value.toLowerCase();
+            const filtered = allActivitiesData.filter(item =>
+                item.title.toLowerCase().includes(query) ||
+                item.subjectCode.toLowerCase().includes(query) ||
+                (item.section && item.section.toLowerCase().includes(query))
+            );
+            window.renderTable(filtered);
+        }
+
+        window.toggleSelectAll = function() {
+            const masterCheck = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(cb => cb.checked = masterCheck.checked);
+            window.updateBulkBtn();
+        }
+
+        window.updateBulkBtn = function() {
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            const checked = document.querySelectorAll('.row-checkbox:checked');
+            const btn = document.getElementById('bulkDeleteBtn');
+            const masterCheck = document.getElementById('selectAll');
+
+            if(checked.length === checkboxes.length && checkboxes.length > 0) masterCheck.checked = true;
+            else masterCheck.checked = false;
+
+            if(checked.length > 0) {
+                btn.classList.add('visible');
+                document.getElementById('selectCount').innerText = checked.length;
+            } else {
+                btn.classList.remove('visible');
+            }
+        }
+
+        let pendingAction = null;
+
+        window.openDeleteModal = function(id) {
+            document.getElementById('modalTitle').innerText = 'Delete Activity?';
+            document.getElementById('modalDesc').innerHTML = `This action cannot be undone. The activity and <b>all associated student scores</b> will be permanently removed.`;
+
+            pendingAction = async () => {
+                const btn = document.getElementById('modalConfirmBtn');
+                const originalText = btn.innerText; btn.innerText = "Deleting..."; btn.disabled = true;
+                try {
+                    await deleteActivityAndScores(id);
+                    window.showToast("Activity Deleted!");
+                    window.loadActivities();
+                    window.closeModal();
+                } catch(e) { console.error(e); window.showToast("Delete failed", "error"); }
+                finally { btn.innerText = originalText; btn.disabled = false; }
+            };
+            document.getElementById('customModal').classList.add('open');
+        }
+
+        window.confirmBulkDelete = function() {
+            const selected = document.querySelectorAll('.row-checkbox:checked');
+            if(selected.length === 0) return;
+
+            document.getElementById('modalTitle').innerText = 'Delete Multiple Activities?';
+            document.getElementById('modalDesc').innerHTML = `You are about to delete <b>${selected.length} activities</b> and their associated scores.<br>This cannot be undone.`;
+
+            pendingAction = async () => {
+                const btn = document.getElementById('modalConfirmBtn');
+                const originalText = btn.innerText; btn.innerText = "Processing..."; btn.disabled = true;
+                try {
+                    const promises = [];
+                    selected.forEach(box => {
+                        promises.push(deleteActivityAndScores(box.getAttribute('data-id')));
+                    });
+                    await Promise.all(promises);
+                    window.showToast(`Deleted ${selected.length} activities successfully!`);
+                    window.loadActivities();
+                    window.closeModal();
+                    document.getElementById('selectAll').checked = false;
+                } catch(e) { console.error(e); window.showToast("Bulk delete failed partially or fully.", "error"); }
+                finally { btn.innerText = originalText; btn.disabled = false; }
+            };
+            document.getElementById('customModal').classList.add('open');
+        }
+
+        async function deleteActivityAndScores(actId) {
+            await deleteById("activities", actId);
+            const { error } = await supabase.from("scores").delete().eq("activityId", actId);
+            if (error) throw error;
+        }
+
+        window.confirmAction = function() { if(pendingAction) pendingAction(); }
+        window.closeModal = function() { document.getElementById('customModal').classList.remove('open'); pendingAction = null; }
+
+        const themeToggleBtn = document.getElementById('themeToggle'); const themeIcon = document.getElementById('themeIcon'); const body = document.body;
+        if (localStorage.getItem('theme') === 'dark') { body.classList.add('dark-theme'); themeIcon.className = 'ph-fill ph-moon'; } else { themeIcon.className = 'ph-fill ph-sun'; }
+        themeToggleBtn.addEventListener('click', () => { body.classList.toggle('dark-theme'); const isDark = body.classList.contains('dark-theme'); localStorage.setItem('theme', isDark ? 'dark' : 'light'); themeIcon.style.transform = 'rotate(360deg)'; setTimeout(() => { themeIcon.className = isDark ? 'ph-fill ph-moon' : 'ph-fill ph-sun'; themeIcon.style.transform = 'rotate(0deg)'; }, 150); });
+    </script>
+
+    <!-- MOBILE BOTTOM NAV -->
+    <nav class="mobile-nav-bar">
+        <ul>
+            <li><a href="admin-dashboard.html" id="mnav-dash"><i class="ph-fill ph-squares-four"></i>Dashboard</a></li>
+            <li><a href="admin-records.html" id="mnav-rec"><i class="ph ph-pen"></i>Records</a></li>
+            <li><a href="admin-sections.html" id="mnav-sec"><i class="ph-fill ph-users-three"></i>Sections</a></li>
+            <li><a href="admin-subjects.html" id="mnav-sub"><i class="ph ph-notebook"></i>Subjects</a></li>
+            <li><a href="admin-schedule.html" id="mnav-sch"><i class="ph-fill ph-clock"></i>Schedules</a></li>
+            <li><a href="admin-accounts.html" id="mnav-acc"><i class="ph-fill ph-users"></i>Accounts</a></li>
+            <li><a href="admin-activities.html" id="mnav-act" class="active"><i class="ph-fill ph-list-checks"></i>Activities</a></li>
+            <li><a href="admin-assessments.html" id="mnav-ass"><i class="ph-fill ph-clipboard-text"></i>Assessments</a></li>
+            <li><a href="admin-grades.html" id="mnav-grd"><i class="ph-fill ph-exam"></i>Grades</a></li>
+            <li><a href="admin-attendance.html" id="mnav-att"><i class="ph-fill ph-calendar-check"></i>Attendance</a></li>
+            <li><a href="admin-settings.html" id="mnav-set"><i class="ph-fill ph-gear"></i>Settings</a></li>
+            <li><a href="#" onclick="window.logout()" id="mnav-out"><i class="ph ph-sign-out"></i>Logout</a></li>
+        </ul>
+    </nav>
+</body>
 </html>

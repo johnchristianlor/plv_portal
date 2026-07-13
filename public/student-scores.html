@@ -23,32 +23,32 @@
         .bento-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 32px; align-items: stretch; } .card { padding: 32px; display: flex; flex-direction: column; position: relative; overflow: hidden; } .card-category { grid-column: span 4; display: flex; flex-direction: column;}
         .card-hero-summary { grid-column: span 12; background: var(--hero-bg); color: var(--hero-text); border: 1px solid rgba(255,255,255,0.1); padding: 40px 48px; display: flex; flex-direction: column; gap: 24px; } .card-hero-summary::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at bottom right, rgba(212, 175, 55, 0.25), transparent 60%); pointer-events: none; }
         .hero-top-row { display: flex; justify-content: space-between; align-items: center; width: 100%; position: relative; z-index: 1;} .summary-title h2 { font-size: 34px; font-weight: 800; line-height: 1.1; letter-spacing: -1px; margin-bottom: 8px;} .summary-title p { font-size: 15px; color: rgba(255,255,255,0.8); font-weight: 500; }
-        
+
         /* CONTROLS STYLING */
-        .term-toggle { display: flex; background: rgba(0,0,0,0.25); padding: 4px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); box-shadow: inset 0 2px 8px rgba(0,0,0,0.2); } 
-        .term-btn { background: transparent; color: rgba(255,255,255,0.7); border: none; padding: 10px 24px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.3s; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.5px; } 
+        .term-toggle { display: flex; background: rgba(0,0,0,0.25); padding: 4px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); box-shadow: inset 0 2px 8px rgba(0,0,0,0.2); }
+        .term-btn { background: transparent; color: rgba(255,255,255,0.7); border: none; padding: 10px 24px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.3s; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.5px; }
         .term-btn:hover { color: #fff; } .term-btn.active { background: var(--accent-gold); color: var(--text-main); box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3); }
-        
+
         /* MINI DROPDOWN */
         .mini-sort { background: transparent; border: 1px solid var(--glass-border); color: var(--text-muted); font-size: 12px; font-weight: 700; padding: 6px 10px; border-radius: 8px; outline: none; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; transition: all 0.3s; }
         .mini-sort:hover, .mini-sort:focus { border-color: var(--accent-primary); color: var(--accent-primary); }
         .mini-sort option { background: var(--bg-body); color: var(--text-main); }
 
         .summary-stats { display: flex; align-items: center; justify-content: space-between; width: 100%; position: relative; z-index: 1; flex-wrap: wrap; gap: 24px;} .stats-left { display: flex; align-items: center; gap: 40px; } .stat-divider { width: 1px; height: 48px; background: rgba(255,255,255,0.15); }
-        
+
         /* UPDATED STAT BOX STYLE FOR DUAL VALUES */
-        .stat-box { display: flex; flex-direction: column; gap: 6px; } 
-        .stat-box span.label { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 1.5px; line-height: 1;} 
-        .stat-box span.value { font-size: 34px; font-weight: 800; line-height: 1; display: flex; align-items: baseline; gap: 4px; color: #fff;} 
+        .stat-box { display: flex; flex-direction: column; gap: 6px; }
+        .stat-box span.label { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 1.5px; line-height: 1;}
+        .stat-box span.value { font-size: 34px; font-weight: 800; line-height: 1; display: flex; align-items: baseline; gap: 4px; color: #fff;}
         .stat-box span.value small { font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.6); }
         .stat-box span.sub-value { font-size: 12px; font-weight: 600; color: var(--accent-gold); background: rgba(0,0,0,0.2); padding: 4px 10px; border-radius: 6px; display: inline-block; width: fit-content; margin-top: 2px;}
 
         .stat-final { background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.05)); padding: 18px 32px; border-radius: 20px; border: 1px solid rgba(212, 175, 55, 0.4); box-shadow: 0 12px 32px rgba(0,0,0,0.2), inset 0 2px 0 rgba(255,255,255,0.1); align-items: center; justify-content: center; text-align: center; } .stat-final span.label { color: #FCD34D; font-weight: 800; letter-spacing: 2px; } .stat-final span.value { color: #fff; text-shadow: 0 2px 12px rgba(212, 175, 55, 0.3); font-size: 40px;}
-        
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; position: relative; z-index: 2; flex-wrap: wrap; gap: 12px; } 
-        .cat-title { display: flex; align-items: center; gap: 14px; } .cat-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; justify-content: center; align-items: center; font-size: 24px; color: #fff; box-shadow: 0 8px 16px rgba(0,0,0,0.1); flex-shrink: 0; } 
+
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; position: relative; z-index: 2; flex-wrap: wrap; gap: 12px; }
+        .cat-title { display: flex; align-items: center; gap: 14px; } .cat-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; justify-content: center; align-items: center; font-size: 24px; color: #fff; box-shadow: 0 8px 16px rgba(0,0,0,0.1); flex-shrink: 0; }
         .cat-text-group { display: flex; flex-direction: column; gap: 2px; } .cat-text-group h3 { font-size: 18px; font-weight: 800; color: var(--text-main); letter-spacing: -0.5px; line-height: 1;} .cat-text-group span { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; }
-        
+
         .icon-written { background: linear-gradient(135deg, var(--cat-written), #047857); } .icon-perf { background: linear-gradient(135deg, var(--cat-perf), #1e3a8a); } .icon-exam { background: linear-gradient(135deg, var(--cat-exam), #9f1239); }
         .activities-container { display: flex; flex-direction: column; gap: 16px; flex: 1; }
         .activity-item { background: var(--item-bg); border: 1px solid var(--item-border); border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 20px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); animation: fadeUp 0.4s ease forwards; } @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -64,7 +64,7 @@
         @media (max-width: 1100px) { .bento-grid { grid-template-columns: repeat(12, 1fr); } .card-category { grid-column: span 12; } .stat-divider { display: none; } .summary-stats { flex-direction: column; align-items: flex-start; gap: 24px;} .stats-left { flex-direction: column; align-items: flex-start; } }
         @media (max-width: 992px) { body { flex-direction: column; } .sidebar { width: 100%; height: auto; position: static; flex-direction: row; padding: 20px 32px; justify-content: space-between; align-items: center; border-right: none; border-bottom: 1px solid var(--glass-border); z-index: 100; backdrop-filter: blur(32px); } .logo-container { margin-bottom: 0; padding: 0;} .nav-menu { display: none; } .main-wrapper { padding: 32px; } }
         @media (max-width: 768px) { .header { flex-direction: column; align-items: flex-start; gap: 20px; } .header-actions { width: 100%; justify-content: flex-end; } .main-wrapper { padding: 20px; } .term-toggle { width: 100%; justify-content: space-between; } .term-btn { width: 50%; text-align: center; } .stat-final { width: 100%; align-items: flex-start; text-align: left; } }
-    
+
         /* ===== MOBILE NAVIGATION ===== */
         .mobile-nav-bar {
             display: none;
@@ -246,7 +246,7 @@
             const toast = document.getElementById('toast');
             const icon = document.getElementById('toast-icon');
             document.getElementById('toast-msg').innerText = message;
-            toast.className = 'toast'; 
+            toast.className = 'toast';
             if(type === 'error') { toast.classList.add('error'); icon.className = 'ph-fill ph-warning-circle'; } else { icon.className = 'ph-fill ph-check-circle'; }
             toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000);
         }
@@ -262,10 +262,10 @@
                 const { data: enrollments, error: enrollError } = await supabase.from("enrollments").select("*").eq("studentNo", user.studentNo);
                 if (enrollError) throw enrollError;
                 if(!enrollments || !enrollments.length) { document.getElementById('hSubject').innerText="No subjects enrolled"; window.showToast("No subjects found", "error"); return; }
-                
+
                 const enroll = enrollments[0];
                 const studentSection = enroll.section; // Get Student's Section
-                
+
                 const { data: subject, error: subjectError } = await supabase.from("subjects").select("*").eq("subjectCode", enroll.subjectCode).limit(1).maybeSingle();
                 if (subjectError) throw subjectError;
                 if(subject) document.getElementById('hSubject').innerText = `${subject.subjectCode}: ${subject.subjectName}`;
@@ -276,18 +276,18 @@
 
                 const { data: activities, error: activitiesError } = await supabase.from("activities").select("*").eq("subjectCode", enroll.subjectCode).eq("section", studentSection);
                 if (activitiesError) throw activitiesError;
-                
+
                 (activities || []).forEach(a => {
                     if(scoresData[a.term] && scoresData[a.term][a.category]) { scoresData[a.term][a.category].push(a); }
                 });
-                
+
                 window.renderView('midterm');
             } catch(e) { console.error(e); window.showToast("Failed to load scores", "error"); }
         }
 
         window.updateSort = function(category, value) {
             sortState[category] = value;
-            window.renderView(currentTerm); 
+            window.renderView(currentTerm);
         }
 
         window.renderView = function(term) {
@@ -299,11 +299,11 @@
             let totalWeightedPercentage = 0;
 
             cats.forEach(cat => {
-                const container = document.getElementById(`${cat}-container`); 
+                const container = document.getElementById(`${cat}-container`);
                 container.innerHTML = '';
-                
-                let list = [...scoresData[term][cat]]; 
-                const currentSort = sortState[cat]; 
+
+                let list = [...scoresData[term][cat]];
+                const currentSort = sortState[cat];
 
                 list.sort((a, b) => {
                     const scoreA = scoresMap[a.id] || 0;
@@ -320,22 +320,22 @@
                     }
                 });
 
-                let totalScore = 0; 
+                let totalScore = 0;
                 let totalPerfect = 0;
-                
+
                 list.forEach(act => {
                     const myScore = scoresMap[act.id] !== undefined ? scoresMap[act.id] : 0;
-                    totalScore += myScore; 
+                    totalScore += myScore;
                     totalPerfect += act.perfectScore;
-                    
+
                     const pct = (myScore / act.perfectScore) * 100;
                     const dStr = new Date(act.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                    
+
                     container.innerHTML += `<div class="activity-item ${cat}"><div class="act-top"><div class="act-title-area"><h4>${act.title}</h4><span class="act-date"><i class="ph-fill ph-calendar-blank"></i> ${dStr}</span></div><div class="act-score-area"><span class="score-num">${myScore}</span><span class="score-div">/</span><span class="score-total">${act.perfectScore}</span></div></div><div class="progress-wrapper"><div class="progress-fill" style="width: ${pct}%;"></div></div></div>`;
                 });
-                
+
                 if(list.length === 0) container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No scores yet.</p>';
-                
+
                 let rating = 0;
                 if(totalPerfect > 0) { rating = (totalScore / totalPerfect) * 60 + 40; }
 
@@ -347,10 +347,10 @@
                 document.getElementById(`stat-${cat}`).innerHTML = `${weightedPercentage.toFixed(2)} <small>%</small>`;
                 document.getElementById(`rate-${cat}`).innerHTML = `Rating: ${rating.toFixed(2)}`;
             });
-            
+
             document.getElementById('stat-final').innerHTML = `${totalWeightedPercentage.toFixed(2)}<small style="font-size: 20px; color: #fff;">%</small>`;
         }
-        
+
         loadData();
 
         const themeToggleBtn = document.getElementById('themeToggle'); const themeIcon = document.getElementById('themeIcon'); const body = document.body;
