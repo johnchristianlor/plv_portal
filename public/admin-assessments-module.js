@@ -168,16 +168,39 @@ function scheduleAutosave() {
 }
 
 function renderQ() {
-    $('qList').innerHTML = questions.length ? questions.map((q, i) => `
-        <div class="question-card">
-            <div class="row">
-                <b>${i + 1}. ${esc(q.type.replace('_', ' '))} &bull; ${q.points} pt</b>
-                <button class="btn danger" data-delq="${i}" type="button"><i class="ph-bold ph-trash"></i></button>
+    const totalPoints = questions.reduce((sum, question) => sum + Number(question.points || 0), 0);
+    $('qList').innerHTML = questions.length ? `
+        <div class="builder-summary">
+            <div>
+                <span class="builder-summary__label">Questions ready</span>
+                <strong>${questions.length} item${questions.length === 1 ? '' : 's'}</strong>
             </div>
-            <p>${esc(q.prompt)}</p>
-            ${q.choices.length ? `<p class="mini">Choices: ${q.choices.map(esc).join(' | ')}</p>` : ''}
-            <p class="mini">Answer key: ${esc(q.answer_key || 'Manual grading')}</p>
-        </div>`).join('') : '<p class="mini">No questions yet. Use the question manager to add items.</p>';
+            <div>
+                <span class="builder-summary__label">Total points</span>
+                <strong>${totalPoints}</strong>
+            </div>
+        </div>
+        ${questions.map((q, i) => {
+            const typeLabel = q.type.replace('_', ' ');
+            const answerLabel = q.answer_key || 'Manual grading';
+            const choicesLabel = q.choices.length ? q.choices.map(esc).join(' • ') : '';
+            return `
+        <article class="question-card">
+            <div class="question-card__top">
+                <div>
+                    <div class="question-card__title">Question ${i + 1}</div>
+                    <div class="question-card__meta">
+                        <span class="question-chip">${esc(typeLabel)}</span>
+                        <span class="question-chip question-chip--points">${Number(q.points || 0)} pt</span>
+                    </div>
+                </div>
+                <button class="btn danger btn-icon" data-delq="${i}" type="button" aria-label="Delete question ${i + 1}"><i class="ph-bold ph-trash"></i></button>
+            </div>
+            <p class="question-card__prompt">${esc(q.prompt)}</p>
+            ${choicesLabel ? `<p class="question-card__choices"><span>Choices</span>${choicesLabel}</p>` : ''}
+            <div class="question-card__answer"><span>Answer key</span><strong>${esc(answerLabel)}</strong></div>
+        </article>`;
+        }).join('')}` : '<article class="question-card builder-empty"><b>No questions yet.</b><p>Pick a type, enter the prompt, and add your first item. Multiple choice and true/false questions automatically reveal the choice field.</p></article>';
     document.querySelectorAll('[data-delq]').forEach(btn => {
         btn.onclick = () => {
             questions.splice(Number(btn.dataset.delq), 1);
