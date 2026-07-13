@@ -35,9 +35,9 @@
     .hero-left { display: flex; gap: 28px; align-items: center; flex: 1; min-width: 0; }
 
     /* AVATAR STYLES */
-    .hero-avatar { position: relative; width: 100px; height: 100px; flex-shrink: 0; }
-    .hero-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 4px solid rgba(255,255,255,0.2); box-shadow: 0 12px 24px rgba(0,0,0,0.2); background: #fff; }
-    .hero-avatar .edit-avatar-btn { position: absolute; bottom: 0; right: 0; width: 32px; height: 32px; border-radius: 50%; background: var(--accent-gold); border: 2px solid #003DA5; color: #000; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: all 0.3s; z-index: 5; }
+    .hero-avatar { position: relative; width: 104px; height: 104px; min-width: 104px; min-height: 104px; flex: 0 0 104px; border-radius: 50%; display: grid; place-items: center; overflow: visible; }
+    .hero-avatar img { display: block; width: 104px !important; height: 104px !important; max-width: 104px; max-height: 104px; min-width: 104px; min-height: 104px; aspect-ratio: 1 / 1; border-radius: 50%; object-fit: cover; object-position: center; border: 4px solid rgba(255,255,255,0.24); box-shadow: 0 12px 24px rgba(0,0,0,0.2); background: #fff; overflow: hidden; }
+    .hero-avatar .edit-avatar-btn { position: absolute; bottom: 2px; right: 2px; width: 34px; height: 34px; border-radius: 50%; background: var(--accent-gold); border: 3px solid #003DA5; color: #000; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: all 0.3s; z-index: 5; box-shadow: 0 8px 18px rgba(0,0,0,0.22); }
     .hero-avatar .edit-avatar-btn:hover { transform: scale(1.1); background: #fff; }
 
     /* Updated User Details for Wrapping */
@@ -235,7 +235,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             <div class="hero-layout">
                 <div class="hero-left">
                     <div class="hero-avatar">
-                        <img id="avatarImg" src="" alt="Student Avatar">
+                        <img id="avatarImg" src="" alt="Student Avatar" width="104" height="104">
                         <div class="edit-avatar-btn" onclick="window.openAvatarModal()"><i class="ph-bold ph-pencil-simple"></i></div>
                     </div>
                     <div class="hero-user-details">

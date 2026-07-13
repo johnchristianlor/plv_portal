@@ -31,6 +31,20 @@ export function avatarStaticUrl(value, fallbackUser) {
 export async function resolveAvatarElement(img, value, options = {}) {
     if (!img) return '';
     const fallback = options.fallbackUrl || defaultAvatarFor(options.user || options.studentNo || 'student');
+    const useFallback = () => {
+        img.dataset.avatarFallback = '1';
+        img.src = fallback;
+        return fallback;
+    };
+
+    img.loading = img.loading || 'lazy';
+    img.decoding = 'async';
+    img.dataset.avatarFallback = '0';
+    img.onerror = () => {
+        if (img.dataset.avatarFallback === '1') return;
+        useFallback();
+    };
+
     const raw = String(value || '').trim();
     const staticUrl = avatarStaticUrl(raw, options.user || options.studentNo || 'student');
     if (staticUrl) {
@@ -38,7 +52,7 @@ export async function resolveAvatarElement(img, value, options = {}) {
         return staticUrl;
     }
 
-    img.src = fallback;
+    useFallback();
     if (!isBackblazeAvatar(raw)) return fallback;
 
     try {
@@ -61,15 +75,14 @@ export async function resolveAvatarElement(img, value, options = {}) {
         if (!response.ok) throw new Error('Avatar download link failed.');
         const data = await response.json();
         if (!data.url) throw new Error('Avatar download link was empty.');
+        img.dataset.avatarFallback = '0';
         img.src = data.url;
         return data.url;
     } catch (error) {
         console.warn('Avatar image could not be loaded.', error);
-        img.src = fallback;
-        return fallback;
+        return useFallback();
     }
 }
-
 export async function uploadStudentAvatarBlob(blob, user) {
     if (!blob) throw new Error('No avatar image was prepared.');
     if (!user || !user.studentNo) throw new Error('Student session is missing.');
