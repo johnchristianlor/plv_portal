@@ -870,6 +870,37 @@ body.dark-theme .records-card.freeze-pane-on .grid-table tbody tr:nth-child(even
 body.dark-theme .records-card.freeze-pane-on .grid-table tbody tr:hover .col-name{box-shadow:16px 0 0 #132037, 30px 0 24px -18px rgba(0,0,0,.85)!important;}
 body.dark-theme .records-card.freeze-pane-on .grid-table tbody tr.row-selected .col-name{box-shadow:16px 0 0 #172b4a, 30px 0 24px -18px rgba(0,0,0,.85)!important;}
 
+
+
+/* ===== FREEZE PANE EDGE REFINEMENT ===== */
+.records-card.freeze-pane-on .grid-table .col-name,
+.records-card.freeze-pane-on .grid-table tbody tr:nth-child(even) .col-name,
+.records-card.freeze-pane-on .grid-table tbody tr:hover .col-name,
+.records-card.freeze-pane-on .grid-table tbody tr.row-selected .col-name{
+  box-shadow:1px 0 0 rgba(148,163,184,.55), 10px 0 18px -18px rgba(15,23,42,.55)!important;
+}
+.records-card.freeze-pane-on .grid-table .col-name::after{
+  right:0!important;
+  width:1px!important;
+  background:rgba(148,163,184,.72)!important;
+  opacity:1!important;
+}
+body.dark-theme .records-card.freeze-pane-on .grid-table .col-name,
+body.dark-theme .records-card.freeze-pane-on .grid-table tbody tr:nth-child(even) .col-name,
+body.dark-theme .records-card.freeze-pane-on .grid-table tbody tr:hover .col-name,
+body.dark-theme .records-card.freeze-pane-on .grid-table tbody tr.row-selected .col-name{
+  box-shadow:1px 0 0 rgba(71,85,105,.85), 10px 0 18px -18px rgba(0,0,0,.85)!important;
+}
+body.dark-theme .records-card.freeze-pane-on .grid-table .col-name::after{background:rgba(71,85,105,.9)!important;}
+.records-card.freeze-pane-on .grid-table tbody td.col-rank,
+.records-card.freeze-pane-on .grid-table tbody td.col-sno,
+.records-card.freeze-pane-on .grid-table tbody td.col-name,
+.records-card.freeze-pane-on .grid-table thead th.col-rank,
+.records-card.freeze-pane-on .grid-table thead th.col-sno,
+.records-card.freeze-pane-on .grid-table thead th.col-name{
+  overflow:hidden!important;
+}
+
 </style>
 </head>
 <body>
