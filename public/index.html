@@ -90,14 +90,14 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
                     <label>USERNAME OR EMAIL</label>
                     <div class="input-wrapper">
                         <i class="ph-fill ph-user leading-icon"></i>
-                        <input type="text" id="userIdentifier" placeholder="Student ID or Email" required>
+                        <input type="text" id="userIdentifier" name="username" placeholder="Student ID or Email" autocomplete="username" autocapitalize="none" spellcheck="false" required>
                     </div>
                 </div>
                 <div class="input-group">
                     <label>Password</label>
                     <div class="input-wrapper">
                         <i class="ph-fill ph-lock-key leading-icon"></i>
-                        <input type="password" id="passwordInput" placeholder="••••••••" required>
+                        <input type="password" id="passwordInput" name="password" placeholder="Enter your password" autocomplete="current-password" required>
                         <i class="ph-bold ph-eye-closed toggle-password" id="togglePasswordBtn" title="Show/Hide Password"></i>
                     </div>
                 </div>
@@ -281,6 +281,38 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
     }
 
 
+    async function tryStudentAuthLogin(identifier, password) {
+        const email = loginEmail(identifier);
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error || !data.user) return null;
+
+        const candidates = [
+            ['uid', data.user.id],
+            ['id', data.user.id],
+            ['email', data.user.email],
+            ['studentNo', identifier],
+            ['username', identifier]
+        ];
+
+        for (const [field, value] of candidates) {
+            if (!value) continue;
+            const found = await supabase.from('users').select('*').eq(field, value).limit(5);
+            if (found.error) continue;
+            const profile = (found.data || []).find(row => row.role === 'student');
+            if (profile) {
+                return {
+                    ...profile,
+                    uid: data.user.id,
+                    email: profile.email || data.user.email,
+                    role: 'student',
+                    activeSessionToken: profile.activeSessionToken || createSessionToken()
+                };
+            }
+        }
+
+        await supabase.auth.signOut();
+        return null;
+    }
     async function enrichStudentProfile(userData) {
         if (!userData || !userData.studentNo) return userData;
         try {
@@ -372,7 +404,8 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
         }
 
         try {
-            let userData = await findStudent(identifier, password);
+            let userData = await tryStudentAuthLogin(identifier, password);
+            if (!userData) userData = await findStudent(identifier, password);
             userData = await enrichStudentProfile(userData);
 
             if (!userData) {
