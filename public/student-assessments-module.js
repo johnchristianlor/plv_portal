@@ -27,8 +27,12 @@ let idx = 0;
 let deadline = 0;
 let timerId = null;
 let violations = 0;
+let maxViolations = 5;
+let fullscreenRequired = true;
 let securityHandlers = [];
 let submitting = false;
+let securityUiReady = false;
+let examUiLocked = false;
 
 function toast(message) {
     $('toast').textContent = message;
@@ -72,6 +76,61 @@ function theme() {
     };
 }
 
+function ensureSecurityUi() {
+    if (securityUiReady) return;
+    const exam = $('exam');
+    if (!exam) return;
+    const status = exam.querySelector('.exam-status');
+    if (status && !status.querySelector('.proctor-pill')) {
+        const pill = document.createElement('div');
+        pill.className = 'proctor-pill';
+        pill.innerHTML = '<i class="ph-fill ph-shield-check"></i> Proctoring active';
+        status.prepend(pill);
+    }
+    if (!$('examLock')) {
+        const lock = document.createElement('div');
+        lock.id = 'examLock';
+        lock.style.cssText = 'position:fixed;inset:0;z-index:900;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(2,6,23,.76);backdrop-filter:blur(12px)';
+        lock.innerHTML = '<section class="glass exam-lock-card" style="width:min(680px,100%);padding:30px"><h2 style="font-size:28px;font-weight:900;margin-bottom:8px"><i class="ph-fill ph-shield-warning"></i> Fullscreen Required</h2><p style="color:var(--text-muted);font-weight:700;line-height:1.7">You left the protected exam view. Return to fullscreen to continue, or submit now if this was intentional. The assessment timer keeps running.</p><div class="actions" style="margin-top:20px"><button class="btn secondary" id="examLockReturn" type="button"><i class="ph-bold ph-arrows-clockwise"></i>Return to Fullscreen</button><button class="btn primary" id="examLockSubmit" type="button"><i class="ph-bold ph-paper-plane-tilt"></i>Submit Assessment</button></div></section>';
+        document.body.appendChild(lock);
+    }
+    securityUiReady = true;
+    $('examLockReturn').onclick = async () => {
+        if (fullscreenRequired && document.documentElement.requestFullscreen) {
+            await document.documentElement.requestFullscreen().catch(() => {});
+        }
+        hideExamLock();
+    };
+    $('examLockSubmit').onclick = () => submit(false);
+}
+
+function showExamLock() {
+    ensureSecurityUi();
+    const lock = $('examLock');
+    if (lock) lock.style.display = 'flex';
+    if (examUiLocked) return;
+    examUiLocked = true;
+    const qBox = $('qBox');
+    const actions = document.querySelectorAll('#exam .actions button');
+    const examMeta = $('examMeta');
+    if (qBox) qBox.style.display = 'none';
+    actions.forEach(button => { button.disabled = true; });
+    if (examMeta) examMeta.textContent = `${current?.subject_code || ''} • Locked until fullscreen is restored`;
+}
+
+function hideExamLock() {
+    const lock = $('examLock');
+    if (lock) lock.style.display = 'none';
+    if (!examUiLocked) return;
+    examUiLocked = false;
+    const qBox = $('qBox');
+    const actions = document.querySelectorAll('#exam .actions button');
+    const examMeta = $('examMeta');
+    if (qBox) qBox.style.display = '';
+    actions.forEach(button => { button.disabled = false; });
+    if (examMeta && current) examMeta.textContent = `${current.subject_code} • ${questions.length} questions`;
+}
+
 function stateOf(assessment) {
     const now = Date.now();
     const open = assessment.opens_at ? Date.parse(assessment.opens_at) : 0;
@@ -80,6 +139,14 @@ function stateOf(assessment) {
     if (assessment.status !== 'published' || (open && now < open)) return 'upcoming';
     if (close && now > close) return 'closed';
     return 'active';
+}
+
+function securitySettings(assessment) {
+    const settings = assessment && typeof assessment.settings === 'object' ? assessment.settings : {};
+    return {
+        fullscreen: settings.fullscreen !== false,
+        maxViolations: Number.isFinite(Number(settings.maxViolations)) ? Math.max(1, Number(settings.maxViolations)) : 5
+    };
 }
 
 async function load() {
@@ -116,14 +183,18 @@ function render() {
 }
 
 function showReady(id) {
+    ensureSecurityUi();
     current = assessments.find(a => a.id === id);
     if (!current || stateOf(current) !== 'active') return toast('This assessment is not active.');
+    const security = securitySettings(current);
+    fullscreenRequired = security.fullscreen;
+    maxViolations = security.maxViolations;
     $('readyTitle').textContent = current.title;
     $('readyInfo').innerHTML = `
         <span class="badge">${esc(current.subject_code)}</span>
         <span class="badge">${esc(current.duration_minutes)} min</span>
-        <span class="badge">Fullscreen when possible</span>
-        <span class="badge">Anomaly monitoring</span>`;
+        <span class="badge">${fullscreenRequired ? 'Fullscreen required' : 'Fullscreen optional'}</span>
+        <span class="badge">${maxViolations} violation limit</span>`;
     $('readyInstructions').textContent = current.instructions || 'Read every item carefully before submitting.';
     $('readyCheck').checked = false;
     $('readyModal').classList.add('show');
@@ -136,12 +207,15 @@ function closeReady() {
 async function startAssessment() {
     if (!$('readyCheck').checked) return toast('Please confirm the assessment notice.');
     try {
-        if (document.documentElement.requestFullscreen) {
+        if (fullscreenRequired && document.documentElement.requestFullscreen) {
             await document.documentElement.requestFullscreen().catch(() => {});
         }
         const data = await api('student/start', { method: 'POST', body: JSON.stringify({ assessment_id: current.id }) });
         attempt = data.attempt;
         current = data.assessment;
+        const security = securitySettings(current);
+        fullscreenRequired = security.fullscreen;
+        maxViolations = security.maxViolations;
         questions = data.questions || [];
         answers = {};
         idx = 0;
@@ -151,6 +225,7 @@ async function startAssessment() {
         $('portal').style.display = 'none';
         $('exam').classList.add('show');
         document.body.classList.add('exam-active');
+        hideExamLock();
         $('examTitle').textContent = current.title;
         $('examMeta').textContent = `${current.subject_code} • ${questions.length} questions`;
         $('violN').textContent = '0';
@@ -215,6 +290,10 @@ async function addIncident(type, details) {
             violations = data.violations;
             $('violN').textContent = String(violations);
         }
+        if (violations >= maxViolations) {
+            toast('Violation limit reached. Submitting assessment.');
+            await submit(true);
+        }
     } catch (_) {}
 }
 
@@ -226,7 +305,12 @@ function bindSecurity() {
     };
     listen(document, 'visibilitychange', () => { if (document.hidden) addIncident('tab_hidden', 'Assessment tab was hidden.'); });
     listen(window, 'blur', () => addIncident('window_blur', 'Browser window lost focus.'));
-    listen(document, 'fullscreenchange', () => { if (!document.fullscreenElement) addIncident('fullscreen_exit', 'Fullscreen mode was exited.'); });
+    listen(document, 'fullscreenchange', () => {
+        if (fullscreenRequired && !document.fullscreenElement) {
+            addIncident('fullscreen_exit', 'Fullscreen mode was exited.');
+            showExamLock();
+        }
+    });
     listen(document, 'copy', event => { event.preventDefault(); addIncident('copy', 'Copy action was blocked.'); });
     listen(document, 'cut', event => { event.preventDefault(); addIncident('cut', 'Cut action was blocked.'); });
     listen(document, 'paste', event => { event.preventDefault(); addIncident('paste', 'Paste action was blocked.'); });
@@ -247,6 +331,7 @@ async function submit(auto = false) {
     submitting = true;
     clearInterval(timerId);
     clearSecurity();
+    hideExamLock();
     try {
         const data = await api('student/submit', { method: 'POST', body: JSON.stringify({ attempt_id: attempt.id, answers }) });
         toast(`Assessment submitted. Score: ${Number(data.score || 0)} / ${Number(data.total_points || 0)}`);
@@ -285,4 +370,5 @@ document.querySelectorAll('.tab').forEach(tab => tab.onclick = () => {
 });
 
 theme();
+ensureSecurityUi();
 await load();
