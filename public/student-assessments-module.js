@@ -33,6 +33,7 @@ let securityHandlers = [];
 let submitting = false;
 let securityUiReady = false;
 let examUiLocked = false;
+let isMobileExam = false;
 
 function toast(message) {
     $('toast').textContent = message;
@@ -130,6 +131,16 @@ function showExamLock() {
     if (examMeta) examMeta.textContent = `${current?.subject_code || ''} • Locked until fullscreen is restored`;
 }
 
+function lockForSecurity(type, details) {
+    if (!attempt || submitting) return;
+    addIncident(type, details).finally(() => {
+        showExamLock();
+        if (isMobileExam && violations >= 1) {
+            submit(true);
+        }
+    });
+}
+
 function hideExamLock() {
     const lock = $('examLock');
     if (lock) lock.style.display = 'none';
@@ -159,6 +170,10 @@ function securitySettings(assessment) {
         fullscreen: settings.fullscreen !== false,
         maxViolations: Number.isFinite(Number(settings.maxViolations)) ? Math.max(1, Number(settings.maxViolations)) : 5
     };
+}
+
+function detectMobileExam() {
+    return window.matchMedia('(max-width: 768px)').matches || navigator.maxTouchPoints > 1 || /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent || '');
 }
 
 async function load() {
@@ -199,14 +214,16 @@ function showReady(id) {
     current = assessments.find(a => a.id === id);
     if (!current || stateOf(current) !== 'active') return toast('This assessment is not active.');
     const security = securitySettings(current);
+    isMobileExam = detectMobileExam();
     fullscreenRequired = security.fullscreen;
-    maxViolations = security.maxViolations;
+    maxViolations = isMobileExam ? Math.min(security.maxViolations, 2) : security.maxViolations;
     $('readyTitle').textContent = current.title;
     $('readyInfo').innerHTML = `
         <span class="badge">${esc(current.subject_code)}</span>
         <span class="badge">${esc(current.duration_minutes)} min</span>
         <span class="badge">${fullscreenRequired ? 'Fullscreen required' : 'Fullscreen optional'}</span>
-        <span class="badge">${maxViolations} violation limit</span>`;
+        <span class="badge">${maxViolations} violation limit</span>
+        <span class="badge">${isMobileExam ? 'Mobile lock mode' : 'Desktop mode'}</span>`;
     $('readyInstructions').textContent = current.instructions || 'Read every item carefully before submitting.';
     $('readyCheck').checked = false;
     $('readyModal').classList.add('show');
@@ -219,6 +236,7 @@ function closeReady() {
 async function startAssessment() {
     if (!$('readyCheck').checked) return toast('Please confirm the assessment notice.');
     try {
+        isMobileExam = detectMobileExam();
         if (fullscreenRequired && document.documentElement.requestFullscreen) {
             await document.documentElement.requestFullscreen().catch(() => {});
         }
@@ -227,7 +245,7 @@ async function startAssessment() {
         current = data.assessment;
         const security = securitySettings(current);
         fullscreenRequired = security.fullscreen;
-        maxViolations = security.maxViolations;
+        maxViolations = isMobileExam ? Math.min(security.maxViolations, 2) : security.maxViolations;
         questions = data.questions || [];
         answers = {};
         idx = 0;
@@ -315,13 +333,20 @@ function bindSecurity() {
         target.addEventListener(event, handler, options);
         securityHandlers.push(() => target.removeEventListener(event, handler, options));
     };
-    listen(document, 'visibilitychange', () => { if (document.hidden) addIncident('tab_hidden', 'Assessment tab was hidden.'); });
-    listen(window, 'blur', () => addIncident('window_blur', 'Browser window lost focus.'));
+    listen(document, 'visibilitychange', () => { if (document.hidden) lockForSecurity('tab_hidden', 'Assessment tab was hidden.'); });
+    listen(window, 'blur', () => lockForSecurity('window_blur', 'Browser window lost focus.'));
+    listen(window, 'pagehide', () => lockForSecurity('pagehide', 'Assessment page was hidden.'));
     listen(document, 'fullscreenchange', () => {
         if (fullscreenRequired && !document.fullscreenElement) {
-            addIncident('fullscreen_exit', 'Fullscreen mode was exited.');
+            lockForSecurity('fullscreen_exit', 'Fullscreen mode was exited.');
             showExamLock();
         }
+    });
+    listen(window, 'orientationchange', () => { if (isMobileExam) lockForSecurity('orientation_change', 'Device orientation changed during the assessment.'); });
+    listen(window, 'resize', () => {
+        if (!isMobileExam || !attempt || submitting) return;
+        if (document.hidden) return;
+        if (window.innerWidth < 768 && !document.fullscreenElement) lockForSecurity('viewport_change', 'Mobile viewport changed during the assessment.');
     });
     listen(document, 'copy', event => { event.preventDefault(); addIncident('copy', 'Copy action was blocked.'); });
     listen(document, 'cut', event => { event.preventDefault(); addIncident('cut', 'Cut action was blocked.'); });
