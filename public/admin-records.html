@@ -679,6 +679,120 @@ body.dark-theme .grid-table .col-name::after{background:#2d4161;box-shadow:8px 0
 .theme-toggle.theme-spin i{transform:rotate(360deg) scale(.82);opacity:.55;}
 body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,165,250,.34), rgba(96,165,250,0) 68%);}
 
+
+
+/* ===== RECORDS TOOLBAR AND FREEZE PANE OPTION ===== */
+.toolbar{
+  display:flex!important;
+  align-items:center!important;
+  gap:10px!important;
+  flex-wrap:wrap!important;
+}
+.toolbar .search-box{flex:1 1 280px!important;min-width:220px!important;}
+.toolbar .sel{flex:1 1 145px!important;min-width:135px!important;max-width:190px!important;}
+.toolbar .view-toggle{
+  flex:0 0 232px!important;
+  min-width:232px!important;
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  align-items:center!important;
+}
+.toolbar .vt-btn{justify-content:center!important;min-width:0!important;white-space:nowrap!important;}
+.toolbar .btn{flex:0 0 auto!important;min-width:112px!important;justify-content:center!important;}
+#densityBtn{min-width:132px!important;}
+#freezeBtn{min-width:126px!important;}
+#freezeBtn.active i{filter:drop-shadow(0 0 6px rgba(255,255,255,.35));}
+.records-card:not(.freeze-pane-on) .grid-table .col-rank,
+.records-card:not(.freeze-pane-on) .grid-table .col-sno,
+.records-card:not(.freeze-pane-on) .grid-table .col-name{
+  position:relative!important;
+  left:auto!important;
+  z-index:auto!important;
+}
+.records-card:not(.freeze-pane-on) .grid-table thead .col-rank,
+.records-card:not(.freeze-pane-on) .grid-table thead .col-sno,
+.records-card:not(.freeze-pane-on) .grid-table thead .col-name{
+  z-index:29!important;
+}
+.records-card:not(.freeze-pane-on) .grid-table thead tr.group-header .col-rank,
+.records-card:not(.freeze-pane-on) .grid-table thead tr.group-header .col-sno,
+.records-card:not(.freeze-pane-on) .grid-table thead tr.group-header .col-name{
+  z-index:30!important;
+}
+.records-card:not(.freeze-pane-on) .grid-table .col-name::after{display:none!important;}
+.records-card.freeze-pane-on .grid-table .col-rank{
+  position:sticky!important;
+  left:0!important;
+  width:76px!important;
+  min-width:76px!important;
+  max-width:76px!important;
+  z-index:18!important;
+}
+.records-card.freeze-pane-on .grid-table .col-sno{
+  position:sticky!important;
+  left:76px!important;
+  width:150px!important;
+  min-width:150px!important;
+  max-width:150px!important;
+  z-index:18!important;
+}
+.records-card.freeze-pane-on .grid-table .col-name{
+  position:sticky!important;
+  left:226px!important;
+  width:260px!important;
+  min-width:260px!important;
+  max-width:260px!important;
+  z-index:18!important;
+}
+.records-card.freeze-pane-on .grid-table tbody .col-rank,
+.records-card.freeze-pane-on .grid-table tbody .col-sno,
+.records-card.freeze-pane-on .grid-table tbody .col-name{z-index:22!important;}
+.records-card.freeze-pane-on .grid-table thead .col-rank,
+.records-card.freeze-pane-on .grid-table thead .col-sno,
+.records-card.freeze-pane-on .grid-table thead .col-name{z-index:44!important;}
+.records-card.freeze-pane-on .grid-table thead tr.group-header .col-rank,
+.records-card.freeze-pane-on .grid-table thead tr.group-header .col-sno,
+.records-card.freeze-pane-on .grid-table thead tr.group-header .col-name{z-index:46!important;}
+.records-card.freeze-pane-on .grid-table .col-name::after{display:block!important;}
+.records-card.freeze-pane-on .grid-scroll{box-shadow:inset 12px 0 24px -24px rgba(15,23,42,.42),0 12px 26px rgba(15,23,42,.06)!important;}
+@media(max-width:900px){
+  .toolbar .search-box,
+  .toolbar .sel,
+  .toolbar .view-toggle,
+  .toolbar .btn{flex:1 1 100%!important;max-width:none!important;min-width:0!important;}
+  .toolbar .view-toggle{min-width:0!important;}
+  .records-card.freeze-pane-on .grid-table .col-rank{width:64px!important;min-width:64px!important;max-width:64px!important;}
+  .records-card.freeze-pane-on .grid-table .col-sno{left:64px!important;width:128px!important;min-width:128px!important;max-width:128px!important;}
+  .records-card.freeze-pane-on .grid-table .col-name{left:192px!important;width:210px!important;min-width:210px!important;max-width:210px!important;}
+}
+
+
+
+/* ===== FREEZE OFF KEEPS HEADER STICKY ===== */
+.records-card:not(.freeze-pane-on) .grid-table thead tr.group-header .col-rank,
+.records-card:not(.freeze-pane-on) .grid-table thead tr.group-header .col-sno,
+.records-card:not(.freeze-pane-on) .grid-table thead tr.group-header .col-name{
+  position:sticky!important;
+  top:0!important;
+  left:auto!important;
+  z-index:30!important;
+}
+.records-card:not(.freeze-pane-on) .grid-table thead tr:not(.group-header) .col-rank,
+.records-card:not(.freeze-pane-on) .grid-table thead tr:not(.group-header) .col-sno,
+.records-card:not(.freeze-pane-on) .grid-table thead tr:not(.group-header) .col-name{
+  position:sticky!important;
+  top:38px!important;
+  left:auto!important;
+  z-index:29!important;
+}
+.records-card:not(.freeze-pane-on) .grid-table tbody .col-rank,
+.records-card:not(.freeze-pane-on) .grid-table tbody .col-sno,
+.records-card:not(.freeze-pane-on) .grid-table tbody .col-name{
+  position:relative!important;
+  left:auto!important;
+  z-index:auto!important;
+}
+
 </style>
 </head>
 <body>
@@ -737,6 +851,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 <button class="vt-btn" id="btnRank" onclick="window.switchView('rank',this)"><i class="ph-bold ph-trophy"></i> Rankings</button>
             </div>
             <button class="btn btn-ghost" id="densityBtn" onclick="window.toggleGridDensity()"><i class="ph-bold ph-rows"></i> Compact</button>
+            <button class="btn btn-ghost" id="freezeBtn" onclick="window.toggleFreezePane()" aria-pressed="false"><i class="ph-bold ph-columns"></i> Freeze</button>
             <button class="btn btn-ghost" onclick="window.resetRecordFilters()"><i class="ph-bold ph-funnel-x"></i> Clear</button>
             <button class="btn btn-primary" onclick="window.openExportModal()"><i class="ph-bold ph-download-simple"></i> Export</button>
         </div>
@@ -1137,6 +1252,24 @@ window.toggleGridDensity=()=>{
     card.classList.toggle('grid-density-compact',compact);
     btn.classList.toggle('active',compact);
     btn.innerHTML=compact?'<i class="ph-bold ph-rows"></i> Comfortable':'<i class="ph-bold ph-rows"></i> Compact';
+};
+
+const FREEZE_PREF_KEY='adminRecordsFreezePane';
+function setFreezePane(enabled,{save=true}={}){
+    const card=document.getElementById('recordsCard');
+    const btn=document.getElementById('freezeBtn');
+    if(!card||!btn)return;
+    card.classList.toggle('freeze-pane-on',enabled);
+    btn.classList.toggle('active',enabled);
+    btn.setAttribute('aria-pressed',String(enabled));
+    btn.innerHTML=enabled?'<i class="ph-bold ph-lock-key"></i> Frozen':'<i class="ph-bold ph-columns"></i> Freeze';
+    const foot=document.getElementById('footRight');
+    if(foot)foot.textContent=enabled?'Freeze is on: student columns stay visible while scrolling.':'Freeze is off: scroll like a normal spreadsheet.';
+    if(save)localStorage.setItem(FREEZE_PREF_KEY,enabled?'1':'0');
+}
+window.toggleFreezePane=()=>{
+    const card=document.getElementById('recordsCard');
+    setFreezePane(!card.classList.contains('freeze-pane-on'));
 };
 
 window.resetRecordFilters=()=>{
@@ -1713,6 +1846,7 @@ tBtn.addEventListener('click',()=>{
 })();
 
 // Start
+setFreezePane(localStorage.getItem(FREEZE_PREF_KEY)==='1',{save:false});
 loadAll();
 </script>
 
