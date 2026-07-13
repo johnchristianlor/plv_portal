@@ -17,6 +17,9 @@ window.logout = () => {
 let editing = null;
 let questions = [];
 let assessments = [];
+let autosaveTimer = null;
+let lastAutosaveSignature = '';
+const DRAFT_KEY = 'plv-admin-assessment-draft-v2';
 
 function toast(message) {
     $('toast').textContent = message;
@@ -63,6 +66,11 @@ function theme() {
 }
 
 function showWorkspace(name) {
+    persistDraft();
+    if (name === 'builder' && !editing) {
+        toast('Create or select a test first, then open Questions Manager.');
+        name = 'details';
+    }
     const visible = name === 'builder' ? 'details' : (name === 'security' ? 'results' : name);
     document.querySelectorAll('[data-assessment-view]').forEach(btn => btn.classList.toggle('active', btn.dataset.assessmentView === name));
     document.querySelectorAll('[data-workspace]').forEach(panel => {
@@ -74,6 +82,7 @@ function showWorkspace(name) {
     });
     if (name === 'results' && editing) attempts(editing);
     if (name === 'security') incidents();
+    setBuilderLock();
 }
 
 async function loadSelects() {
@@ -83,6 +92,79 @@ async function loadSelects() {
     ]);
     $('subject').innerHTML = '<option value="">Select subject</option>' + (subs.data || []).map(s => `<option value="${esc(s.subjectCode)}">${esc(s.subjectCode)} - ${esc(s.subjectName || '')}</option>`).join('');
     $('section').innerHTML = '<option value="">Select section</option><option value="ALL">All Sections</option>' + (secs.data || []).map(s => `<option value="${esc(s.sectionName)}">${esc(s.sectionName)}</option>`).join('');
+}
+
+function setBuilderLock() {
+    const btn = document.querySelector('[data-assessment-view="builder"]');
+    if (!btn) return;
+    btn.disabled = !editing;
+    btn.classList.toggle('locked', !editing);
+    btn.title = editing ? 'Open Questions Manager' : 'Save the new test first';
+}
+
+function draftPayload() {
+    return { editing, assessment: currentAssessment(), questions, savedAt: new Date().toISOString() };
+}
+
+function autosaveSignature(assessment, questionList) {
+    const { id, ...stableAssessment } = assessment;
+    return JSON.stringify({ assessment: stableAssessment, questions: questionList });
+}
+
+function persistDraft() {
+    try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draftPayload()));
+    } catch (_) {}
+}
+
+function clearDraft() {
+    localStorage.removeItem(DRAFT_KEY);
+}
+
+function restoreDraft() {
+    try {
+        const raw = localStorage.getItem(DRAFT_KEY);
+        if (!raw || editing) return;
+        const draft = JSON.parse(raw);
+        const assessment = draft.assessment || {};
+        editing = draft.editing || null;
+        $('title').value = assessment.title || '';
+        $('instructions').value = assessment.instructions || '';
+        $('subject').value = assessment.subject_code || '';
+        $('section').value = assessment.section || '';
+        $('status').value = assessment.status || 'draft';
+        $('duration').value = assessment.duration_minutes || 30;
+        $('opensAt').value = assessment.opens_at ? String(assessment.opens_at).slice(0, 16) : '';
+        $('closesAt').value = assessment.closes_at ? String(assessment.closes_at).slice(0, 16) : '';
+        questions = Array.isArray(draft.questions) ? draft.questions : [];
+        if (editing) lastAutosaveSignature = autosaveSignature(assessment, questions);
+        renderQ();
+        if (assessment.title && assessment.subject_code && assessment.section) scheduleAutosave();
+    } catch (_) {}
+}
+
+async function runAutosave() {
+    const assessment = currentAssessment();
+    if (!assessment.title || !assessment.subject_code || !assessment.section) return false;
+    const signature = autosaveSignature(assessment, questions);
+    if (signature === lastAutosaveSignature) return true;
+    const data = await api('admin/save', { method: 'POST', body: JSON.stringify({ assessment, questions }) });
+    editing = data.id;
+    assessment.id = data.id;
+    lastAutosaveSignature = signature;
+    persistDraft();
+    setBuilderLock();
+    return true;
+}
+
+function scheduleAutosave() {
+    persistDraft();
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(async () => {
+        try {
+            await runAutosave();
+        } catch (_) {}
+    }, 900);
 }
 
 function renderQ() {
@@ -100,16 +182,21 @@ function renderQ() {
         btn.onclick = () => {
             questions.splice(Number(btn.dataset.delq), 1);
             renderQ();
+            scheduleAutosave();
         };
     });
 }
 
 function reset() {
     editing = null;
+    lastAutosaveSignature = '';
+    clearTimeout(autosaveTimer);
     $('form').reset();
     $('duration').value = 30;
     questions = [];
+    clearDraft();
     renderQ();
+    setBuilderLock();
     $('bldSub') && ($('bldSub').textContent = 'Create a new Turso test');
 }
 
@@ -130,15 +217,19 @@ function currentAssessment() {
 
 async function save(event) {
     event.preventDefault();
-    if (!questions.length) return toast('Add at least one question.');
     const assessment = currentAssessment();
-    if (!assessment.title || !assessment.subject_code || !assessment.section) return toast('Complete required fields.');
+    if (!assessment.title || !assessment.subject_code || !assessment.section) return toast('Complete the title, subject, and section first.');
+    if (assessment.status === 'published' && !questions.length) return toast('Add at least one question before publishing.');
     try {
         const data = await api('admin/save', { method: 'POST', body: JSON.stringify({ assessment, questions }) });
         editing = data.id;
-        toast('Assessment saved to Turso.');
+        assessment.id = data.id;
+        lastAutosaveSignature = autosaveSignature(assessment, questions);
+        persistDraft();
+        setBuilderLock();
+        toast('Test saved. Questions Manager is ready.');
         await loadAssessments();
-        showWorkspace('tests');
+        showWorkspace('builder');
     } catch (error) {
         toast(error.message);
     }
@@ -196,7 +287,10 @@ async function edit(id, workspace = 'details') {
         $('opensAt').value = a.opens_at ? String(a.opens_at).slice(0, 16) : '';
         $('closesAt').value = a.closes_at ? String(a.closes_at).slice(0, 16) : '';
         questions = data.questions || [];
+        lastAutosaveSignature = autosaveSignature(a, questions);
+        persistDraft();
         renderQ();
+        setBuilderLock();
         showWorkspace(workspace);
         scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error) {
@@ -258,6 +352,7 @@ $('addQ').onclick = () => {
     if (type === 'multiple_choice' || type === 'true_false') q.choices = $('qChoices').value.split('\n').map(x => x.trim()).filter(Boolean);
     if ((type === 'multiple_choice' || type === 'true_false') && q.choices.length < 2) return toast('Add at least two choices.');
     questions.push(q);
+    scheduleAutosave();
     $('qPrompt').value = '';
     $('qChoices').value = '';
     $('qAnswer').value = '';
@@ -269,12 +364,18 @@ $('form').onsubmit = save;
 $('newBtn').onclick = () => { reset(); showWorkspace('details'); };
 $('refresh').onclick = loadAssessments;
 document.querySelectorAll('[data-assessment-view]').forEach(btn => btn.onclick = () => {
-    if (btn.dataset.assessmentView === 'details' && !editing) reset();
     showWorkspace(btn.dataset.assessmentView);
 });
+document.querySelectorAll('#form input, #form textarea, #form select, #qType, #qPoints, #qPrompt, #qChoices, #qAnswer').forEach(input => {
+    input.addEventListener('input', scheduleAutosave);
+    input.addEventListener('change', scheduleAutosave);
+});
+window.addEventListener('beforeunload', persistDraft);
 
 theme();
 renderQ();
 await loadSelects();
+restoreDraft();
+setBuilderLock();
 await loadAssessments();
 showWorkspace('tests');
