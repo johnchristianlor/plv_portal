@@ -151,7 +151,13 @@ function hideExamLock() {
     const examMeta = $('examMeta');
     if (qBox) qBox.style.display = '';
     actions.forEach(button => { button.disabled = false; });
-    if (examMeta && current) examMeta.textContent = `${current.subject_code} • ${questions.length} questions`;
+    if (examMeta && current) examMeta.textContent = examMetaText();
+}
+
+
+function examMetaText() {
+    const sectionCount = new Set(questions.map(question => question.section_id || question.category || 'default')).size;
+    return `${current?.subject_code || ''} • ${questions.length} questions • ${sectionCount} section${sectionCount === 1 ? '' : 's'}`;
 }
 
 function stateOf(assessment) {
@@ -273,7 +279,7 @@ async function startAssessment() {
         document.body.classList.add('exam-active');
         hideExamLock();
         $('examTitle').textContent = current.title;
-        $('examMeta').textContent = `${current.subject_code} • ${questions.length} questions`;
+        $('examMeta').textContent = examMetaText();
         $('violN').textContent = '0';
         bindSecurity();
         renderQ();
@@ -290,17 +296,26 @@ function renderQ() {
         $('qBox').innerHTML = '<p>No questions found.</p>';
         return;
     }
+    const sectionId = q.section_id || q.category || 'default';
+    const sectionTitle = q.section_title || 'Section 1';
+    const sectionItems = questions.filter(item => (item.section_id || item.category || 'default') === sectionId);
+    const sectionQuestionNumber = sectionItems.findIndex(item => item.id === q.id) + 1;
     let body = '';
     if (q.type === 'essay' || q.type === 'short_answer') {
         body = `<textarea id="answerText" class="textarea" placeholder="Type your answer here.">${esc(answers[q.id] || '')}</textarea>`;
     } else {
-        body = (q.choices || []).map(choice => `<label class="choice"><input type="radio" name="choice" value="${esc(choice)}" ${answers[q.id] === choice ? 'checked' : ''}> <span>${esc(choice)}</span></label>`).join('');
+        body = (q.choices || []).map((choice, choiceIndex) => `<label class="choice"><input type="radio" name="choice" value="${esc(choice)}" ${answers[q.id] === choice ? 'checked' : ''}><span class="exam-choice-letter">${String.fromCharCode(65 + choiceIndex)}</span><span>${esc(choice)}</span></label>`).join('');
     }
     $('qBox').innerHTML = `
-        <p style="color:var(--text-muted);font-weight:900">Question ${idx + 1} of ${questions.length} • ${q.points} pt</p>
+        <div class="exam-section-line">
+            <span class="badge">${esc(sectionTitle)}</span>
+            <span>Question ${sectionQuestionNumber} of ${sectionItems.length} in this section</span>
+            <span>Overall ${idx + 1} of ${questions.length}</span>
+            <span>${Number(q.points || 1)} pt${Number(q.points || 1) === 1 ? '' : 's'}</span>
+        </div>
         <h2>${esc(q.prompt)}</h2>
         <div>${body}</div>
-        <div class="qnav">${questions.map((item, i) => `<button class="qnav-btn ${i === idx ? 'active' : ''} ${answers[item.id] ? 'answered' : ''}" data-jump="${i}">${i + 1}</button>`).join('')}</div>`;
+        <div class="qnav">${questions.map((item, i) => `<button class="qnav-btn ${i === idx ? 'active' : ''} ${answers[item.id] ? 'answered' : ''}" data-jump="${i}" title="${esc(item.section_title || 'Section 1')}">${i + 1}</button>`).join('')}</div>`;
     $('prev').disabled = idx === 0;
     $('next').disabled = idx === questions.length - 1;
     document.querySelectorAll('[data-jump]').forEach(btn => btn.onclick = () => {

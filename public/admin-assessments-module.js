@@ -16,10 +16,334 @@ window.logout = () => {
 
 let editing = null;
 let questions = [];
+let sections = [];
+let activeSectionId = '';
+let choiceDraft = [];
+let correctChoiceIndex = 0;
+let questionBankDraft = [];
 let assessments = [];
 let autosaveTimer = null;
 let lastAutosaveSignature = '';
 const DRAFT_KEY = 'plv-admin-assessment-draft-v2';
+
+function uid(prefix = 'id') {
+    return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
+}
+
+function createSection(title = '') {
+    return {
+        id: uid('sec'),
+        title: title || `Section ${sections.length + 1}`,
+        pickCount: 0,
+        shuffleQuestions: false,
+        shuffleChoices: false,
+        collapsed: false
+    };
+}
+
+function normalizeSection(section, index) {
+    const cleanTitle = String(section?.title || '').trim();
+    return {
+        id: String(section?.id || uid('sec')),
+        title: cleanTitle || `Section ${index + 1}`,
+        pickCount: Math.max(0, Number(section?.pickCount || 0)),
+        shuffleQuestions: !!section?.shuffleQuestions,
+        shuffleChoices: !!section?.shuffleChoices,
+        collapsed: !!section?.collapsed
+    };
+}
+
+function normalizeQuestion(question, fallbackSectionId) {
+    return {
+        id: String(question?.id || uid('q')),
+        sectionId: String(question?.sectionId || question?.category || fallbackSectionId || ''),
+        type: question?.type || 'multiple_choice',
+        prompt: String(question?.prompt || ''),
+        points: Math.max(1, Number(question?.points || 1)),
+        answer_key: String(question?.answer_key || ''),
+        choices: Array.isArray(question?.choices) ? question.choices.map(choice => String(choice)) : [],
+        order_no: Number(question?.order_no || 1)
+    };
+}
+
+function normalizeBuilderState() {
+    sections = Array.isArray(sections) ? sections.map((section, index) => normalizeSection(section, index)) : [];
+    if (!sections.length) {
+        const inferredIds = [];
+        questions.forEach(question => {
+            const category = String(question?.sectionId || question?.category || '').trim();
+            if (category && !inferredIds.includes(category)) inferredIds.push(category);
+        });
+        sections = inferredIds.length ? inferredIds.map((sectionId, index) => ({
+            id: sectionId,
+            title: sectionId || `Section ${index + 1}`,
+            pickCount: 0,
+            shuffleQuestions: false,
+            shuffleChoices: false,
+            collapsed: false
+        })) : [createSection('Section 1')];
+    }
+    const sectionIds = new Set(sections.map(section => section.id));
+    const fallbackSectionId = sections[0].id;
+    questions = Array.isArray(questions) ? questions.map((question, index) => {
+        const clean = normalizeQuestion(question, fallbackSectionId);
+        if (!sectionIds.has(clean.sectionId)) clean.sectionId = fallbackSectionId;
+        clean.order_no = Number.isFinite(Number(clean.order_no)) ? Number(clean.order_no) : index + 1;
+        return clean;
+    }) : [];
+    if (!sectionIds.has(activeSectionId)) activeSectionId = fallbackSectionId;
+}
+
+function builderSettingsSnapshot() {
+    return sections.map(section => {
+        const bankCount = questions.filter(question => question.sectionId === section.id).length;
+        const requested = Math.max(0, Math.floor(Number(section.pickCount || 0)));
+        const pickCount = requested > 0 && requested < bankCount ? requested : 0;
+        return {
+            id: section.id,
+            title: String(section.title || '').trim() || 'Untitled Section',
+            pickCount,
+            shuffleQuestions: !!section.shuffleQuestions,
+            shuffleChoices: !!section.shuffleChoices,
+            collapsed: !!section.collapsed
+        };
+    });
+}
+
+function questionDraftFromUi() {
+    return choiceDraft.map(choice => String(choice ?? '').trim()).filter(Boolean);
+}
+
+function renderSectionSelect() {
+    const select = $('qSection');
+    if (!select) return;
+    select.innerHTML = sections.map(section => `<option value="${esc(section.id)}" ${section.id === activeSectionId ? 'selected' : ''}>${esc(section.title)}</option>`).join('');
+}
+
+function initChoiceDraft(type) {
+    if (type === 'true_false') {
+        choiceDraft = ['True', 'False'];
+        correctChoiceIndex = 0;
+        return;
+    }
+    if (!Array.isArray(choiceDraft) || choiceDraft.length < 2) choiceDraft = ['', ''];
+    if (correctChoiceIndex >= choiceDraft.length) correctChoiceIndex = 0;
+}
+
+function renderChoiceEditor() {
+    const wrap = $('choiceWrap');
+    if (!wrap) return;
+    const type = $('qType')?.value || 'multiple_choice';
+    const show = type === 'multiple_choice' || type === 'true_false';
+    const fixedChoices = type === 'true_false';
+    wrap.style.display = show ? '' : 'none';
+    if (!show) {
+        wrap.innerHTML = '';
+        return;
+    }
+
+    initChoiceDraft(type);
+    wrap.innerHTML = `
+        <div class="choice-editor-shell">
+            <div class="choice-editor-head">
+                <div>
+                    <label>Choices — select correct answer</label>
+                    <p class="mini">${fixedChoices ? 'True or False uses two fixed choices.' : 'Add options, then select the correct answer.'}</p>
+                </div>
+                ${fixedChoices ? '' : '<button type="button" class="btn secondary btn-sm" id="addChoiceRowBtn"><i class="ph-bold ph-plus"></i> Add Option</button>'}
+            </div>
+            <div class="choice-editor-list" id="choiceRows"></div>
+        </div>`;
+
+    const rows = $('choiceRows');
+    if (!rows) return;
+
+    const renderRows = () => {
+        rows.innerHTML = choiceDraft.map((choice, index) => `
+            <div class="choice-row ${index === correctChoiceIndex ? 'selected' : ''}" data-choice-row="${index}">
+                <input class="choice-radio" type="radio" name="qCorrect" value="${index}" ${index === correctChoiceIndex ? 'checked' : ''} aria-label="Mark choice ${index + 1} as correct">
+                <span class="choice-letter">${String.fromCharCode(65 + index)}</span>
+                <input class="input choice-input" data-choice-input="${index}" value="${esc(choice)}" placeholder="Option ${index + 1}" ${fixedChoices ? 'readonly' : ''}>
+                ${fixedChoices ? '<span class="choice-fixed"><i class="ph-bold ph-lock-key"></i></span>' : `<button class="btn danger btn-icon choice-remove" data-remove-choice="${index}" type="button" aria-label="Remove option ${index + 1}" title="Remove option"><i class="ph-bold ph-x"></i></button>`}
+            </div>`).join('') + (fixedChoices ? '' : `
+            <button class="choice-add-btn" id="addChoiceRowInline" type="button"><i class="ph-bold ph-plus"></i> Add Option</button>`);
+    };
+
+    renderRows();
+    rows.oninput = event => {
+        const target = event.target;
+        if (target.matches('[data-choice-input]') && !fixedChoices) {
+            choiceDraft[Number(target.dataset.choiceInput)] = target.value;
+        }
+    };
+    rows.onchange = event => {
+        const target = event.target;
+        if (target.matches('.choice-radio')) {
+            correctChoiceIndex = Number(target.value);
+            renderRows();
+        }
+    };
+    rows.onclick = event => {
+        const remove = event.target.closest('[data-remove-choice]');
+        if (remove) {
+            const index = Number(remove.dataset.removeChoice);
+            if (choiceDraft.length <= 2) return toast('Keep at least two choices.');
+            choiceDraft.splice(index, 1);
+            if (correctChoiceIndex === index) correctChoiceIndex = Math.max(0, index - 1);
+            else if (correctChoiceIndex > index) correctChoiceIndex -= 1;
+            if (correctChoiceIndex >= choiceDraft.length) correctChoiceIndex = choiceDraft.length - 1;
+            renderRows();
+            return;
+        }
+        if (event.target.closest('#addChoiceRowInline')) {
+            choiceDraft.push('');
+            renderRows();
+            rows.querySelector(`[data-choice-input="${choiceDraft.length - 1}"]`)?.focus();
+        }
+    };
+    wrap.querySelector('#addChoiceRowBtn')?.addEventListener('click', () => {
+        choiceDraft.push('');
+        renderRows();
+        rows.querySelector(`[data-choice-input="${choiceDraft.length - 1}"]`)?.focus();
+    });
+}
+
+function updateAnswerKeyUi() {
+    const field = $('answerKeyField');
+    const input = $('qAnswer');
+    if (!field || !input) return;
+    const type = $('qType')?.value || 'multiple_choice';
+    const show = type === 'short_answer';
+    field.style.display = show ? '' : 'none';
+    input.placeholder = 'Enter the accepted short answer';
+    if (!show) input.value = '';
+}
+
+function ensureQuestionBankModal() {
+    if ($('questionBankModal')) return;
+    document.body.insertAdjacentHTML('beforeend', `
+        <div class="bank-modal" id="questionBankModal" aria-hidden="true">
+            <section class="glass bank-modal__card" role="dialog" aria-modal="true" aria-labelledby="questionBankTitle">
+                <div class="bank-modal__head">
+                    <div>
+                        <span class="builder-summary__label">Question Bank Controls</span>
+                        <h2 id="questionBankTitle">Random question selection</h2>
+                        <p class="mini">Choose how many questions each section gives to a student. Enter 0 to use every question.</p>
+                    </div>
+                    <button class="btn secondary btn-icon" type="button" id="questionBankClose" aria-label="Close question bank"><i class="ph-bold ph-x"></i></button>
+                </div>
+                <div class="bank-modal__list" id="questionBankList"></div>
+                <div class="bank-modal__footer">
+                    <button class="btn secondary" type="button" id="questionBankCancel">Cancel</button>
+                    <button class="btn primary" type="button" id="questionBankApply"><i class="ph-bold ph-check"></i>Apply Settings</button>
+                </div>
+            </section>
+        </div>`);
+
+    const modal = $('questionBankModal');
+    const close = () => {
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+    };
+    $('questionBankClose').onclick = close;
+    $('questionBankCancel').onclick = close;
+    modal.onclick = event => { if (event.target === modal) close(); };
+    $('questionBankApply').onclick = () => {
+        questionBankDraft.forEach(draft => {
+            const section = sections.find(item => item.id === draft.id);
+            if (!section) return;
+            section.pickCount = draft.pickCount > 0 && draft.pickCount < draft.bankCount ? draft.pickCount : 0;
+            section.shuffleQuestions = !!draft.shuffleQuestions;
+            section.shuffleChoices = !!draft.shuffleChoices;
+        });
+        close();
+        renderQ();
+        scheduleAutosave();
+        toast('Question bank settings applied.');
+    };
+}
+
+function renderQuestionBankModal(focusSectionId = '') {
+    const list = $('questionBankList');
+    if (!list) return;
+    list.innerHTML = questionBankDraft.map((draft, index) => `
+        <article class="bank-row ${draft.id === focusSectionId ? 'is-focus' : ''}" data-bank-row="${esc(draft.id)}">
+            <div class="bank-row__identity">
+                <span class="section-badge">${index + 1}</span>
+                <div><strong>${esc(draft.title)}</strong><p class="mini">${draft.bankCount} question${draft.bankCount === 1 ? '' : 's'} available</p></div>
+            </div>
+            <div class="bank-row__controls">
+                <label class="bank-pick"><span>Random pick</span><input type="number" min="0" max="${draft.bankCount}" value="${draft.pickCount}" data-bank-pick="${esc(draft.id)}"><small>0 = all</small></label>
+                <label class="section-toggle"><input type="checkbox" data-bank-shuffleq="${esc(draft.id)}" ${draft.shuffleQuestions ? 'checked' : ''}><span>Shuffle questions</span></label>
+                <label class="section-toggle"><input type="checkbox" data-bank-shufflec="${esc(draft.id)}" ${draft.shuffleChoices ? 'checked' : ''}><span>Shuffle choices</span></label>
+                <button class="btn secondary btn-sm" type="button" data-bank-all="${esc(draft.id)}">Use all</button>
+            </div>
+        </article>`).join('');
+
+    list.oninput = event => {
+        const target = event.target;
+        if (!target.matches('[data-bank-pick]')) return;
+        const draft = questionBankDraft.find(item => item.id === target.dataset.bankPick);
+        if (!draft) return;
+        const value = Math.max(0, Math.floor(Number(target.value) || 0));
+        draft.pickCount = value > 0 ? Math.min(value, draft.bankCount) : 0;
+        if (Number(target.value) > draft.bankCount) target.value = String(draft.bankCount);
+    };
+    list.onchange = event => {
+        const target = event.target;
+        if (target.matches('[data-bank-shuffleq]')) {
+            const draft = questionBankDraft.find(item => item.id === target.dataset.bankShuffleq);
+            if (draft) draft.shuffleQuestions = target.checked;
+        }
+        if (target.matches('[data-bank-shufflec]')) {
+            const draft = questionBankDraft.find(item => item.id === target.dataset.bankShufflec);
+            if (draft) draft.shuffleChoices = target.checked;
+        }
+    };
+    list.onclick = event => {
+        const button = event.target.closest('[data-bank-all]');
+        if (!button) return;
+        const draft = questionBankDraft.find(item => item.id === button.dataset.bankAll);
+        if (!draft) return;
+        draft.pickCount = 0;
+        renderQuestionBankModal(focusSectionId);
+    };
+}
+
+function openQuestionBank(sectionId = '') {
+    ensureQuestionBankModal();
+    questionBankDraft = sections.map(section => {
+        const bankCount = questions.filter(question => question.sectionId === section.id).length;
+        const requested = Math.max(0, Math.floor(Number(section.pickCount || 0)));
+        return {
+            id: section.id,
+            title: section.title,
+            bankCount,
+            pickCount: requested > 0 && requested < bankCount ? requested : 0,
+            shuffleQuestions: !!section.shuffleQuestions,
+            shuffleChoices: !!section.shuffleChoices
+        };
+    });
+    renderQuestionBankModal(sectionId);
+    const modal = $('questionBankModal');
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+    requestAnimationFrame(() => {
+        const row = sectionId ? [...modal.querySelectorAll('[data-bank-row]')].find(item => item.dataset.bankRow === sectionId) : null;
+        row?.scrollIntoView({ block: 'center' });
+        row?.querySelector('input')?.focus();
+    });
+}
+
+function ensureBuilderUi() {
+    if (!$('qSection') && $('qPoints')) {
+        $('qPoints').closest('.field')?.insertAdjacentHTML('afterend', `<div class="field"><label>Section</label><select class="select" id="qSection"></select></div>`);
+    }
+    renderSectionSelect();
+    renderChoiceEditor();
+    updateAnswerKeyUi();
+    ensureQuestionBankModal();
+}
 
 function toast(message) {
     $('toast').textContent = message;
@@ -103,12 +427,12 @@ function setBuilderLock() {
 }
 
 function draftPayload() {
-    return { editing, assessment: currentAssessment(), questions, savedAt: new Date().toISOString() };
+    return { editing, assessment: currentAssessment(), sections: builderSettingsSnapshot(), questions, savedAt: new Date().toISOString() };
 }
 
 function autosaveSignature(assessment, questionList) {
     const { id, ...stableAssessment } = assessment;
-    return JSON.stringify({ assessment: stableAssessment, questions: questionList });
+    return JSON.stringify({ assessment: stableAssessment, sections: builderSettingsSnapshot(), questions: questionList });
 }
 
 function persistDraft() {
@@ -128,6 +452,7 @@ function restoreDraft() {
         const draft = JSON.parse(raw);
         const assessment = draft.assessment || {};
         editing = draft.editing || null;
+        sections = Array.isArray(draft.sections) && draft.sections.length ? draft.sections : (assessment.settings && Array.isArray(assessment.settings.builderSections) ? assessment.settings.builderSections : []);
         $('title').value = assessment.title || '';
         $('instructions').value = assessment.instructions || '';
         $('subject').value = assessment.subject_code || '';
@@ -137,7 +462,9 @@ function restoreDraft() {
         $('opensAt').value = assessment.opens_at ? String(assessment.opens_at).slice(0, 16) : '';
         $('closesAt').value = assessment.closes_at ? String(assessment.closes_at).slice(0, 16) : '';
         questions = Array.isArray(draft.questions) ? draft.questions : [];
+        normalizeBuilderState();
         if (editing) lastAutosaveSignature = autosaveSignature(assessment, questions);
+        ensureBuilderUi();
         renderQ();
         if (assessment.title && assessment.subject_code && assessment.section) scheduleAutosave();
     } catch (_) {}
@@ -168,89 +495,276 @@ function scheduleAutosave() {
 }
 
 function renderQ() {
+    normalizeBuilderState();
     const totalPoints = questions.reduce((sum, question) => sum + Number(question.points || 0), 0);
-    $('qList').innerHTML = questions.length ? `
-        <div class="builder-summary">
-            <div>
+    const totalQuestions = questions.length;
+    const grouped = sections.map(section => ({
+        section,
+        items: questions.filter(question => question.sectionId === section.id).sort((a, b) => Number(a.order_no || 0) - Number(b.order_no || 0))
+    }));
+    $('qList').innerHTML = `
+        <div class="builder-toolbar">
+            <div class="builder-toolbar__title">
                 <span class="builder-summary__label">Question Builder</span>
                 <strong>${editing ? `Editing ${editing}` : 'New test draft'}</strong>
+                <p class="mini">Organize questions by section, set random picks, and shuffle order when needed.</p>
             </div>
-            <div>
-                <span class="builder-summary__label">Questions ready</span>
-                <strong>${questions.length} item${questions.length === 1 ? '' : 's'}</strong>
-            </div>
-            <div>
-                <span class="builder-summary__label">Total points</span>
-                <strong>${totalPoints}</strong>
+            <div class="builder-toolbar__actions">
+                <button class="btn secondary" type="button" id="addSectionBtn"><i class="ph-bold ph-plus"></i>Add Section</button>
+                <button class="btn secondary" type="button" id="questionBankBtn"><i class="ph-bold ph-browsers"></i>Question Bank</button>
+                <button class="btn primary" type="button" id="saveAllBtn"><i class="ph-bold ph-floppy-disk"></i>Save All</button>
             </div>
         </div>
-        ${questions.map((q, i) => {
-            const typeLabel = q.type.replace('_', ' ');
-            const answerLabel = q.answer_key || 'Manual grading';
-            const choiceRows = q.choices.length ? q.choices.map((choice, choiceIndex) => `
-                <div class="question-choice-row ${answerLabel === choice ? 'is-correct' : ''}">
-                    <span class="question-choice-key">${String.fromCharCode(65 + choiceIndex)}</span>
-                    <span class="question-choice-text">${esc(choice)}</span>
-                </div>
-            `).join('') : '';
+        <div class="builder-summary">
+            <div><span class="builder-summary__label">Sections</span><strong>${sections.length}</strong></div>
+            <div><span class="builder-summary__label">Questions ready</span><strong>${totalQuestions} item${totalQuestions === 1 ? '' : 's'}</strong></div>
+            <div><span class="builder-summary__label">Total points</span><strong>${totalPoints}</strong></div>
+        </div>
+        ${grouped.length ? grouped.map((entry, index) => {
+            const section = entry.section;
+            const items = entry.items;
+            const bankCount = items.length;
+            const pickCount = Math.max(0, Number(section.pickCount || 0));
+            const effectivePickCount = pickCount > 0 && pickCount < bankCount ? pickCount : 0;
+            const bankLabel = effectivePickCount ? `Pick ${effectivePickCount} / ${bankCount} qs` : `${bankCount} qs`;
             return `
-        <article class="question-card">
-            <div class="question-card__top">
-                <div>
-                    <div class="question-card__title">Question ${i + 1}</div>
-                    <div class="question-card__meta">
-                        <span class="question-chip">${esc(typeLabel)}</span>
-                        <span class="question-chip question-chip--points">${Number(q.points || 0)} pts</span>
+            <article class="section-card ${section.collapsed ? 'collapsed' : ''}" data-section-card="${esc(section.id)}">
+                <div class="section-head">
+                    <div class="section-identity">
+                        <div class="section-badge">${index + 1}</div>
+                        <input class="section-title-input" data-section-title="${esc(section.id)}" value="${esc(section.title)}" aria-label="Section title">
+                    </div>
+                    <div class="section-head__controls">
+                        <button class="section-bank" type="button" data-section-bank="${esc(section.id)}" title="Configure random selection">
+                            <i class="ph-bold ph-stack-simple"></i><span>${effectivePickCount ? `Pick ${effectivePickCount} of ${bankCount}` : `Use all ${bankCount}`}</span>
+                        </button>
+                        <label class="section-toggle"><input type="checkbox" data-section-shuffleq="${esc(section.id)}" ${section.shuffleQuestions ? 'checked' : ''}><span>Shuffle questions</span></label>
+                        <label class="section-toggle"><input type="checkbox" data-section-shufflec="${esc(section.id)}" ${section.shuffleChoices ? 'checked' : ''}><span>Shuffle choices</span></label>
+                        <div class="section-icon-actions">
+                            <button class="btn secondary btn-icon" type="button" data-section-toggle="${esc(section.id)}" title="${section.collapsed ? 'Expand' : 'Collapse'}"><i class="ph-bold ${section.collapsed ? 'ph-caret-down' : 'ph-caret-up'}"></i></button>
+                            <button class="btn secondary btn-icon" type="button" data-section-up="${esc(section.id)}" title="Move section up" ${index === 0 ? 'disabled' : ''}><i class="ph-bold ph-arrow-up"></i></button>
+                            <button class="btn secondary btn-icon" type="button" data-section-down="${esc(section.id)}" title="Move section down" ${index === sections.length - 1 ? 'disabled' : ''}><i class="ph-bold ph-arrow-down"></i></button>
+                            <button class="btn secondary btn-icon" type="button" data-section-dup="${esc(section.id)}" title="Duplicate section"><i class="ph-bold ph-copy"></i></button>
+                            <button class="btn danger btn-icon" type="button" data-section-del="${esc(section.id)}" title="Delete section"><i class="ph-bold ph-trash"></i></button>
+                        </div>
                     </div>
                 </div>
-                <div class="question-actions">
-                    <button class="btn secondary btn-icon" data-moveup="${i}" type="button" aria-label="Move question ${i + 1} up" ${i === 0 ? 'disabled' : ''} title="Move up"><i class="ph-bold ph-caret-up"></i></button>
-                    <button class="btn secondary btn-icon" data-movedown="${i}" type="button" aria-label="Move question ${i + 1} down" ${i === questions.length - 1 ? 'disabled' : ''} title="Move down"><i class="ph-bold ph-caret-down"></i></button>
-                    <button class="btn secondary btn-icon" data-dupq="${i}" type="button" aria-label="Duplicate question ${i + 1}" title="Duplicate"><i class="ph-bold ph-copy"></i></button>
-                    <button class="btn danger btn-icon" data-delq="${i}" type="button" aria-label="Delete question ${i + 1}" title="Delete"><i class="ph-bold ph-trash"></i></button>
+                <div class="section-head__sub">
+                    <span class="mini">${bankLabel}</span>
+                    <button class="btn secondary btn-sm" type="button" data-add-q-section="${esc(section.id)}"><i class="ph-bold ph-plus"></i> Add Question</button>
                 </div>
-            </div>
-            <p class="question-card__prompt">${esc(q.prompt)}</p>
-            ${choiceRows ? `<div class="question-card__choices"><span>Choices</span><div class="question-choice-list">${choiceRows}</div></div>` : ''}
-            <div class="question-card__answer"><span>Answer key</span><strong>${esc(answerLabel)}</strong></div>
-        </article>`;
-        }).join('')}` : '<article class="question-card builder-empty"><b>No questions yet.</b><p>Pick a type, enter the prompt, and add your first item. Multiple choice and true/false questions automatically reveal the choice field.</p></article>';
-    document.querySelectorAll('[data-delq]').forEach(btn => {
-        btn.onclick = () => {
-            questions.splice(Number(btn.dataset.delq), 1);
-            renderQ();
-            scheduleAutosave();
-        };
+                <div class="section-body ${section.collapsed ? 'is-collapsed' : ''}">
+                    ${items.length ? items.map((q, qIndex) => {
+                        const typeLabel = q.type.replace('_', ' ');
+                        const answerLabel = q.answer_key || 'Manual grading';
+                        const choiceRows = q.choices.length ? q.choices.map((choice, choiceIndex) => `
+                            <div class="question-choice-row ${answerLabel === choice ? 'is-correct' : ''}">
+                                <span class="question-choice-key">${String.fromCharCode(65 + choiceIndex)}</span>
+                                <span class="question-choice-text">${esc(choice)}</span>
+                            </div>
+                        `).join('') : '';
+                        return `
+                        <article class="question-card">
+                            <div class="question-card__top">
+                                <div>
+                                    <div class="question-card__title">Question ${qIndex + 1}</div>
+                                    <div class="question-card__meta">
+                                        <span class="question-chip">${esc(typeLabel)}</span>
+                                        <span class="question-chip question-chip--points">${Number(q.points || 0)} pts</span>
+                                    </div>
+                                </div>
+                                <div class="question-actions">
+                                    <button class="btn secondary btn-icon" data-moveup="${esc(q.id)}" data-section-id="${esc(section.id)}" type="button" aria-label="Move question up" ${qIndex === 0 ? 'disabled' : ''} title="Move up"><i class="ph-bold ph-caret-up"></i></button>
+                                    <button class="btn secondary btn-icon" data-movedown="${esc(q.id)}" data-section-id="${esc(section.id)}" type="button" aria-label="Move question down" ${qIndex === items.length - 1 ? 'disabled' : ''} title="Move down"><i class="ph-bold ph-caret-down"></i></button>
+                                    <button class="btn secondary btn-icon" data-dupq="${esc(q.id)}" data-section-id="${esc(section.id)}" type="button" aria-label="Duplicate question" title="Duplicate"><i class="ph-bold ph-copy"></i></button>
+                                    <button class="btn danger btn-icon" data-delq="${esc(q.id)}" data-section-id="${esc(section.id)}" type="button" aria-label="Delete question" title="Delete"><i class="ph-bold ph-trash"></i></button>
+                                </div>
+                            </div>
+                            <p class="question-card__prompt">${esc(q.prompt)}</p>
+                            ${choiceRows ? `<div class="question-card__choices"><span>Choices</span><div class="question-choice-list">${choiceRows}</div></div>` : ''}
+                            <div class="question-card__answer"><span>Answer key</span><strong>${esc(answerLabel)}</strong></div>
+                        </article>`;
+                    }).join('') : '<article class="question-card builder-empty"><b>No questions in this section yet.</b><p>Add items below, or use the Question Bank button to set a random pick count for this section.</p></article>'}
+                </div>
+            </article>`;
+        }).join('') : '<article class="question-card builder-empty"><b>No sections yet.</b><p>Create a section to start building a question bank.</p></article>'}
+        <div class="builder-footer"><button class="btn secondary" type="button" id="footerAddSectionBtn"><i class="ph-bold ph-plus"></i>Add another section</button></div>`;
+    renderSectionSelect();
+    bindBuilderEvents();
+}
+
+function sectionQuestions(sectionId) {
+    return questions.filter(question => question.sectionId === sectionId).sort((a, b) => Number(a.order_no || 0) - Number(b.order_no || 0));
+}
+
+function sortQuestionsBySection() {
+    const sectionOrder = new Map(sections.map((section, index) => [section.id, index]));
+    questions.sort((a, b) => {
+        const sectionDiff = (sectionOrder.get(a.sectionId) ?? 999) - (sectionOrder.get(b.sectionId) ?? 999);
+        if (sectionDiff !== 0) return sectionDiff;
+        return Number(a.order_no || 0) - Number(b.order_no || 0);
     });
-    document.querySelectorAll('[data-dupq]').forEach(btn => {
-        btn.onclick = () => {
-            const index = Number(btn.dataset.dupq);
-            const clone = JSON.parse(JSON.stringify(questions[index]));
-            questions.splice(index + 1, 0, clone);
-            renderQ();
-            scheduleAutosave();
-        };
+}
+
+function renumberQuestions() {
+    sortQuestionsBySection();
+    questions.forEach((question, index) => { question.order_no = index + 1; });
+}
+
+function reorderWithinSection(sectionId, questionId, direction) {
+    const items = sectionQuestions(sectionId);
+    const currentIndex = items.findIndex(question => question.id === questionId);
+    const targetIndex = currentIndex + direction;
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= items.length) return;
+    const [moved] = items.splice(currentIndex, 1);
+    items.splice(targetIndex, 0, moved);
+    const byId = new Map(items.map((question, index) => [question.id, index + 1]));
+    questions.forEach(question => {
+        if (question.sectionId === sectionId && byId.has(question.id)) question.order_no = byId.get(question.id);
     });
-    document.querySelectorAll('[data-moveup]').forEach(btn => {
-        btn.onclick = () => {
-            const index = Number(btn.dataset.moveup);
-            if (index <= 0) return;
-            const [item] = questions.splice(index, 1);
-            questions.splice(index - 1, 0, item);
-            renderQ();
-            scheduleAutosave();
-        };
+    questions.sort((a, b) => {
+        if (a.sectionId === b.sectionId) return Number(a.order_no || 0) - Number(b.order_no || 0);
+        const sectionOrder = sections.findIndex(section => section.id === a.sectionId) - sections.findIndex(section => section.id === b.sectionId);
+        return sectionOrder;
     });
-    document.querySelectorAll('[data-movedown]').forEach(btn => {
-        btn.onclick = () => {
-            const index = Number(btn.dataset.movedown);
-            if (index >= questions.length - 1) return;
-            const [item] = questions.splice(index, 1);
-            questions.splice(index + 1, 0, item);
-            renderQ();
-            scheduleAutosave();
+    renderQ();
+    scheduleAutosave();
+}
+
+function duplicateQuestion(questionId) {
+    const source = questions.find(question => question.id === questionId);
+    if (!source) return;
+    const clone = JSON.parse(JSON.stringify(source));
+    clone.id = uid('q');
+    clone.order_no = Number(source.order_no || 0) + 0.5;
+    questions.push(clone);
+    renumberQuestions();
+    renderQ();
+    scheduleAutosave();
+}
+
+function deleteQuestion(questionId) {
+    questions = questions.filter(question => question.id !== questionId);
+    renumberQuestions();
+    renderQ();
+    scheduleAutosave();
+}
+
+function addSection(title) {
+    const section = createSection(title || `Section ${sections.length + 1}`);
+    sections.push(section);
+    activeSectionId = section.id;
+    renderQ();
+    scheduleAutosave();
+}
+
+function updateSection(sectionId, patch) {
+    const section = sections.find(item => item.id === sectionId);
+    if (!section) return;
+    Object.assign(section, patch);
+    renderQ();
+    scheduleAutosave();
+}
+
+function duplicateSection(sectionId) {
+    const index = sections.findIndex(section => section.id === sectionId);
+    if (index < 0) return;
+    const source = sections[index];
+    const clone = { ...source, id: uid('sec'), title: `${source.title} Copy`, collapsed: false };
+    sections.splice(index + 1, 0, clone);
+    const clonedQuestions = sectionQuestions(sectionId).map(question => ({ ...JSON.parse(JSON.stringify(question)), id: uid('q'), sectionId: clone.id, order_no: Number(question.order_no || 1) }));
+    questions.push(...clonedQuestions);
+    renumberQuestions();
+    activeSectionId = clone.id;
+    renderQ();
+    scheduleAutosave();
+}
+
+function deleteSection(sectionId) {
+    if (sections.length === 1) return toast('Keep at least one section.');
+    const section = sections.find(item => item.id === sectionId);
+    const count = questions.filter(question => question.sectionId === sectionId).length;
+    if (!confirm(`Delete "${section?.title || 'this section'}" and its ${count} question${count === 1 ? '' : 's'}?`)) return;
+    sections = sections.filter(section => section.id !== sectionId);
+    questions = questions.filter(question => question.sectionId !== sectionId);
+    if (activeSectionId === sectionId) activeSectionId = sections[0].id;
+    renumberQuestions();
+    renderQ();
+    scheduleAutosave();
+}
+
+function moveSection(sectionId, direction) {
+    const index = sections.findIndex(section => section.id === sectionId);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= sections.length) return;
+    const [item] = sections.splice(index, 1);
+    sections.splice(targetIndex, 0, item);
+    renumberQuestions();
+    renderQ();
+    scheduleAutosave();
+}
+
+function addQuestionToSection(sectionId) {
+    activeSectionId = sectionId;
+    const select = $('qSection');
+    if (select) select.value = sectionId;
+    $('qPrompt')?.focus();
+}
+
+function applyQuestionBank(sectionId) {
+    openQuestionBank(sectionId);
+}
+
+function bindBuilderEvents() {
+    const list = $('qList');
+    if (list) {
+        list.onclick = event => {
+            const target = event.target.closest('button');
+            if (!target) return;
+            if (target.id === 'addSectionBtn' || target.id === 'footerAddSectionBtn') return addSection();
+            if (target.id === 'questionBankBtn') {
+                const section = sections.find(item => item.id === activeSectionId) || sections[0];
+                if (!section) return;
+                return applyQuestionBank(section.id);
+            }
+            if (target.id === 'saveAllBtn') return $('form').requestSubmit();
+            if (target.dataset.addQSection) return addQuestionToSection(target.dataset.addQSection);
+            if (target.dataset.sectionBank) return applyQuestionBank(target.dataset.sectionBank);
+            if (target.dataset.sectionToggle) return updateSection(target.dataset.sectionToggle, { collapsed: !sections.find(item => item.id === target.dataset.sectionToggle)?.collapsed });
+            if (target.dataset.sectionDup) return duplicateSection(target.dataset.sectionDup);
+            if (target.dataset.sectionDel) return deleteSection(target.dataset.sectionDel);
+            if (target.dataset.sectionUp) return moveSection(target.dataset.sectionUp, -1);
+            if (target.dataset.sectionDown) return moveSection(target.dataset.sectionDown, 1);
+            if (target.dataset.delq) return deleteQuestion(target.dataset.delq);
+            if (target.dataset.dupq) return duplicateQuestion(target.dataset.dupq);
+            if (target.dataset.moveup) return reorderWithinSection(target.dataset.sectionId, target.dataset.moveup, -1);
+            if (target.dataset.movedown) return reorderWithinSection(target.dataset.sectionId, target.dataset.movedown, 1);
         };
-    });
+        list.oninput = event => {
+            const target = event.target;
+            if (target.matches('[data-section-title]')) {
+                const section = sections.find(item => item.id === target.dataset.sectionTitle);
+                if (section) section.title = target.value;
+                renderSectionSelect();
+                scheduleAutosave();
+            }
+            if (target.matches('[data-section-pick]')) {
+                const section = sections.find(item => item.id === target.dataset.sectionPick);
+                if (section) section.pickCount = Math.max(0, Number(target.value) || 0);
+                scheduleAutosave();
+            }
+        };
+        list.onchange = event => {
+            const target = event.target;
+            if (target.matches('[data-section-shuffleq]')) updateSection(target.dataset.sectionShuffleq, { shuffleQuestions: target.checked });
+            if (target.matches('[data-section-shufflec]')) updateSection(target.dataset.sectionShufflec, { shuffleChoices: target.checked });
+            if (target.matches('input[type="radio"][name="qCorrect"]')) correctChoiceIndex = Number(target.value);
+        };
+    }
+    const sectionSelect = $('qSection');
+    if (sectionSelect) {
+        sectionSelect.onchange = () => { activeSectionId = sectionSelect.value; };
+    }
 }
 
 function reset() {
@@ -259,8 +773,13 @@ function reset() {
     clearTimeout(autosaveTimer);
     $('form').reset();
     $('duration').value = 30;
+    sections = [createSection('Section 1')];
+    activeSectionId = sections[0].id;
     questions = [];
+    choiceDraft = [];
+    correctChoiceIndex = 0;
     clearDraft();
+    ensureBuilderUi();
     renderQ();
     setBuilderLock();
     $('bldSub') && ($('bldSub').textContent = 'Create a new Turso test');
@@ -277,7 +796,7 @@ function currentAssessment() {
         duration_minutes: Number($('duration').value || 30),
         opens_at: iso($('opensAt').value),
         closes_at: iso($('closesAt').value),
-        settings: { fullscreen: true, maxViolations: 5 }
+        settings: { fullscreen: true, maxViolations: 5, builderSections: builderSettingsSnapshot() }
     };
 }
 
@@ -352,9 +871,12 @@ async function edit(id, workspace = 'details') {
         $('duration').value = a.duration_minutes || 30;
         $('opensAt').value = a.opens_at ? String(a.opens_at).slice(0, 16) : '';
         $('closesAt').value = a.closes_at ? String(a.closes_at).slice(0, 16) : '';
+        sections = Array.isArray(a.settings?.builderSections) && a.settings.builderSections.length ? a.settings.builderSections : [];
         questions = data.questions || [];
+        normalizeBuilderState();
         lastAutosaveSignature = autosaveSignature(a, questions);
         persistDraft();
+        ensureBuilderUi();
         renderQ();
         setBuilderLock();
         showWorkspace(workspace);
@@ -406,23 +928,41 @@ async function incidents() {
 
 $('qType').onchange = () => {
     const type = $('qType').value;
-    $('choiceWrap').style.display = (type === 'multiple_choice' || type === 'true_false') ? 'flex' : 'none';
-    if (type === 'true_false') $('qChoices').value = 'True\nFalse';
+    choiceDraft = [];
+    correctChoiceIndex = 0;
+    initChoiceDraft(type);
+    renderChoiceEditor();
+    updateAnswerKeyUi();
 };
 
 $('addQ').onclick = () => {
     const type = $('qType').value;
     const prompt = $('qPrompt').value.trim();
     if (!prompt) return toast('Please type the question.');
-    const q = { type, prompt, points: Number($('qPoints').value || 1), answer_key: $('qAnswer').value.trim(), choices: [] };
-    if (type === 'multiple_choice' || type === 'true_false') q.choices = $('qChoices').value.split('\n').map(x => x.trim()).filter(Boolean);
-    if ((type === 'multiple_choice' || type === 'true_false') && q.choices.length < 2) return toast('Add at least two choices.');
+    const sectionId = $('qSection')?.value || activeSectionId || sections[0]?.id || '';
+    const q = { id: uid('q'), sectionId, type, prompt, points: Number($('qPoints').value || 1), answer_key: '', choices: [], order_no: questions.length + 1 };
+    if (type === 'multiple_choice' || type === 'true_false') {
+        const choices = questionDraftFromUi();
+        if (choices.length < 2) return toast('Add at least two choices.');
+        const normalized = choices.map(choice => choice.toLowerCase());
+        if (new Set(normalized).size !== normalized.length) return toast('Choices must be different from each other.');
+        const correctChoice = String(choiceDraft[correctChoiceIndex] || '').trim();
+        if (!correctChoice || !choices.includes(correctChoice)) return toast('Select a valid correct answer.');
+        q.choices = choices;
+        q.answer_key = correctChoice;
+    } else if (type === 'short_answer') {
+        q.answer_key = $('qAnswer').value.trim();
+    }
     questions.push(q);
+    renumberQuestions();
     scheduleAutosave();
     $('qPrompt').value = '';
-    $('qChoices').value = '';
-    $('qAnswer').value = '';
     $('qPoints').value = '1';
+    $('qAnswer').value = '';
+    choiceDraft = [];
+    correctChoiceIndex = 0;
+    renderChoiceEditor();
+    updateAnswerKeyUi();
     renderQ();
 };
 
@@ -432,16 +972,22 @@ $('refresh').onclick = loadAssessments;
 document.querySelectorAll('[data-assessment-view]').forEach(btn => btn.onclick = () => {
     showWorkspace(btn.dataset.assessmentView);
 });
-document.querySelectorAll('#form input, #form textarea, #form select, #qType, #qPoints, #qPrompt, #qChoices, #qAnswer').forEach(input => {
+document.querySelectorAll('#form input, #form textarea, #form select, #qType, #qPoints, #qPrompt, #qAnswer, #qSection').forEach(input => {
     input.addEventListener('input', scheduleAutosave);
     input.addEventListener('change', scheduleAutosave);
+});
+window.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && $('questionBankModal')?.classList.contains('show')) {
+        $('questionBankClose')?.click();
+    }
 });
 window.addEventListener('beforeunload', persistDraft);
 
 theme();
-renderQ();
+ensureBuilderUi();
 await loadSelects();
 restoreDraft();
+renderQ();
 setBuilderLock();
 await loadAssessments();
 showWorkspace('tests');
