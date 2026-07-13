@@ -21,7 +21,7 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
 .datetime-widget { background: rgba(0,26,77,0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border:1px solid var(--glass-border); padding: 10px 24px; border-radius:100px; font-size:14px; font-weight:700; display:flex; align-items:center; gap:12px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); border-bottom:2px solid var(--plv-gold); }
 .datetime-widget i { color: var(--plv-gold); font-size:20px; } .time-text { color:#fff; } .date-text { color: var(--text-muted); font-weight:600; }
 .main-container { position: relative; z-index: 10; display: flex; flex: 1; width: 100%; max-width: 1600px; margin: 0 auto; padding: 24px 48px; }
-.left-column { flex: 1; display: flex; justify-content: flex-start; align-items: center; } .right-column { flex: 1.2; } 
+.left-column { flex: 1; display: flex; justify-content: flex-start; align-items: center; } .right-column { flex: 1.2; }
 .login-card { background: rgba(0,18,51,0.75); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border:1px solid rgba(255,255,255,0.1); border-top:1px solid rgba(255,215,0,0.4); padding:48px 40px; border-radius:24px; width:100%; max-width:440px; box-shadow:0 24px 48px rgba(0,0,0,0.5); }
 .login-card h2 { font-size:32px; font-weight:800; text-align:center; margin-bottom:8px; letter-spacing:-0.5px; } .login-card p.subtitle { text-align:center; color: var(--text-muted); font-size:15px; margin-bottom:40px; font-weight:500; }
 .input-group { margin-bottom:24px; } .input-group label { display:block; font-size:11px; font-weight:800; color:var(--plv-gold); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:8px; }
@@ -114,7 +114,7 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
     <div class="modal-content">
         <h3>Change Password</h3>
         <p>This is your first login. For security, please set a new password.</p>
-        
+
         <form id="changePassForm">
             <div class="input-group">
                 <label>NEW PASSWORD</label>
@@ -123,7 +123,7 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
                     <input type="password" id="newPass" placeholder="Enter new password" required>
                 </div>
             </div>
-            
+
             <ul class="rules-list">
                 <li id="rule-len" class="rule-item"><i class="ph-bold ph-circle"></i> At least 8 characters</li>
                 <li id="rule-num" class="rule-item"><i class="ph-bold ph-circle"></i> At least one number</li>
@@ -175,8 +175,8 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
         const toast = document.getElementById('toast');
         const icon = document.getElementById('toast-icon');
         document.getElementById('toast-msg').innerText = message;
-        toast.className = 'toast'; 
-        if(type === 'error') { toast.classList.add('error'); icon.className = 'ph-fill ph-warning-circle'; } 
+        toast.className = 'toast';
+        if(type === 'error') { toast.classList.add('error'); icon.className = 'ph-fill ph-warning-circle'; }
         else { icon.className = 'ph-fill ph-check-circle'; }
         toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000);
     }

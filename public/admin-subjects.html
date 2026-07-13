@@ -134,7 +134,33 @@
             .modal-box { padding: 24px 20px !important; width: 95% !important; }
         }
 
-        </style>
+
+
+/* ===== SHARED THEME TOGGLE ANIMATION ===== */
+.theme-toggle{
+  position:relative;
+  overflow:hidden;
+  transform:translateZ(0);
+  transition:transform .32s cubic-bezier(.22,1,.36,1), box-shadow .32s ease, background .32s ease, color .32s ease, border-color .32s ease;
+}
+.theme-toggle::after{
+  content:"";
+  position:absolute;
+  inset:8px;
+  border-radius:999px;
+  background:radial-gradient(circle, rgba(245,158,11,.34), rgba(245,158,11,0) 68%);
+  opacity:0;
+  transform:scale(.45);
+  transition:opacity .32s ease, transform .32s cubic-bezier(.22,1,.36,1);
+  pointer-events:none;
+}
+.theme-toggle:hover{transform:translateY(-2px) scale(1.04);}
+.theme-toggle:hover::after{opacity:.75;transform:scale(1);}
+.theme-toggle i{position:relative;z-index:1;transition:transform .46s cubic-bezier(.22,1,.36,1), opacity .2s ease;}
+.theme-toggle.theme-spin i{transform:rotate(360deg) scale(.82);opacity:.55;}
+body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,165,250,.34), rgba(96,165,250,0) 68%);}
+
+</style>
 </head>
 <body>
 
@@ -342,5 +368,20 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             if (el) el.classList.add('active');
         })();
     </script>
+
+<script>
+(() => {
+  const btn = document.getElementById('themeToggle');
+  const icon = document.getElementById('themeIcon');
+  if (!btn || !icon || btn.dataset.themeAnimReady === '1') return;
+  btn.dataset.themeAnimReady = '1';
+  btn.addEventListener('click', () => {
+    btn.classList.remove('theme-spin');
+    void btn.offsetWidth;
+    btn.classList.add('theme-spin');
+    window.setTimeout(() => btn.classList.remove('theme-spin'), 480);
+  }, true);
+})();
+</script>
 </body>
 </html>

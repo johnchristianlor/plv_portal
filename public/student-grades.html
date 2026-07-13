@@ -38,7 +38,7 @@
         @media (max-width: 1100px) { .bento-grid { grid-template-columns: repeat(12, 1fr); } .stat-divider { display: none; } .summary-stats { flex-direction: column; align-items: flex-start; gap: 24px;} .stats-left { flex-direction: column; align-items: flex-start; } .card-legend { grid-column: span 12; } .card-scholarship { grid-column: span 12; flex-direction: column; text-align: center; gap: 20px;} }
         @media (max-width: 992px) { body { flex-direction: column; } .sidebar { width: 100%; height: auto; position: static; flex-direction: row; padding: 20px 32px; justify-content: space-between; align-items: center; border-right: none; border-bottom: 1px solid var(--glass-border); z-index: 100; backdrop-filter: blur(32px); } .logo-container { margin-bottom: 0; padding: 0;} .nav-menu { display: none; } .main-wrapper { padding: 32px; } }
         @media (max-width: 768px) { .header { flex-direction: column; align-items: flex-start; gap: 20px; } .header-actions { width: 100%; justify-content: flex-end; } .main-wrapper { padding: 20px; } .stat-final { width: 100%; align-items: flex-start; text-align: left; } .legend-grid { grid-template-columns: 1fr; grid-template-rows: auto; grid-auto-flow: row; } }
-    
+
         /* ===== MOBILE NAVIGATION ===== */
         .mobile-nav-bar {
             display: none;
@@ -105,7 +105,33 @@
             .bento-grid { gap: 16px; }
         }
 
-        </style>
+
+
+/* ===== SHARED THEME TOGGLE ANIMATION ===== */
+.theme-toggle{
+  position:relative;
+  overflow:hidden;
+  transform:translateZ(0);
+  transition:transform .32s cubic-bezier(.22,1,.36,1), box-shadow .32s ease, background .32s ease, color .32s ease, border-color .32s ease;
+}
+.theme-toggle::after{
+  content:"";
+  position:absolute;
+  inset:8px;
+  border-radius:999px;
+  background:radial-gradient(circle, rgba(245,158,11,.34), rgba(245,158,11,0) 68%);
+  opacity:0;
+  transform:scale(.45);
+  transition:opacity .32s ease, transform .32s cubic-bezier(.22,1,.36,1);
+  pointer-events:none;
+}
+.theme-toggle:hover{transform:translateY(-2px) scale(1.04);}
+.theme-toggle:hover::after{opacity:.75;transform:scale(1);}
+.theme-toggle i{position:relative;z-index:1;transition:transform .46s cubic-bezier(.22,1,.36,1), opacity .2s ease;}
+.theme-toggle.theme-spin i{transform:rotate(360deg) scale(.82);opacity:.55;}
+body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,165,250,.34), rgba(96,165,250,0) 68%);}
+
+</style>
 </head>
 <body>
     <div class="ambient-mesh"><div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div></div>
@@ -221,7 +247,7 @@
             const toast = document.getElementById('toast');
             const icon = document.getElementById('toast-icon');
             document.getElementById('toast-msg').innerText = message;
-            toast.className = 'toast'; 
+            toast.className = 'toast';
             if(type === 'error') { toast.classList.add('error'); icon.className = 'ph-fill ph-warning-circle'; } else { icon.className = 'ph-fill ph-check-circle'; }
             toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000);
         }
@@ -241,7 +267,7 @@
             return 5.00;
         }
 
-        function badge(transmuted) { 
+        function badge(transmuted) {
             if(!transmuted) return "--";
             if(transmuted <= 1.25) return `<span class="badge excellent">Excellent</span>`;
             if(transmuted <= 3.00) return `<span class="badge passed">Passed</span>`;
@@ -254,7 +280,7 @@
                 if (enrollError) throw enrollError;
                 if(!enrollments || !enrollments.length) { document.getElementById('subTitle').innerText="No subjects enrolled"; window.showToast("No enrolled subjects", "error"); return; }
                 const enroll = enrollments[0];
-                
+
                 const { data: subject, error: subjectError } = await supabase.from("subjects").select("*").eq("subjectCode", enroll.subjectCode).limit(1).maybeSingle();
                 if (subjectError) throw subjectError;
                 if(subject) document.getElementById('subTitle').innerText = `${subject.subjectCode}: ${subject.subjectName}`;
@@ -289,21 +315,21 @@
                 if (mRawDisplay !== null) { document.getElementById('rawMid').innerText = Number(mRawDisplay).toFixed(2); document.getElementById('rawMidDenom').innerText = ''; }
                 if (fRawDisplay !== null) { document.getElementById('rawFin').innerText = Number(fRawDisplay).toFixed(2); document.getElementById('rawFinDenom').innerText = ''; }
 
-                if (mTransmuted) { 
+                if (mTransmuted) {
                     // Hero: show raw grade as main value, transmuted as sub
-                    document.getElementById('midVal').innerText = mRawDisplay !== null ? Number(mRawDisplay).toFixed(2) : mTransmuted.toFixed(2); 
-                    document.getElementById('midTransSub').innerText = mTransmuted.toFixed(2); 
-                    document.getElementById('tMid').innerText = mTransmuted.toFixed(2); 
-                    document.getElementById('rMid').innerHTML = badge(mTransmuted); 
+                    document.getElementById('midVal').innerText = mRawDisplay !== null ? Number(mRawDisplay).toFixed(2) : mTransmuted.toFixed(2);
+                    document.getElementById('midTransSub').innerText = mTransmuted.toFixed(2);
+                    document.getElementById('tMid').innerText = mTransmuted.toFixed(2);
+                    document.getElementById('rMid').innerHTML = badge(mTransmuted);
                 }
-                if (fTransmuted) { 
-                    document.getElementById('finVal').innerText = fRawDisplay !== null ? Number(fRawDisplay).toFixed(2) : fTransmuted.toFixed(2); 
-                    document.getElementById('finTransSub').innerText = fTransmuted.toFixed(2); 
-                    document.getElementById('tFin').innerText = fTransmuted.toFixed(2); 
-                    document.getElementById('rFin').innerHTML = badge(fTransmuted); 
+                if (fTransmuted) {
+                    document.getElementById('finVal').innerText = fRawDisplay !== null ? Number(fRawDisplay).toFixed(2) : fTransmuted.toFixed(2);
+                    document.getElementById('finTransSub').innerText = fTransmuted.toFixed(2);
+                    document.getElementById('tFin').innerText = fTransmuted.toFixed(2);
+                    document.getElementById('rFin').innerHTML = badge(fTransmuted);
                 }
-                if (mTransmuted && fTransmuted) { 
-                    const avg = (mTransmuted + fTransmuted) / 2; 
+                if (mTransmuted && fTransmuted) {
+                    const avg = (mTransmuted + fTransmuted) / 2;
                     const roundedAvg = Math.round(avg / 0.25) * 0.25;
                     if (mRawDisplay !== null && fRawDisplay !== null) {
                         const rawAvg = (Number(mRawDisplay) + Number(fRawDisplay)) / 2;
@@ -315,8 +341,8 @@
                         document.getElementById('overallVal').innerText = roundedAvg.toFixed(2);
                     }
                     document.getElementById('overTransSub').innerText = roundedAvg.toFixed(2);
-                    document.getElementById('tOver').innerText = roundedAvg.toFixed(2); 
-                    document.getElementById('rOver').innerHTML = badge(roundedAvg); 
+                    document.getElementById('tOver').innerText = roundedAvg.toFixed(2);
+                    document.getElementById('rOver').innerHTML = badge(roundedAvg);
                 }
             } catch (error) { console.error("Database error:", error); window.showToast("Database Error", "error"); }
         }
@@ -345,5 +371,20 @@
             if (el) el.classList.add('active');
         })();
     </script>
+
+<script>
+(() => {
+  const btn = document.getElementById('themeToggle');
+  const icon = document.getElementById('themeIcon');
+  if (!btn || !icon || btn.dataset.themeAnimReady === '1') return;
+  btn.dataset.themeAnimReady = '1';
+  btn.addEventListener('click', () => {
+    btn.classList.remove('theme-spin');
+    void btn.offsetWidth;
+    btn.classList.add('theme-spin');
+    window.setTimeout(() => btn.classList.remove('theme-spin'), 480);
+  }, true);
+})();
+</script>
 </body>
 </html>
