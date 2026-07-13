@@ -75,3 +75,5 @@ node_modules/
 .env.*.local
 dist/
 plv_portal_web_*.zip
+.wrangler-functions-build/
+.wrangler/
