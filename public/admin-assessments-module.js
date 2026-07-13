@@ -172,6 +172,10 @@ function renderQ() {
     $('qList').innerHTML = questions.length ? `
         <div class="builder-summary">
             <div>
+                <span class="builder-summary__label">Question Builder</span>
+                <strong>${editing ? `Editing ${editing}` : 'New test draft'}</strong>
+            </div>
+            <div>
                 <span class="builder-summary__label">Questions ready</span>
                 <strong>${questions.length} item${questions.length === 1 ? '' : 's'}</strong>
             </div>
@@ -183,7 +187,12 @@ function renderQ() {
         ${questions.map((q, i) => {
             const typeLabel = q.type.replace('_', ' ');
             const answerLabel = q.answer_key || 'Manual grading';
-            const choicesLabel = q.choices.length ? q.choices.map(esc).join(' • ') : '';
+            const choiceRows = q.choices.length ? q.choices.map((choice, choiceIndex) => `
+                <div class="question-choice-row ${answerLabel === choice ? 'is-correct' : ''}">
+                    <span class="question-choice-key">${String.fromCharCode(65 + choiceIndex)}</span>
+                    <span class="question-choice-text">${esc(choice)}</span>
+                </div>
+            `).join('') : '';
             return `
         <article class="question-card">
             <div class="question-card__top">
@@ -191,19 +200,53 @@ function renderQ() {
                     <div class="question-card__title">Question ${i + 1}</div>
                     <div class="question-card__meta">
                         <span class="question-chip">${esc(typeLabel)}</span>
-                        <span class="question-chip question-chip--points">${Number(q.points || 0)} pt</span>
+                        <span class="question-chip question-chip--points">${Number(q.points || 0)} pts</span>
                     </div>
                 </div>
-                <button class="btn danger btn-icon" data-delq="${i}" type="button" aria-label="Delete question ${i + 1}"><i class="ph-bold ph-trash"></i></button>
+                <div class="question-actions">
+                    <button class="btn secondary btn-icon" data-moveup="${i}" type="button" aria-label="Move question ${i + 1} up" ${i === 0 ? 'disabled' : ''} title="Move up"><i class="ph-bold ph-caret-up"></i></button>
+                    <button class="btn secondary btn-icon" data-movedown="${i}" type="button" aria-label="Move question ${i + 1} down" ${i === questions.length - 1 ? 'disabled' : ''} title="Move down"><i class="ph-bold ph-caret-down"></i></button>
+                    <button class="btn secondary btn-icon" data-dupq="${i}" type="button" aria-label="Duplicate question ${i + 1}" title="Duplicate"><i class="ph-bold ph-copy"></i></button>
+                    <button class="btn danger btn-icon" data-delq="${i}" type="button" aria-label="Delete question ${i + 1}" title="Delete"><i class="ph-bold ph-trash"></i></button>
+                </div>
             </div>
             <p class="question-card__prompt">${esc(q.prompt)}</p>
-            ${choicesLabel ? `<p class="question-card__choices"><span>Choices</span>${choicesLabel}</p>` : ''}
+            ${choiceRows ? `<div class="question-card__choices"><span>Choices</span><div class="question-choice-list">${choiceRows}</div></div>` : ''}
             <div class="question-card__answer"><span>Answer key</span><strong>${esc(answerLabel)}</strong></div>
         </article>`;
         }).join('')}` : '<article class="question-card builder-empty"><b>No questions yet.</b><p>Pick a type, enter the prompt, and add your first item. Multiple choice and true/false questions automatically reveal the choice field.</p></article>';
     document.querySelectorAll('[data-delq]').forEach(btn => {
         btn.onclick = () => {
             questions.splice(Number(btn.dataset.delq), 1);
+            renderQ();
+            scheduleAutosave();
+        };
+    });
+    document.querySelectorAll('[data-dupq]').forEach(btn => {
+        btn.onclick = () => {
+            const index = Number(btn.dataset.dupq);
+            const clone = JSON.parse(JSON.stringify(questions[index]));
+            questions.splice(index + 1, 0, clone);
+            renderQ();
+            scheduleAutosave();
+        };
+    });
+    document.querySelectorAll('[data-moveup]').forEach(btn => {
+        btn.onclick = () => {
+            const index = Number(btn.dataset.moveup);
+            if (index <= 0) return;
+            const [item] = questions.splice(index, 1);
+            questions.splice(index - 1, 0, item);
+            renderQ();
+            scheduleAutosave();
+        };
+    });
+    document.querySelectorAll('[data-movedown]').forEach(btn => {
+        btn.onclick = () => {
+            const index = Number(btn.dataset.movedown);
+            if (index >= questions.length - 1) return;
+            const [item] = questions.splice(index, 1);
+            questions.splice(index + 1, 0, item);
             renderQ();
             scheduleAutosave();
         };
