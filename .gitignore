@@ -67,13 +67,3 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
-
-.dev.vars
-.dev.vars.*
-!.dev.vars.example
-.env.local
-.env.*.local
-dist/
-plv_portal_web_*.zip
-.wrangler-functions-build/
-.wrangler/
