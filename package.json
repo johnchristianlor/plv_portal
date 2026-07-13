@@ -8,8 +8,5 @@
     "scan:secrets": "node scripts/secret-scan.mjs",
     "test": "npm run test:syntax && npm run scan:secrets"
   },
-  "dependencies": {
-    "@libsql/client": "^0.15.10"
-  },
   "devDependencies": {}
 }
