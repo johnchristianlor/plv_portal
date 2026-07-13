@@ -65,7 +65,13 @@ function theme() {
 function showWorkspace(name) {
     const visible = name === 'builder' ? 'details' : (name === 'security' ? 'results' : name);
     document.querySelectorAll('[data-assessment-view]').forEach(btn => btn.classList.toggle('active', btn.dataset.assessmentView === name));
-    document.querySelectorAll('[data-workspace]').forEach(panel => panel.style.display = panel.dataset.workspace === visible ? '' : 'none');
+    document.querySelectorAll('[data-workspace]').forEach(panel => {
+        panel.style.display = panel.dataset.workspace === visible ? '' : 'none';
+        if (panel.dataset.workspace === 'details') {
+            panel.classList.toggle('builder-mode', name === 'builder');
+            panel.classList.toggle('details-mode', name !== 'builder');
+        }
+    });
     if (name === 'results' && editing) attempts(editing);
     if (name === 'security') incidents();
 }
