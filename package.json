@@ -1,0 +1,15 @@
+{
+  "name": "plv-portal-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:syntax": "node scripts/check-syntax.mjs",
+    "scan:secrets": "node scripts/secret-scan.mjs",
+    "test": "npm run test:syntax && npm run scan:secrets"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.15.10"
+  },
+  "devDependencies": {}
+}

@@ -185,282 +185,41 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
 <!-- SUPABASE INTEGRATION -->
 <script type="module">
     import { supabase } from "./supabase-adapter.js";
-
-    const ADMIN_EMAIL = 'admin@plv.edu.ph';
     let pendingUser = null;
-
     const loginBtn = document.getElementById('loginBtn');
     const resetLoginBtn = () => { loginBtn.innerHTML = 'Secure Login <i class="ph-bold ph-arrow-right"></i>'; loginBtn.disabled = false; };
-
-    function loginEmail(identifier) {
-        return (identifier.includes('@') ? identifier : `${identifier}@plv.edu.ph`).toLowerCase();
+    function loginEmail(identifier) { return (identifier.includes('@') ? identifier : identifier + '@plv.edu.ph').toLowerCase(); }
+    async function fetchProfile(authUser) {
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).limit(1).maybeSingle();
+        if (profile) return profile;
+        const { data: legacy } = await supabase.from('users').select('*').or('uid.eq.' + authUser.id + ',id.eq.' + authUser.id + ',email.eq.' + authUser.email).limit(1).maybeSingle();
+        return legacy || null;
     }
-
-    async function findAdminProfile(authUser, email, identifier) {
-        const candidates = [
-            ['uid', authUser.id],
-            ['id', authUser.id],
-            ['email', email],
-            ['email', authUser.email],
-            ['username', identifier],
-            ['studentNo', identifier]
-        ];
-
-        for (const [field, value] of candidates) {
-            if (!value) continue;
-            const { data, error } = await supabase
-                .from('users')
-                .select('*')
-                .eq(field, value)
-                .limit(5);
-
-            if (error) {
-                console.warn(`Admin lookup skipped for ${field}.`, error);
-                continue;
-            }
-
-            const match = (data || []).find(row => row.role === 'admin');
-            if (match) return match;
-        }
-
-        return null;
+    function normalizePortalUser(authUser, profile, fallbackRole) {
+        const role = authUser.app_metadata?.role || authUser.app_metadata?.portal_role || profile?.role || fallbackRole;
+        return { id: profile?.id || authUser.id, uid: authUser.id, email: authUser.email, role, status: profile?.status || 'active', studentNo: profile?.student_no || profile?.studentNo || profile?.username || '', username: profile?.username || profile?.student_no || profile?.studentNo || '', studentName: profile?.full_name || profile?.studentName || profile?.name || authUser.email, fullName: profile?.full_name || profile?.fullName || profile?.name || authUser.email, section: profile?.section || '', avatarUrl: profile?.avatar_object || profile?.avatarUrl || '', isFirstLogin: !!(profile?.must_change_password || profile?.isFirstLogin) };
     }
-
-    function createSessionToken() {
-        if (crypto && crypto.getRandomValues) {
-            const bytes = new Uint8Array(16);
-            crypto.getRandomValues(bytes);
-            return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-        }
-        return Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
-    }
-
-    function normalizeRpcUser(data) {
-        if (!data) return null;
-        if (Array.isArray(data)) return data[0] || null;
-        return data;
-    }
-
-    async function startAdminSession(adminData) {
-        const sessionToken = createSessionToken();
-        try {
-            const { error } = await supabase.rpc('start_admin_session', {
-                p_profile_id: String(adminData.id),
-                p_session_token: sessionToken
-            });
-            if (error) throw error;
-            return { ...adminData, activeSessionToken: sessionToken };
-        } catch (error) {
-            if (!String(error.message || '').toLowerCase().includes('start_admin_session')) throw error;
-            console.warn('Admin single-session security is waiting for the Supabase SQL update.', error);
-            return adminData;
-        }
-    }
-
-    async function findStudent(identifier, password) {
-        const sessionToken = createSessionToken();
-        try {
-            const { data, error } = await supabase.rpc('login_student_secure', {
-                p_identifier: identifier,
-                p_password: password,
-                p_session_token: sessionToken
-            });
-            if (error) throw error;
-            const secureUser = normalizeRpcUser(data);
-            return secureUser ? { ...secureUser, activeSessionToken: secureUser.activeSessionToken || sessionToken } : null;
-        } catch (error) {
-            if (!String(error.message || '').toLowerCase().includes('login_student_secure')) throw error;
-        }
-
-        const { data, error } = await supabase.rpc('login_student', {
-            p_identifier: identifier,
-            p_password: password
-        });
-        if (error) throw error;
-        return data || null;
-    }
-
-
-    async function enrichStudentProfile(userData) {
-        if (!userData || !userData.studentNo) return userData;
-        try {
-            const { data, error } = await supabase
-                .from('users')
-                .select('fullName,courseYear,section,email,status,avatarUrl')
-                .eq('studentNo', userData.studentNo)
-                .maybeSingle();
-            if (error) throw error;
-            return data ? { ...userData, ...Object.fromEntries(Object.entries(data).filter(([, value]) => value !== null && value !== undefined && value !== '')) } : userData;
-        } catch (error) {
-            console.warn('Student profile enrichment skipped.', error);
-            return userData;
-        }
-    }
-
-    async function updateUserByStudentNo(studentNo, changes) {
-        if (changes.password) {
-            const { data, error } = await supabase.rpc('update_student_password', {
-                p_student_no: studentNo,
-                p_new_password: changes.password
-            });
-            if (error) throw error;
-            return data;
-        }
-
-        if (Object.prototype.hasOwnProperty.call(changes, 'isOnline')) {
-            const { error } = await supabase.rpc('set_student_online', {
-                p_student_no: studentNo,
-                p_is_online: !!changes.isOnline
-            });
-            if (error) throw error;
-        }
-    }
-
+    async function startAdminSession(adminData) { try { const token = crypto.randomUUID(); const { error } = await supabase.rpc('start_admin_session', { p_profile_id: String(adminData.id), p_session_token: token }); if (!error) return { ...adminData, activeSessionToken: token }; } catch (_) {} return adminData; }
     async function tryAdminLogin(identifier, password) {
-        const email = loginEmail(identifier);
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-
-        const adminData = await findAdminProfile(data.user, email, identifier);
-        if (!adminData) {
-            await supabase.auth.signOut();
-            throw new Error('Admin Auth is valid, but public.users has no active admin profile. Run fix_admin_profile_missing_robust.sql in Supabase SQL Editor.');
-        }
-
-        if (adminData.status === 'Inactive') {
-            await supabase.auth.signOut();
-            throw new Error('Admin account is inactive.');
-        }
-
-        if (adminData.role !== 'admin') {
-            await supabase.auth.signOut();
-            throw new Error('Access denied. This account is not an admin.');
-        }
-
-        const securedAdminData = await startAdminSession(adminData);
-        localStorage.setItem('loggedInUser', JSON.stringify({
-            ...securedAdminData,
-            uid: data.user.id,
-            email: securedAdminData.email || data.user.email
-        }));
-        window.showToast('Login Successful!');
-        setTimeout(() => window.location.href = 'admin-dashboard.html', 1000);
+        const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail(identifier), password });
+        if (error || !data.user) throw new Error('Invalid username or password.');
+        const profile = await fetchProfile(data.user); const user = normalizePortalUser(data.user, profile, 'admin');
+        if (user.role !== 'admin') throw new Error('Invalid username or password.');
+        localStorage.setItem('loggedInUser', JSON.stringify(await startAdminSession(user))); window.location.href = 'admin-dashboard.html';
     }
-
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const identifier = document.getElementById('userIdentifier').value.trim();
-        const password = document.getElementById('passwordInput').value.trim();
-        loginBtn.innerHTML = 'Authenticating...';
-        loginBtn.disabled = true;
-
-        try {
-            await tryAdminLogin(identifier, password);
-            return;
-        } catch (authErr) {
-            const authMessage = String(authErr.message || '').toLowerCase();
-            const canTryStudent = authMessage.includes('invalid login credentials') ||
-                authMessage.includes('email not confirmed') ||
-                authErr.code === 'auth/invalid-credential';
-
-            if (!canTryStudent && loginEmail(identifier) === ADMIN_EMAIL) {
-                console.error(authErr);
-                window.showToast(authErr.message || 'Admin login failed.', 'error');
-                resetLoginBtn();
-                return;
-            }
-        }
-
-        try {
-            let userData = await findStudent(identifier, password);
-            userData = await enrichStudentProfile(userData);
-
-            if (!userData) {
-                window.showToast('Invalid Credentials.', 'error');
-                resetLoginBtn();
-                return;
-            }
-
-            if (userData.status === 'Inactive') {
-                window.showToast('Account is Inactive. Contact Admin.', 'error');
-                resetLoginBtn();
-                return;
-            }
-
-            if (userData.isFirstLogin === true) {
-                pendingUser = { ...userData, id: userData.studentNo };
-                document.getElementById('changePassModal').classList.add('open');
-                resetLoginBtn();
-                return;
-            }
-
-            await updateUserByStudentNo(userData.studentNo, { isOnline: true });
-            localStorage.setItem('loggedInUser', JSON.stringify(userData));
-            window.showToast('Login Successful!');
-            setTimeout(() => window.location.href = 'student-dashboard.html', 1000);
-        } catch (error) {
-            console.error(error);
-            window.showToast(error.message || 'Connection Error.', 'error');
-            resetLoginBtn();
-        }
-    });
-
-    const newPassInput = document.getElementById('newPass');
-    const confirmPassInput = document.getElementById('confirmPass');
-    const savePassBtn = document.getElementById('savePassBtn');
-
-    function validatePassword() {
-        const val = newPassInput.value;
-        const len = val.length >= 8;
-        const num = /[0-9]/.test(val);
-        const caseMix = /[a-z]/.test(val) && /[A-Z]/.test(val);
-        const spec = /[!@#$%^&*(),.?":{}|<>]/.test(val);
-        updateRule('rule-len', len);
-        updateRule('rule-num', num);
-        updateRule('rule-case', caseMix);
-        updateRule('rule-spec', spec);
-        const isValid = len && num && caseMix && spec && val === confirmPassInput.value && val !== '';
-        savePassBtn.disabled = !isValid;
-        savePassBtn.style.opacity = isValid ? '1' : '0.6';
-        savePassBtn.style.cursor = isValid ? 'pointer' : 'not-allowed';
+    async function tryStudentLogin(identifier, password) {
+        const response = await fetch('/api/auth/student-login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ identifier, password }) });
+        const body = await response.json().catch(() => ({})); if (!response.ok || !body.session) throw new Error('Invalid username or password.');
+        const { error } = await supabase.auth.setSession({ access_token: body.session.access_token, refresh_token: body.session.refresh_token }); if (error) throw new Error('Invalid username or password.');
+        const { data } = await supabase.auth.getUser(); const profile = await fetchProfile(data.user); const user = normalizePortalUser(data.user, profile, 'student');
+        if (user.role !== 'student') throw new Error('Invalid username or password.'); pendingUser = user;
+        if (user.isFirstLogin) { document.getElementById('changePassModal').classList.add('active'); resetLoginBtn(); return; }
+        localStorage.setItem('loggedInUser', JSON.stringify(user)); window.location.href = 'student-dashboard.html';
     }
-
-    function updateRule(id, valid) {
-        const el = document.getElementById(id);
-        const icon = el.querySelector('i');
-        el.classList.toggle('valid', valid);
-        icon.className = valid ? 'ph-fill ph-check-circle' : 'ph-bold ph-circle';
-    }
-
-    newPassInput.addEventListener('input', validatePassword);
-    confirmPassInput.addEventListener('input', validatePassword);
-
-    document.getElementById('changePassForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!pendingUser) return;
-        const newPass = newPassInput.value;
-        const btn = document.getElementById('savePassBtn');
-        btn.innerHTML = 'Updating...';
-        btn.disabled = true;
-
-        try {
-            await updateUserByStudentNo(pendingUser.id, {
-                password: newPass,
-                isFirstLogin: false,
-                isOnline: true
-            });
-            window.showToast('Password Changed! Redirecting...', 'success');
-            pendingUser.password = newPass;
-            pendingUser.isFirstLogin = false;
-            localStorage.setItem('loggedInUser', JSON.stringify(pendingUser));
-            setTimeout(() => window.location.href = 'student-dashboard.html', 1500);
-        } catch (err) {
-            console.error(err);
-            window.showToast(err.message || 'Error updating password.', 'error');
-            btn.innerHTML = 'Save New Password <i class="ph-bold ph-floppy-disk"></i>';
-            btn.disabled = false;
-        }
-    });
+    document.getElementById('loginForm').addEventListener('submit', async (e) => { e.preventDefault(); const identifier = document.getElementById('usernameInput').value.trim(); const password = document.getElementById('passwordInput').value; loginBtn.innerHTML = '<i class="ph-bold ph-circle-notch" style="animation:spin 1s linear infinite"></i> Verifying...'; loginBtn.disabled = true; try { try { await tryAdminLogin(identifier, password); return; } catch (_) { await tryStudentLogin(identifier, password); } } catch (err) { window.showToast(err.message || 'Invalid username or password.', 'error'); resetLoginBtn(); } });
+    document.getElementById('changePassForm').addEventListener('submit', async (e) => { e.preventDefault(); const newPass = document.getElementById('newPass').value; const confirm = document.getElementById('confirmPass').value; if (newPass !== confirm) return window.showToast('Passwords do not match.', 'error'); if (newPass.length < 8 || !/[0-9]/.test(newPass) || !/[^A-Za-z0-9]/.test(newPass)) return window.showToast('Please follow the password rules.', 'error'); try { const { error } = await supabase.auth.updateUser({ password: newPass }); if (error) throw error; try { await supabase.from('profiles').update({ must_change_password: false }).eq('id', pendingUser.uid); } catch (_) {} pendingUser.isFirstLogin = false; localStorage.setItem('loggedInUser', JSON.stringify(pendingUser)); window.location.href = 'student-dashboard.html'; } catch (err) { window.showToast(err.message || 'Error updating password.', 'error'); } });
+    const newPass = document.getElementById('newPass');
+    newPass.addEventListener('input', () => { const val = newPass.value; document.getElementById('rule-len').classList.toggle('valid', val.length >= 8); document.getElementById('rule-num').classList.toggle('valid', /[0-9]/.test(val)); document.getElementById('rule-spec').classList.toggle('valid', /[^A-Za-z0-9]/.test(val)); });
 </script>
 </body>
 </html>

@@ -387,7 +387,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                     <div class="form-group"><label class="form-label">Student Number</label><input type="text" id="sNo" class="form-control" placeholder="e.g. 2021-00123" required></div>
                     <div class="form-group"><label class="form-label">Full Name</label><input type="text" id="sName" class="form-control" placeholder="DELA CRUZ, JUAN A." required></div>
                     <div class="form-group"><label class="form-label">Email Address</label><input type="email" id="sEmail" class="form-control" placeholder="student@plv.edu.ph" required></div>
-                    <div class="form-group"><label class="form-label">Password</label><input type="text" id="sPass" class="form-control" placeholder="Initial password" required></div>
+                    <div class="form-group"><label class="form-label">Temporary Password</label><input type="text" id="sPass" class="form-control" placeholder="Create through Supabase Auth" disabled></div>
                     <div class="form-group"><label class="form-label">Course &amp; Year</label><input type="text" id="sCourse" class="form-control" placeholder="e.g. BSIT 3rd Year" required></div>
                     <div class="form-group">
                         <label class="form-label">Section</label>
@@ -495,7 +495,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 </div>
                 <div class="form-group full">
                     <label class="form-label">Password <span style="font-size:11px;font-weight:500;text-transform:none;letter-spacing:0;">(leave blank to keep current)</span></label>
-                    <input type="text" id="editPass" class="form-control" placeholder="New password (optional)">
+                    <input type="text" id="editPass" class="form-control" placeholder="Use Supabase Auth password reset" disabled>
                 </div>
                 <div class="form-section-title"><i class="ph-bold ph-notebook"></i> Academic Details</div>
                 <div class="form-group full">
@@ -1260,8 +1260,7 @@ document.getElementById('editForm').addEventListener('submit',async e=>{
             const oldUD=await fetchOne('users', q => q.eq('studentNo', oldSno));
             if(!oldUD)throw new Error('Original user not found');
             await insertRow('users', {
-                ...oldUD,id:undefined,studentNo:newSno,fullName:newName,courseYear:newCourse,section:newSec,
-                password:newPass||oldUD.password,isFirstLogin:!!newPass
+                ...oldUD,id:undefined,studentNo:newSno,fullName:newName,courseYear:newCourse,section:newSec, isFirstLogin:!!newPass
             });
             await insertRow('enrollments', {
                 studentNo:newSno,subjectCode:newSubCode,studentName:newName,
@@ -1270,8 +1269,7 @@ document.getElementById('editForm').addEventListener('submit',async e=>{
             await Promise.all([deleteWhere('users', q => q.eq('studentNo', oldSno)), oldEnrollId ? deleteById('enrollments', oldEnrollId) : Promise.resolve()]);
             window.showToast('Student ID changed & data migrated!');
         } else {
-            const udUpdate={fullName:newName,courseYear:newCourse,section:newSec,studentNo:oldSno};
-            if(newPass){udUpdate.password=newPass;udUpdate.isFirstLogin=true;}
+            const udUpdate={fullName:newName,courseYear:newCourse,section:newSec,studentNo:oldSno}; if(newPass){udUpdate.isFirstLogin=true;}
             // Use setDoc+merge so it works even if user doc doesn't exist
             await saveUserByStudentNo(udUpdate);
             if(isSubChanged){
@@ -1310,9 +1308,7 @@ document.getElementById('createAccountForm').addEventListener('submit',async e=>
         await saveUserByStudentNo({
             studentNo:sNo,
             fullName:studentName,
-            email:document.getElementById('sEmail').value.trim(),
-            password:document.getElementById('sPass').value.trim(),
-            courseYear:document.getElementById('sCourse').value.trim(),
+            email:document.getElementById('sEmail').value.trim(),            courseYear:document.getElementById('sCourse').value.trim(),
             section:sec,role:'student',status:'Active',isFirstLogin:true
         });
         await saveEnrollment({
@@ -1495,8 +1491,7 @@ window.commitUpload=async()=>{
     for(const r of pendingUploadRows){
         try{
             await saveUserByStudentNo({
-                studentNo:r.Student_No,fullName:r.Full_Name,email:r.Email,
-                password:r.Password||'PLV12345',courseYear:r.Course_Year,
+                studentNo:r.Student_No,fullName:r.Full_Name,email:r.Email, courseYear:r.Course_Year,
                 section:r.Section,role:'student',status:'Active',isFirstLogin:true
             });
             await saveEnrollment({
