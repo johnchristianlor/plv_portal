@@ -176,6 +176,20 @@ function detectMobileExam() {
     return window.matchMedia('(max-width: 768px)').matches || navigator.maxTouchPoints > 1 || /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent || '');
 }
 
+function shouldBlockKey(event) {
+    const key = String(event.key || '').toLowerCase();
+    const blockedKeys = ['escape', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12'];
+    if (blockedKeys.includes(key)) return true;
+    if (event.altKey || event.metaKey) return true;
+    if (event.ctrlKey && ['r', 'w', 't', 'n', 'l', 'u', 'p', 's', 'i', 'j', 'k', 'c', 'x', 'v'].includes(key)) return true;
+    return false;
+}
+
+function tryLockOrientation() {
+    if (!isMobileExam || !screen.orientation || !screen.orientation.lock) return;
+    screen.orientation.lock('portrait').catch(() => {});
+}
+
 async function load() {
     try {
         const data = await api('student/list');
@@ -237,6 +251,7 @@ async function startAssessment() {
     if (!$('readyCheck').checked) return toast('Please confirm the assessment notice.');
     try {
         isMobileExam = detectMobileExam();
+        tryLockOrientation();
         if (fullscreenRequired && document.documentElement.requestFullscreen) {
             await document.documentElement.requestFullscreen().catch(() => {});
         }
@@ -246,6 +261,7 @@ async function startAssessment() {
         const security = securitySettings(current);
         fullscreenRequired = security.fullscreen;
         maxViolations = isMobileExam ? Math.min(security.maxViolations, 2) : security.maxViolations;
+        tryLockOrientation();
         questions = data.questions || [];
         answers = {};
         idx = 0;
@@ -347,6 +363,31 @@ function bindSecurity() {
         if (!isMobileExam || !attempt || submitting) return;
         if (document.hidden) return;
         if (window.innerWidth < 768 && !document.fullscreenElement) lockForSecurity('viewport_change', 'Mobile viewport changed during the assessment.');
+    });
+    listen(document, 'gesturestart', event => { event.preventDefault(); lockForSecurity('gesture', 'Zoom gesture was blocked.'); }, { passive: false });
+    listen(document, 'touchmove', event => {
+        if (!isMobileExam || !attempt || submitting) return;
+        const target = event.target;
+        const allowTyping = target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT');
+        if (allowTyping) return;
+        event.preventDefault();
+        lockForSecurity('touch_move', 'Touch gesture was blocked during the assessment.');
+    }, { passive: false });
+    listen(document, 'selectstart', event => {
+        if (!isMobileExam || !attempt || submitting) return;
+        const target = event.target;
+        const allowTyping = target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT');
+        if (allowTyping) return;
+        event.preventDefault();
+    });
+    listen(document, 'keydown', event => {
+        if (!attempt || submitting) return;
+        const target = event.target;
+        const allowTyping = target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT');
+        if (allowTyping && !shouldBlockKey(event)) return;
+        if (!shouldBlockKey(event)) return;
+        event.preventDefault();
+        lockForSecurity('hotkey', 'A restricted key or shortcut was pressed.');
     });
     listen(document, 'copy', event => { event.preventDefault(); addIncident('copy', 'Copy action was blocked.'); });
     listen(document, 'cut', event => { event.preventDefault(); addIncident('cut', 'Cut action was blocked.'); });
