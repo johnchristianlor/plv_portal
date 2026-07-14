@@ -21,6 +21,8 @@ let activeSectionId = '';
 let choiceDraft = [];
 let correctChoiceIndex = 0;
 let questionBankDraft = [];
+let smartPasteCache = [];
+let inlinePasteUndo = null;
 let assessments = [];
 let autosaveTimer = null;
 let lastAutosaveSignature = '';
@@ -37,10 +39,32 @@ function uid(prefix = 'id') {
     return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
 }
 
+function toRoman(value) {
+    const number = Math.max(1, Math.floor(Number(value) || 1));
+    const pairs = [
+        [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'],
+        [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'],
+        [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']
+    ];
+    let remaining = number;
+    let result = '';
+    for (const [amount, symbol] of pairs) {
+        while (remaining >= amount) {
+            result += symbol;
+            remaining -= amount;
+        }
+    }
+    return result;
+}
+
+function defaultSectionTitle(index = sections.length) {
+    return `Section ${toRoman(index + 1)}`;
+}
+
 function createSection(title = '') {
     return {
         id: uid('sec'),
-        title: title || `Section ${sections.length + 1}`,
+        title: String(title || '').trim() || defaultSectionTitle(sections.length),
         pickCount: 0,
         shuffleQuestions: false,
         shuffleChoices: false,
@@ -52,7 +76,7 @@ function normalizeSection(section, index) {
     const cleanTitle = String(section?.title || '').trim();
     return {
         id: String(section?.id || uid('sec')),
-        title: cleanTitle || `Section ${index + 1}`,
+        title: cleanTitle || defaultSectionTitle(index),
         pickCount: Math.max(0, Number(section?.pickCount || 0)),
         shuffleQuestions: !!section?.shuffleQuestions,
         shuffleChoices: !!section?.shuffleChoices,
@@ -83,12 +107,12 @@ function normalizeBuilderState() {
         });
         sections = inferredIds.length ? inferredIds.map((sectionId, index) => ({
             id: sectionId,
-            title: sectionId || `Section ${index + 1}`,
+            title: sectionId || defaultSectionTitle(index),
             pickCount: 0,
             shuffleQuestions: false,
             shuffleChoices: false,
             collapsed: false
-        })) : [createSection('Section 1')];
+        })) : [createSection()];
     }
     const sectionIds = new Set(sections.map(section => section.id));
     const fallbackSectionId = sections[0].id;
@@ -224,6 +248,350 @@ function updateAnswerKeyUi() {
     field.style.display = show ? '' : 'none';
     input.placeholder = 'Enter the accepted short answer';
     if (!show) input.value = '';
+}
+
+
+function cleanSmartPasteText(value) {
+    return String(value || '')
+        .replace(/\u00a0/g, ' ')
+        .replace(/[“”]/g, '"')
+        .replace(/[‘’]/g, "'")
+        .replace(/^\s*(?:\*\*|__)(.*?)(?:\*\*|__)\s*$/g, '$1')
+        .trim();
+}
+
+function isSmartChoiceLine(line) {
+    return /^\s*(?:[-•]\s*)?(?:\*{1,2}\s*)?[\(\[]?([A-Za-z])[\.\)\]:\-](?:\s*\*{1,2})?\s+.+/.test(String(line || ''));
+}
+
+function isSmartAnswerLine(line) {
+    return /^\s*(?:(?:correct\s+)?answer|ans(?:wer)?\s*key|key)\s*[:=\-]\s*.+/i.test(String(line || ''));
+}
+
+function isSmartPointsLine(line) {
+    return /^\s*(?:points?|pts?)\s*[:=\-]\s*\d+/i.test(String(line || ''));
+}
+
+function isSmartNumberedQuestion(line) {
+    return /^\s*(?:(?:q(?:uestion)?\s*)?\d+\s*[\.\)\]:\-]\s*)\S+/i.test(String(line || ''));
+}
+
+function splitSmartQuestionBlocks(raw) {
+    const lines = String(raw || '').replace(/\r/g, '').split('\n');
+    const blocks = [];
+    let current = [];
+    let blankRun = 0;
+
+    const flush = () => {
+        const cleaned = current.map(line => line.trim()).filter(Boolean);
+        if (cleaned.length) blocks.push(cleaned);
+        current = [];
+    };
+
+    for (const sourceLine of lines) {
+        const line = sourceLine.trim();
+        if (!line) {
+            blankRun += 1;
+            continue;
+        }
+        if (/^(?:-{3,}|={3,})$/.test(line)) {
+            flush();
+            blankRun = 0;
+            continue;
+        }
+
+        const hasAnswer = current.some(isSmartAnswerLine);
+        const choiceCount = current.filter(isSmartChoiceLine).length;
+        const startsQuestion = isSmartNumberedQuestion(line);
+        const isMetadata = isSmartChoiceLine(line) || isSmartAnswerLine(line) || isSmartPointsLine(line);
+        const shouldStartNew = current.length && !isMetadata && (
+            startsQuestion ||
+            hasAnswer ||
+            (blankRun >= 2 && choiceCount >= 2) ||
+            (blankRun >= 2 && choiceCount === 0)
+        );
+
+        if (shouldStartNew) flush();
+        current.push(line);
+        blankRun = 0;
+    }
+    flush();
+    return blocks;
+}
+
+function parseSmartQuestionBlock(lines) {
+    if (!Array.isArray(lines) || !lines.length) return null;
+    const choicePattern = /^\s*(?:[-•]\s*)?(\*{1,2}\s*)?[\(\[]?([A-Za-z])[\.\)\]:\-](?:\s*\*{1,2})?\s+(.+)$/;
+    const answerPattern = /^\s*(?:(?:correct\s+)?answer|ans(?:wer)?\s*key|key)\s*[:=\-]\s*(.+)$/i;
+    const pointsPattern = /^\s*(?:points?|pts?)\s*[:=\-]\s*(\d+)/i;
+    const questionPrefix = /^\s*(?:(?:q(?:uestion)?\s*)?\d+\s*[\.\)\]:\-]\s*)/i;
+
+    const questionLines = [];
+    const choices = [];
+    let answerRaw = '';
+    let markedLetter = '';
+    let points = 1;
+
+    for (const rawLine of lines) {
+        const line = String(rawLine || '').trim();
+        if (!line) continue;
+        const answerMatch = line.match(answerPattern);
+        if (answerMatch) {
+            answerRaw = cleanSmartPasteText(answerMatch[1]);
+            continue;
+        }
+        const pointsMatch = line.match(pointsPattern);
+        if (pointsMatch) {
+            points = Math.max(1, Number(pointsMatch[1]) || 1);
+            continue;
+        }
+        const choiceMatch = line.match(choicePattern);
+        if (choiceMatch) {
+            const letter = choiceMatch[2].toUpperCase();
+            let text = cleanSmartPasteText(choiceMatch[3]);
+            let marked = !!choiceMatch[1] || /(?:\*{1,2}|✓|✔)\s*$/.test(text) || /^\s*(?:\(correct\)|\[correct\])\s*/i.test(text);
+            text = text
+                .replace(/^\s*(?:\(correct\)|\[correct\])\s*/i, '')
+                .replace(/(?:\*{1,2}|✓|✔)\s*$/, '')
+                .trim();
+            if (marked && !markedLetter) markedLetter = letter;
+            choices.push({ letter, text });
+            continue;
+        }
+        if (/^(?:multiple\s+choice|true\s*(?:or|\/)\s*false|identification|short\s+answer|essay)\s*:?$/i.test(line)) continue;
+        questionLines.push(line);
+    }
+
+    let prompt = cleanSmartPasteText(questionLines.join(' ')).replace(questionPrefix, '').trim();
+    if (!prompt) return null;
+
+    let answerToken = answerRaw || markedLetter;
+    if (choices.length >= 2) {
+        const choiceTexts = choices.map(choice => choice.text);
+        const letters = choices.map(choice => choice.letter);
+        const trueFalseChoices = choices.length === 2 && /^true$/i.test(choiceTexts[0]) && /^false$/i.test(choiceTexts[1]);
+        let answerIndex = -1;
+        if (answerToken) {
+            const letterMatch = String(answerToken).trim().match(/^\(?([A-Za-z])\)?(?:[\.\)]|$)/);
+            if (letterMatch) answerIndex = letters.indexOf(letterMatch[1].toUpperCase());
+            if (answerIndex < 0) answerIndex = choiceTexts.findIndex(choice => choice.trim().toLowerCase() === String(answerToken).trim().toLowerCase());
+        }
+        const answerKey = answerIndex >= 0 ? choiceTexts[answerIndex] : '';
+        const answerLetter = answerIndex >= 0 ? letters[answerIndex] : '';
+        if (trueFalseChoices) {
+            const tfAnswer = answerKey || (/^false$/i.test(answerToken) || /^b$/i.test(answerToken) ? 'False' : /^true$/i.test(answerToken) || /^a$/i.test(answerToken) ? 'True' : '');
+            return {
+                type: 'true_false', prompt, choices: ['True', 'False'], answer_key: tfAnswer,
+                answer_label: tfAnswer, points, valid: !!tfAnswer,
+                warning: tfAnswer ? '' : 'Choose the correct True/False answer before adding.'
+            };
+        }
+        return {
+            type: 'multiple_choice', prompt, choices: choiceTexts, answer_key: answerKey,
+            answer_label: answerLetter || 'Not detected', points, valid: !!answerKey,
+            warning: answerKey ? '' : 'Correct answer was not detected. Select it before adding.'
+        };
+    }
+
+    if (/^(?:true|false)$/i.test(answerToken)) {
+        const answer = /^true$/i.test(answerToken) ? 'True' : 'False';
+        prompt = prompt.replace(/^\s*(?:true\s*(?:or|\/)\s*false|t\s*\/\s*f)\s*[:\-–]?\s*/i, '').trim() || prompt;
+        return { type: 'true_false', prompt, choices: ['True', 'False'], answer_key: answer, answer_label: answer, points, valid: true, warning: '' };
+    }
+
+    if (answerRaw) {
+        return { type: 'short_answer', prompt, choices: [], answer_key: answerRaw, answer_label: answerRaw, points, valid: true, warning: '' };
+    }
+
+    return { type: 'essay', prompt, choices: [], answer_key: '', answer_label: 'Manual grading', points: Math.max(points, 1), valid: true, warning: '' };
+}
+
+function smartParseQuestions(raw) {
+    return splitSmartQuestionBlocks(raw).map(parseSmartQuestionBlock).filter(Boolean);
+}
+
+function looksLikeStructuredQuestionPaste(text) {
+    const value = String(text || '');
+    if (!value.includes('\n')) return false;
+    return value.split(/\r?\n/).some(line => isSmartChoiceLine(line) || isSmartAnswerLine(line));
+}
+
+function captureQuestionEditorState() {
+    return {
+        type: $('qType')?.value || 'multiple_choice',
+        prompt: $('qPrompt')?.value || '',
+        points: $('qPoints')?.value || '1',
+        answer: $('qAnswer')?.value || '',
+        choices: [...choiceDraft],
+        correctIndex: correctChoiceIndex
+    };
+}
+
+function restoreQuestionEditorState(state) {
+    if (!state) return;
+    $('qType').value = state.type;
+    $('qPrompt').value = state.prompt;
+    $('qPoints').value = state.points;
+    choiceDraft = [...state.choices];
+    correctChoiceIndex = Number(state.correctIndex || 0);
+    renderChoiceEditor();
+    updateAnswerKeyUi();
+    if (state.type === 'short_answer') $('qAnswer').value = state.answer;
+    inlinePasteUndo = null;
+    showInlinePasteFeedback('Smart Paste was undone.', 'neutral', false);
+}
+
+function showInlinePasteFeedback(message, tone = 'success', allowUndo = true) {
+    const box = $('inlinePasteFeedback');
+    if (!box) return;
+    box.hidden = false;
+    box.className = `inline-paste-feedback ${tone}`;
+    box.innerHTML = `<span><i class="ph-bold ${tone === 'warning' ? 'ph-warning' : tone === 'neutral' ? 'ph-arrow-counter-clockwise' : 'ph-check-circle'}"></i>${esc(message)}</span>${allowUndo ? '<button class="btn secondary btn-sm" type="button" id="inlinePasteUndoBtn"><i class="ph-bold ph-arrow-counter-clockwise"></i>Undo</button>' : ''}`;
+    if (allowUndo) $('inlinePasteUndoBtn').onclick = () => restoreQuestionEditorState(inlinePasteUndo);
+}
+
+function applyParsedQuestionToEditor(parsed) {
+    if (!parsed) return;
+    $('qType').value = parsed.type;
+    $('qPrompt').value = parsed.prompt;
+    $('qPoints').value = String(parsed.points || 1);
+    $('qAnswer').value = '';
+    choiceDraft = Array.isArray(parsed.choices) ? [...parsed.choices] : [];
+    if (parsed.type === 'multiple_choice' || parsed.type === 'true_false') {
+        const detectedIndex = choiceDraft.findIndex(choice => choice === parsed.answer_key);
+        correctChoiceIndex = parsed.answer_key && detectedIndex >= 0 ? detectedIndex : -1;
+    } else {
+        correctChoiceIndex = 0;
+    }
+    renderChoiceEditor();
+    updateAnswerKeyUi();
+    if (parsed.type === 'short_answer') $('qAnswer').value = parsed.answer_key || '';
+    const typeLabel = {
+        multiple_choice: 'Multiple Choice', true_false: 'True or False',
+        short_answer: 'Short Answer', essay: 'Essay'
+    }[parsed.type] || parsed.type;
+    const detail = parsed.type === 'multiple_choice'
+        ? `${parsed.choices.length} choices detected${parsed.answer_label && parsed.answer_label !== 'Not detected' ? `; answer ${parsed.answer_label}` : ''}.`
+        : parsed.answer_label ? `Answer: ${parsed.answer_label}.` : '';
+    showInlinePasteFeedback(`${typeLabel} auto-filled. ${detail}${parsed.warning || ''}`, parsed.warning ? 'warning' : 'success', true);
+}
+
+function renderSmartPastePreview(parsed = smartPasteCache) {
+    const preview = $('smartPastePreview');
+    const importButton = $('smartPasteImport');
+    if (!preview || !importButton) return;
+    if (!parsed.length) {
+        preview.innerHTML = '<p class="mini smart-paste-empty">Paste questions, then click Detect Questions.</p>';
+        importButton.disabled = true;
+        return;
+    }
+    const validCount = parsed.filter(question => question.valid).length;
+    preview.innerHTML = `
+        <div class="smart-paste-result-head"><strong>${parsed.length} question${parsed.length === 1 ? '' : 's'} detected</strong><span>${validCount} ready to import</span></div>
+        <div class="smart-paste-preview-list">${parsed.map((question, index) => {
+            const label = {
+                multiple_choice: 'MC', true_false: 'T/F', short_answer: 'Short', essay: 'Essay'
+            }[question.type] || 'Q';
+            return `<article class="smart-paste-preview-item ${question.valid ? '' : 'has-warning'}">
+                <span class="smart-paste-type">${label}</span>
+                <div><strong>Q${index + 1}. ${esc(question.prompt)}</strong><small>${question.type === 'multiple_choice' ? `${question.choices.length} choices • Answer: ${esc(question.answer_label)}` : `Answer: ${esc(question.answer_label || 'Manual grading')}`}${question.warning ? ` • ${esc(question.warning)}` : ''}</small></div>
+            </article>`;
+        }).join('')}</div>`;
+    importButton.disabled = validCount === 0;
+    importButton.innerHTML = `<i class="ph-bold ph-download-simple"></i>Import ${validCount} to Selected Section`;
+}
+
+function detectSmartPasteQuestions() {
+    smartPasteCache = smartParseQuestions($('smartPasteInput')?.value || '');
+    renderSmartPastePreview();
+    if (!smartPasteCache.length) toast('No supported question blocks were detected.');
+}
+
+function mapSmartParsedToQuestion(parsed, sectionId, orderNo) {
+    return {
+        id: uid('q'), sectionId, type: parsed.type, prompt: parsed.prompt,
+        points: Math.max(1, Number(parsed.points || 1)), answer_key: parsed.answer_key || '',
+        choices: Array.isArray(parsed.choices) ? [...parsed.choices] : [], order_no: orderNo
+    };
+}
+
+function importSmartPasteQuestions() {
+    const sectionId = $('qSection')?.value || activeSectionId || sections[0]?.id || '';
+    if (!sectionId) return toast('Create or select a section first.');
+    const ready = smartPasteCache.filter(question => question.valid);
+    if (!ready.length) return toast('No questions are ready to import.');
+    const startOrder = questions.length + 1;
+    questions.push(...ready.map((question, index) => mapSmartParsedToQuestion(question, sectionId, startOrder + index)));
+    renumberQuestions();
+    scheduleAutosave();
+    renderQ();
+    const section = sections.find(item => item.id === sectionId);
+    toast(`Imported ${ready.length} question${ready.length === 1 ? '' : 's'} to ${section?.title || 'the selected section'}.`);
+    $('smartPasteInput').value = '';
+    smartPasteCache = [];
+    renderSmartPastePreview();
+}
+
+function setSmartPastePanel(open) {
+    const panel = $('smartPastePanel');
+    const toggle = $('smartPasteToggle');
+    if (!panel || !toggle) return;
+    panel.hidden = !open;
+    toggle.classList.toggle('primary', open);
+    toggle.classList.toggle('secondary', !open);
+    toggle.innerHTML = open
+        ? '<i class="ph-bold ph-caret-up"></i>Hide Smart Paste'
+        : '<i class="ph-bold ph-clipboard-text"></i>Paste Multiple Questions';
+    if (open) requestAnimationFrame(() => $('smartPasteInput')?.focus());
+}
+
+function openSmartPasteForSection(sectionId) {
+    activeSectionId = sectionId;
+    if ($('qSection')) $('qSection').value = sectionId;
+    setSmartPastePanel(true);
+    $('smartPasteBox')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function handleQuestionPromptPaste(event) {
+    const text = (event.clipboardData || window.clipboardData)?.getData('text/plain') || '';
+    if (!looksLikeStructuredQuestionPaste(text)) return;
+    const parsed = smartParseQuestions(text);
+    if (!parsed.length) return;
+    event.preventDefault();
+    if (parsed.length > 1) {
+        $('smartPasteInput').value = text;
+        smartPasteCache = parsed;
+        renderSmartPastePreview();
+        setSmartPastePanel(true);
+        toast(`${parsed.length} questions detected. Review them, then import.`);
+        return;
+    }
+    inlinePasteUndo = captureQuestionEditorState();
+    applyParsedQuestionToEditor(parsed[0]);
+}
+
+function setupSmartPasteUi() {
+    const prompt = $('qPrompt');
+    if (prompt) {
+        prompt.onpaste = handleQuestionPromptPaste;
+        prompt.placeholder = 'Type a question, or paste a full block with A–D choices and Answer: B';
+    }
+    if ($('smartPasteToggle')) $('smartPasteToggle').onclick = () => setSmartPastePanel($('smartPastePanel')?.hidden !== false);
+    if ($('smartPasteDetect')) $('smartPasteDetect').onclick = detectSmartPasteQuestions;
+    if ($('smartPasteImport')) $('smartPasteImport').onclick = importSmartPasteQuestions;
+    if ($('smartPasteClear')) $('smartPasteClear').onclick = () => {
+        $('smartPasteInput').value = '';
+        smartPasteCache = [];
+        renderSmartPastePreview();
+    };
+    if ($('smartPasteInput')) {
+        $('smartPasteInput').oninput = () => {
+            smartPasteCache = [];
+            renderSmartPastePreview();
+        };
+        $('smartPasteInput').onpaste = () => setTimeout(detectSmartPasteQuestions, 0);
+    }
+    renderSmartPastePreview();
 }
 
 function ensureQuestionBankModal() {
@@ -370,6 +738,7 @@ function ensureBuilderUi() {
     renderSectionSelect();
     renderChoiceEditor();
     updateAnswerKeyUi();
+    setupSmartPasteUi();
     ensureQuestionBankModal();
 }
 
@@ -656,8 +1025,14 @@ function renderQ() {
             <article class="section-card ${section.collapsed ? 'collapsed' : ''}" data-section-card="${esc(section.id)}">
                 <div class="section-head">
                     <div class="section-identity">
-                        <div class="section-badge">${index + 1}</div>
-                        <input class="section-title-input" data-section-title="${esc(section.id)}" value="${esc(section.title)}" aria-label="Section title">
+                        <div class="section-badge">${toRoman(index + 1)}</div>
+                        <div class="section-name-stack">
+                            <span class="section-name-label">Section name · click to rename</span>
+                            <div class="section-name-control">
+                                <input class="section-title-input" data-section-title="${esc(section.id)}" value="${esc(section.title)}" placeholder="Example: Section I — Definitions" aria-label="Rename section">
+                                <button class="section-rename-btn" type="button" data-section-rename="${esc(section.id)}" title="Rename section" aria-label="Rename ${esc(section.title)}"><i class="ph-bold ph-pencil-simple"></i></button>
+                            </div>
+                        </div>
                     </div>
                     <div class="section-head__controls">
                         <button class="section-bank" type="button" data-section-bank="${esc(section.id)}" title="Configure random selection">
@@ -676,7 +1051,10 @@ function renderQ() {
                 </div>
                 <div class="section-head__sub">
                     <span class="mini">${bankLabel}</span>
-                    <button class="btn secondary btn-sm" type="button" data-add-q-section="${esc(section.id)}"><i class="ph-bold ph-plus"></i> Add Question</button>
+                    <div class="section-sub-actions">
+                        <button class="btn secondary btn-sm" type="button" data-smart-paste-section="${esc(section.id)}"><i class="ph-bold ph-clipboard-text"></i> Smart Paste</button>
+                        <button class="btn secondary btn-sm" type="button" data-add-q-section="${esc(section.id)}"><i class="ph-bold ph-plus"></i> Add Question</button>
+                    </div>
                 </div>
                 <div class="section-body ${section.collapsed ? 'is-collapsed' : ''}">
                     ${items.length ? items.map((q, qIndex) => {
@@ -776,7 +1154,7 @@ function deleteQuestion(questionId) {
 }
 
 function addSection(title) {
-    const section = createSection(title || `Section ${sections.length + 1}`);
+    const section = createSection(title);
     sections.push(section);
     activeSectionId = section.id;
     renderQ();
@@ -853,6 +1231,13 @@ function bindBuilderEvents() {
                 return applyQuestionBank(section.id);
             }
             if (target.id === 'saveAllBtn') return $('form').requestSubmit();
+            if (target.dataset.sectionRename) {
+                const input = target.closest('[data-section-card]')?.querySelector('[data-section-title]');
+                input?.focus();
+                input?.select();
+                return;
+            }
+            if (target.dataset.smartPasteSection) return openSmartPasteForSection(target.dataset.smartPasteSection);
             if (target.dataset.addQSection) return addQuestionToSection(target.dataset.addQSection);
             if (target.dataset.sectionBank) return applyQuestionBank(target.dataset.sectionBank);
             if (target.dataset.sectionToggle) return updateSection(target.dataset.sectionToggle, { collapsed: !sections.find(item => item.id === target.dataset.sectionToggle)?.collapsed });
@@ -881,6 +1266,16 @@ function bindBuilderEvents() {
         };
         list.onchange = event => {
             const target = event.target;
+            if (target.matches('[data-section-title]')) {
+                const section = sections.find(item => item.id === target.dataset.sectionTitle);
+                if (section) {
+                    const index = sections.findIndex(item => item.id === section.id);
+                    section.title = target.value.trim() || defaultSectionTitle(index);
+                    target.value = section.title;
+                    renderSectionSelect();
+                    scheduleAutosave();
+                }
+            }
             if (target.matches('[data-section-shuffleq]')) updateSection(target.dataset.sectionShuffleq, { shuffleQuestions: target.checked });
             if (target.matches('[data-section-shufflec]')) updateSection(target.dataset.sectionShufflec, { shuffleChoices: target.checked });
             if (target.matches('input[type="radio"][name="qCorrect"]')) correctChoiceIndex = Number(target.value);
@@ -902,7 +1297,7 @@ function reset() {
     $('securityFullscreen').checked = true;
     $('securityAutoSubmit').checked = true;
     $('securityMaxViolations').value = 5;
-    sections = [createSection('Section 1')];
+    sections = [createSection()];
     activeSectionId = sections[0].id;
     questions = [];
     choiceDraft = [];
@@ -1103,6 +1498,8 @@ $('addQ').onclick = () => {
     $('qAnswer').value = '';
     choiceDraft = [];
     correctChoiceIndex = 0;
+    inlinePasteUndo = null;
+    if ($('inlinePasteFeedback')) $('inlinePasteFeedback').hidden = true;
     renderChoiceEditor();
     updateAnswerKeyUi();
     renderQ();
