@@ -27,14 +27,23 @@ let smartPasteLastFocus = null;
 let questionReviewLastFocus = null;
 let assessments = [];
 let autosaveTimer = null;
+let draftPersistTimer = null;
 let lastAutosaveSignature = '';
+let currentWorkspace = 'tests';
 const DRAFT_KEY = 'plv-admin-assessment-draft-v2';
 
 const pageParams = new URLSearchParams(location.search);
-const standaloneMode = pageParams.get('standalone') === '1';
+// Older versions opened the assessment editor in a standalone browser tab.
+// Keep old bookmarked URLs working, but always render inside the normal admin page.
+const standaloneMode = false;
 const requestedWorkspace = pageParams.get('workspace') || 'tests';
 const requestedAssessmentId = pageParams.get('id') || '';
 const requestedNew = pageParams.get('new') === '1';
+if (pageParams.has('standalone')) {
+    const normalizedUrl = new URL(location.href);
+    normalizedUrl.searchParams.delete('standalone');
+    history.replaceState({}, '', normalizedUrl);
+}
 const adminChannel = 'BroadcastChannel' in window ? new BroadcastChannel('plv-admin-assessments') : null;
 
 function uid(prefix = 'id') {
@@ -1068,22 +1077,49 @@ function ensureBuilderUi() {
     ensureQuestionBankModal();
 }
 
-function assessmentTabUrl(workspace = 'details', idValue = '', isNew = false) {
-    const url = new URL('admin-assessments.html', location.href);
-    url.searchParams.set('standalone', '1');
-    url.searchParams.set('workspace', workspace);
+function assessmentPageUrl(workspace = 'tests', idValue = '', isNew = false) {
+    const url = new URL(location.href);
+    url.searchParams.delete('standalone');
+    url.searchParams.delete('workspace');
+    url.searchParams.delete('id');
+    url.searchParams.delete('new');
+    if (workspace && workspace !== 'tests') url.searchParams.set('workspace', workspace);
     if (idValue) url.searchParams.set('id', idValue);
     if (isNew) url.searchParams.set('new', '1');
-    return url.toString();
+    return url;
 }
 
-function openAssessmentTab(workspace = 'details', idValue = '', isNew = false) {
-    const name = idValue
-        ? `plv_assessment_${workspace}_${String(idValue).replace(/[^a-zA-Z0-9_-]/g, '')}`
-        : `plv_assessment_new_${Date.now()}`;
-    const opened = window.open(assessmentTabUrl(workspace, idValue, isNew), name);
-    if (!opened) return toast('Allow pop-ups for this site to open the assessment workspace.');
-    opened.focus();
+function syncAssessmentHistory(workspace = 'tests', idValue = '', isNew = false, replace = false) {
+    const url = assessmentPageUrl(workspace, idValue, isNew);
+    const state = { workspace, id: idValue || '', isNew: Boolean(isNew) };
+    if (!replace && url.href === location.href) return;
+    history[replace ? 'replaceState' : 'pushState'](state, '', url);
+}
+
+async function navigateAssessment(workspace = 'tests', idValue = '', options = {}) {
+    const { isNew = false, replace = false, updateHistory = true, focusTitle = false } = options;
+    if (isNew) {
+        reset();
+        showWorkspace('details');
+        if (updateHistory) syncAssessmentHistory('details', '', true, replace);
+        if (focusTitle) setTimeout(() => $('title')?.focus(), 80);
+        window.scrollTo({ top: 0, behavior: 'auto' });
+        return true;
+    }
+
+    if (idValue && (idValue !== editing || !questions.length)) {
+        const loaded = await edit(idValue, workspace);
+        if (!loaded) return false;
+    } else {
+        showWorkspace(workspace);
+    }
+
+    if (updateHistory) {
+        const historyId = workspace === 'tests' ? '' : (idValue || editing || '');
+        syncAssessmentHistory(workspace, historyId, false, replace);
+    }
+    window.scrollTo({ top: 0, behavior: 'auto' });
+    return true;
 }
 
 function broadcastAssessmentChange(type = 'updated', idValue = editing || '') {
@@ -1154,6 +1190,49 @@ function toast(message) {
     setTimeout(() => $('toast').classList.remove('show'), 2600);
 }
 
+function setSaveIndicator(state = 'idle', message = '') {
+    const indicator = $('assessmentSaveIndicator');
+    if (!indicator) return;
+    indicator.dataset.state = state;
+    const defaults = {
+        idle: editing ? 'All changes saved' : 'New assessment',
+        pending: 'Unsaved changes',
+        saving: 'Saving…',
+        saved: 'All changes saved',
+        blocked: 'Complete the required details to enable autosave',
+        error: 'Autosave failed'
+    };
+    indicator.innerHTML = `<span class="assessment-save-dot"></span><span>${esc(message || defaults[state] || defaults.idle)}</span>`;
+}
+
+function updateAssessmentContext(workspace = currentWorkspace) {
+    const contextBar = $('assessmentContextBar');
+    if (contextBar) contextBar.hidden = workspace === 'tests';
+
+    const titleValue = $('title')?.value?.trim();
+    if ($('assessmentContextTitle')) {
+        $('assessmentContextTitle').textContent = titleValue || (editing ? 'Untitled assessment' : 'Create a new assessment');
+    }
+    if ($('assessmentContextMode')) {
+        const labels = {
+            details: editing ? 'Assessment details' : 'New assessment',
+            builder: 'Question builder',
+            results: 'Student submissions',
+            security: 'Anomaly log'
+        };
+        $('assessmentContextMode').textContent = labels[workspace] || 'Assessment workspace';
+    }
+
+    const detailsButton = document.querySelector('[data-assessment-view="details"]');
+    const detailsLabel = $('detailsTabLabel');
+    if (detailsLabel) detailsLabel.textContent = editing ? 'Details' : 'New Test';
+    if (detailsButton) detailsButton.title = editing ? 'Edit assessment details' : 'Create a new assessment';
+
+    const headerNew = $('headerNewAssessment');
+    if (headerNew) headerNew.hidden = workspace !== 'tests';
+    if (!document.activeElement?.matches('input, textarea, select')) setSaveIndicator('idle');
+}
+
 async function getToken() {
     const { data } = await supabase.auth.getSession();
     if (!data.session || !data.session.access_token) throw new Error('Please login again.');
@@ -1194,10 +1273,11 @@ function theme() {
 
 function showWorkspace(name) {
     persistDraft();
-    if (name === 'builder' && !editing) {
-        toast('Create or select a test first, then open Questions Manager.');
+    if ((name === 'builder' || name === 'results') && !editing) {
+        toast(name === 'builder' ? 'Create or select a test first, then open Questions Manager.' : 'Select an assessment first to view results.');
         name = 'details';
     }
+    currentWorkspace = name;
     const visible = name === 'builder' ? 'details' : (name === 'security' ? 'results' : name);
     document.querySelectorAll('[data-assessment-view]').forEach(btn => btn.classList.toggle('active', btn.dataset.assessmentView === name));
     document.querySelectorAll('[data-workspace]').forEach(panel => {
@@ -1210,6 +1290,7 @@ function showWorkspace(name) {
     if (name === 'results' && editing) attempts(editing);
     if (name === 'security') incidents();
     setBuilderLock();
+    updateAssessmentContext(name);
     updateStandaloneTitle(name);
 }
 
@@ -1223,11 +1304,16 @@ async function loadSelects() {
 }
 
 function setBuilderLock() {
-    const btn = document.querySelector('[data-assessment-view="builder"]');
-    if (!btn) return;
-    btn.disabled = !editing;
-    btn.classList.toggle('locked', !editing);
-    btn.title = editing ? 'Open Questions Manager' : 'Save the new test first';
+    const builderButton = document.querySelector('[data-assessment-view="builder"]');
+    const resultsButton = document.querySelector('[data-assessment-view="results"]');
+    [builderButton, resultsButton].forEach(btn => {
+        if (!btn) return;
+        btn.disabled = !editing;
+        btn.classList.toggle('locked', !editing);
+    });
+    if (builderButton) builderButton.title = editing ? 'Open Questions Manager' : 'Save the new test first';
+    if (resultsButton) resultsButton.title = editing ? 'View student submissions' : 'Select or save an assessment first';
+    updateAssessmentContext(currentWorkspace);
 }
 
 function draftPayload() {
@@ -1244,19 +1330,26 @@ function draftStore() {
 }
 
 function persistDraft() {
+    clearTimeout(draftPersistTimer);
     try {
         draftStore().setItem(DRAFT_KEY, JSON.stringify(draftPayload()));
     } catch (_) {}
 }
 
+function queueDraftPersist(delay = 260) {
+    clearTimeout(draftPersistTimer);
+    draftPersistTimer = setTimeout(persistDraft, delay);
+}
+
 function clearDraft() {
+    clearTimeout(draftPersistTimer);
     draftStore().removeItem(DRAFT_KEY);
 }
 
 function restoreDraft() {
     try {
         const raw = draftStore().getItem(DRAFT_KEY);
-        if (!raw || editing) return;
+        if (!raw || editing) return false;
         const draft = JSON.parse(raw);
         const assessment = draft.assessment || {};
         editing = draft.editing || null;
@@ -1279,39 +1372,50 @@ function restoreDraft() {
         ensureBuilderUi();
         renderQ();
         if (assessment.title && assessment.subject_code && assessment.section) scheduleAutosave();
-    } catch (_) {}
+        return true;
+    } catch (_) {
+        return false;
+    }
 }
 
 async function runAutosave() {
     const assessment = currentAssessment();
-    if (!assessment.title || !assessment.subject_code || !assessment.section) return false;
+    if (!assessment.title || !assessment.subject_code || !assessment.section) {
+        setSaveIndicator('blocked');
+        return false;
+    }
     const signature = autosaveSignature(assessment, questions);
-    if (signature === lastAutosaveSignature) return true;
+    if (signature === lastAutosaveSignature) {
+        setSaveIndicator('saved');
+        return true;
+    }
+    setSaveIndicator('saving');
     const data = await api('admin/save', { method: 'POST', body: JSON.stringify({ assessment, questions }) });
+    const createdNewRecord = !editing;
     editing = data.id;
     assessment.id = data.id;
-    if (standaloneMode) {
-        const nextUrl = new URL(location.href);
-        nextUrl.searchParams.delete('new');
-        nextUrl.searchParams.set('id', data.id);
-        history.replaceState({}, '', nextUrl);
-    }
+    if (createdNewRecord && currentWorkspace !== 'tests') syncAssessmentHistory(currentWorkspace, data.id, false, true);
     broadcastAssessmentChange('autosaved', data.id);
     lastAutosaveSignature = signature;
     persistDraft();
     setBuilderLock();
+    updateAssessmentContext(currentWorkspace);
     updateStandaloneTitle(document.querySelector('[data-assessment-view].active')?.dataset.assessmentView || 'details');
+    setSaveIndicator('saved');
     return true;
 }
 
 function scheduleAutosave() {
-    persistDraft();
+    setSaveIndicator('pending');
+    queueDraftPersist();
     clearTimeout(autosaveTimer);
     autosaveTimer = setTimeout(async () => {
         try {
             await runAutosave();
-        } catch (_) {}
-    }, 900);
+        } catch (_) {
+            setSaveIndicator('error');
+        }
+    }, 950);
 }
 
 function renderQ() {
@@ -1496,11 +1600,24 @@ function addSection(title) {
     scheduleAutosave();
 }
 
-function updateSection(sectionId, patch) {
+function updateSection(sectionId, patch, options = {}) {
     const section = sections.find(item => item.id === sectionId);
     if (!section) return;
     Object.assign(section, patch);
-    renderQ();
+    if (options.render !== false) renderQ();
+    scheduleAutosave();
+}
+
+function toggleSectionCollapsed(sectionId, button) {
+    const section = sections.find(item => item.id === sectionId);
+    if (!section) return;
+    section.collapsed = !section.collapsed;
+    const card = button?.closest('[data-section-card]') || document.querySelector(`[data-section-card="${CSS.escape(sectionId)}"]`);
+    card?.classList.toggle('collapsed', section.collapsed);
+    card?.querySelector('.section-body')?.classList.toggle('is-collapsed', section.collapsed);
+    const icon = button?.querySelector('i');
+    if (icon) icon.className = `ph-bold ${section.collapsed ? 'ph-caret-down' : 'ph-caret-up'}`;
+    if (button) button.title = section.collapsed ? 'Expand' : 'Collapse';
     scheduleAutosave();
 }
 
@@ -1583,7 +1700,7 @@ function bindBuilderEvents() {
             if (target.dataset.addQType) return addQuestionToSection(target.dataset.sectionId, target.dataset.addQType);
             if (target.dataset.addQSection) return addQuestionToSection(target.dataset.addQSection);
             if (target.dataset.sectionBank) return applyQuestionBank(target.dataset.sectionBank);
-            if (target.dataset.sectionToggle) return updateSection(target.dataset.sectionToggle, { collapsed: !sections.find(item => item.id === target.dataset.sectionToggle)?.collapsed });
+            if (target.dataset.sectionToggle) return toggleSectionCollapsed(target.dataset.sectionToggle, target);
             if (target.dataset.sectionDup) return duplicateSection(target.dataset.sectionDup);
             if (target.dataset.sectionDel) return deleteSection(target.dataset.sectionDel);
             if (target.dataset.sectionUp) return moveSection(target.dataset.sectionUp, -1);
@@ -1619,8 +1736,8 @@ function bindBuilderEvents() {
                     scheduleAutosave();
                 }
             }
-            if (target.matches('[data-section-shuffleq]')) updateSection(target.dataset.sectionShuffleq, { shuffleQuestions: target.checked });
-            if (target.matches('[data-section-shufflec]')) updateSection(target.dataset.sectionShufflec, { shuffleChoices: target.checked });
+            if (target.matches('[data-section-shuffleq]')) updateSection(target.dataset.sectionShuffleq, { shuffleQuestions: target.checked }, { render: false });
+            if (target.matches('[data-section-shufflec]')) updateSection(target.dataset.sectionShufflec, { shuffleChoices: target.checked }, { render: false });
             if (target.matches('input[type="radio"][name="qCorrect"]')) correctChoiceIndex = Number(target.value);
         };
     }
@@ -1684,24 +1801,22 @@ async function save(event) {
     if (!assessment.title || !assessment.subject_code || !assessment.section) return toast('Complete the title, subject, and section first.');
     if (assessment.status === 'published' && !questions.length) return toast('Add at least one question before publishing.');
     try {
+        setSaveIndicator('saving');
         const data = await api('admin/save', { method: 'POST', body: JSON.stringify({ assessment, questions }) });
         editing = data.id;
         assessment.id = data.id;
-        if (standaloneMode) {
-            const nextUrl = new URL(location.href);
-            nextUrl.searchParams.delete('new');
-            nextUrl.searchParams.set('id', data.id);
-            nextUrl.searchParams.set('workspace', 'builder');
-            history.replaceState({}, '', nextUrl);
-        }
         broadcastAssessmentChange('saved', data.id);
         lastAutosaveSignature = autosaveSignature(assessment, questions);
         persistDraft();
         setBuilderLock();
-        toast('Test saved. Questions Manager is ready.');
+        updateAssessmentContext('builder');
+        setSaveIndicator('saved');
+        toast('Test saved. Continue adding questions below.');
         await loadAssessments();
         showWorkspace('builder');
+        syncAssessmentHistory('builder', data.id, false, true);
     } catch (error) {
+        setSaveIndicator('error');
         toast(error.message);
     }
 }
@@ -1734,13 +1849,9 @@ function renderAssessments() {
                 <button class="btn danger" data-delete="${esc(a.id)}"><i class="ph-bold ph-trash"></i>Delete</button>
             </div>
         </article>`).join('') : '<p class="mini">No assessments yet.</p>';
-    document.querySelectorAll('[data-edit]').forEach(btn => btn.onclick = () => openAssessmentTab('details', btn.dataset.edit));
-    document.querySelectorAll('[data-builder]').forEach(btn => btn.onclick = () => openAssessmentTab('builder', btn.dataset.builder));
-    document.querySelectorAll('[data-attempts]').forEach(btn => btn.onclick = () => {
-        editing = btn.dataset.attempts;
-        showWorkspace('results');
-        attempts(editing);
-    });
+    document.querySelectorAll('[data-edit]').forEach(btn => btn.onclick = () => navigateAssessment('details', btn.dataset.edit));
+    document.querySelectorAll('[data-builder]').forEach(btn => btn.onclick = () => navigateAssessment('builder', btn.dataset.builder));
+    document.querySelectorAll('[data-attempts]').forEach(btn => btn.onclick = () => navigateAssessment('results', btn.dataset.attempts));
     document.querySelectorAll('[data-delete]').forEach(btn => btn.onclick = () => del(btn.dataset.delete));
 }
 
@@ -1770,9 +1881,11 @@ async function edit(id, workspace = 'details') {
         renderQ();
         setBuilderLock();
         showWorkspace(workspace);
-        scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: 'auto' });
+        return true;
     } catch (error) {
         toast(error.message);
+        return false;
     }
 }
 
@@ -1863,16 +1976,27 @@ $('addQ').onclick = () => {
 };
 
 $('form').onsubmit = save;
-$('newBtn').onclick = () => standaloneMode ? (reset(), showWorkspace('details')) : openAssessmentTab('details', '', true);
+$('newBtn').onclick = () => navigateAssessment('details', '', { isNew: true, focusTitle: true });
+$('headerNewAssessment') && ($('headerNewAssessment').onclick = () => navigateAssessment('details', '', { isNew: true, focusTitle: true }));
+$('libraryNewAssessment') && ($('libraryNewAssessment').onclick = () => navigateAssessment('details', '', { isNew: true, focusTitle: true }));
+$('backToTests') && ($('backToTests').onclick = () => navigateAssessment('tests'));
 $('refresh').onclick = loadAssessments;
 document.querySelectorAll('[data-assessment-view]').forEach(btn => btn.onclick = () => {
     const target = btn.dataset.assessmentView;
-    if (!standaloneMode && target === 'details') return openAssessmentTab('details', '', true);
-    if (!standaloneMode && target === 'builder' && editing) return openAssessmentTab('builder', editing);
-    showWorkspace(target);
+    if (target === 'tests') return navigateAssessment('tests');
+    if (target === 'details') return editing
+        ? navigateAssessment('details', editing)
+        : (showWorkspace('details'), syncAssessmentHistory('details', '', true), setTimeout(() => $('title')?.focus(), 80));
+    if ((target === 'builder' || target === 'results') && !editing) {
+        return toast(target === 'builder' ? 'Save or select a test before opening Questions Manager.' : 'Select a test before viewing results.');
+    }
+    return navigateAssessment(target, editing || '');
 });
 document.querySelectorAll('#form input, #form textarea, #form select, #qType, #qPoints, #qPrompt, #qAnswer, #qSection, #smartPasteSection').forEach(input => {
-    input.addEventListener('input', scheduleAutosave);
+    input.addEventListener('input', () => {
+        scheduleAutosave();
+        if (input.id === 'title') updateAssessmentContext(currentWorkspace);
+    });
     input.addEventListener('change', scheduleAutosave);
 });
 window.addEventListener('keydown', event => {
@@ -1881,30 +2005,33 @@ window.addEventListener('keydown', event => {
     }
 });
 window.addEventListener('beforeunload', persistDraft);
+window.addEventListener('popstate', async () => {
+    const params = new URLSearchParams(location.search);
+    const workspace = params.get('workspace') || 'tests';
+    const id = params.get('id') || '';
+    const isNew = params.get('new') === '1';
+    await navigateAssessment(workspace, id, { isNew, updateHistory: false });
+});
 
 theme();
 setupStandaloneShell();
 ensureBuilderUi();
 await loadSelects();
 await loadAssessments();
+const restoredDraft = restoreDraft();
+if (!restoredDraft) renderQ();
+setBuilderLock();
 
-if (standaloneMode) {
-    if (requestedNew) {
-        reset();
-        showWorkspace('details');
-    } else if (requestedAssessmentId) {
-        await edit(requestedAssessmentId, requestedWorkspace === 'builder' ? 'builder' : 'details');
-    } else {
-        showWorkspace(requestedWorkspace);
-    }
+if (requestedNew) {
+    await navigateAssessment('details', '', { isNew: true, replace: true, focusTitle: true });
+} else if (requestedAssessmentId) {
+    await navigateAssessment(requestedWorkspace, requestedAssessmentId, { replace: true });
 } else {
-    restoreDraft();
-    renderQ();
-    setBuilderLock();
-    showWorkspace('tests');
+    showWorkspace(requestedWorkspace === 'tests' ? 'tests' : requestedWorkspace);
+    syncAssessmentHistory(currentWorkspace, currentWorkspace === 'tests' ? '' : (editing || ''), false, true);
 }
 
-adminChannel && (adminChannel.onmessage = () => { if (!standaloneMode) loadAssessments(); });
+adminChannel && (adminChannel.onmessage = loadAssessments);
 window.addEventListener('storage', event => {
-    if (event.key === 'plvAdminAssessmentChange' && !standaloneMode) loadAssessments();
+    if (event.key === 'plvAdminAssessmentChange') loadAssessments();
 });
