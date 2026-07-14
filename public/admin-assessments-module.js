@@ -24,6 +24,7 @@ let questionBankDraft = [];
 let smartPasteCache = [];
 let inlinePasteUndo = null;
 let smartPasteLastFocus = null;
+let questionReviewLastFocus = null;
 let assessments = [];
 let autosaveTimer = null;
 let lastAutosaveSignature = '';
@@ -720,6 +721,204 @@ function setupSmartPasteUi() {
     renderSmartPastePreview();
 }
 
+
+function questionTypeName(type) {
+    return QUESTION_TYPE_META[type]?.name || String(type || 'Question').replaceAll('_', ' ');
+}
+
+function ensureQuestionReviewModal() {
+    if ($('questionReviewModal')) return;
+    document.body.insertAdjacentHTML('beforeend', `
+        <div class="question-review-modal" id="questionReviewModal" aria-hidden="true">
+            <div class="question-review-modal__backdrop" data-question-review-close></div>
+            <section class="question-review-dialog" role="dialog" aria-modal="true" aria-labelledby="questionReviewTitle" aria-describedby="questionReviewDescription">
+                <header class="question-review-head">
+                    <div class="question-review-title">
+                        <span class="question-review-title__icon"><i class="ph-fill ph-book-open-text"></i></span>
+                        <div>
+                            <span class="builder-summary__label">Question review</span>
+                            <h2 id="questionReviewTitle">Review all questions</h2>
+                            <p id="questionReviewDescription">Read every question in one organized view. Search, filter, and jump directly to an item in the builder.</p>
+                        </div>
+                    </div>
+                    <button class="btn secondary btn-icon question-review-close" type="button" id="questionReviewClose" aria-label="Close question review"><i class="ph-bold ph-x"></i></button>
+                </header>
+                <div class="question-review-tools">
+                    <div class="question-review-search">
+                        <i class="ph-bold ph-magnifying-glass"></i>
+                        <input class="input" id="questionReviewSearch" type="search" placeholder="Search question, choice, or answer..." autocomplete="off">
+                    </div>
+                    <select class="select" id="questionReviewSection" aria-label="Filter by section"></select>
+                    <select class="select" id="questionReviewType" aria-label="Filter by question type">
+                        <option value="">All question types</option>
+                        <option value="multiple_choice">Multiple Choice</option>
+                        <option value="true_false">True or False</option>
+                        <option value="short_answer">Identification</option>
+                        <option value="essay">Essay</option>
+                    </select>
+                    <div class="question-review-count" id="questionReviewCount">0 questions</div>
+                </div>
+                <div class="question-review-body" id="questionReviewList"></div>
+                <footer class="question-review-footer">
+                    <p>Tip: use “Locate in builder” to return to the original section and question.</p>
+                    <div class="question-review-footer__actions">
+                        <button class="btn secondary" type="button" id="questionReviewClearFilters"><i class="ph-bold ph-funnel-x"></i>Clear filters</button>
+                        <button class="btn primary" type="button" id="questionReviewDone"><i class="ph-bold ph-check"></i>Done reviewing</button>
+                    </div>
+                </footer>
+            </section>
+        </div>`);
+
+    const modal = $('questionReviewModal');
+    const close = () => setQuestionReviewModal(false);
+    $('questionReviewClose').onclick = close;
+    $('questionReviewDone').onclick = close;
+    document.querySelectorAll('[data-question-review-close]').forEach(element => { element.onclick = close; });
+    $('questionReviewSearch').oninput = renderQuestionReviewList;
+    $('questionReviewSection').onchange = renderQuestionReviewList;
+    $('questionReviewType').onchange = renderQuestionReviewList;
+    $('questionReviewClearFilters').onclick = () => {
+        $('questionReviewSearch').value = '';
+        $('questionReviewSection').value = '';
+        $('questionReviewType').value = '';
+        renderQuestionReviewList();
+        $('questionReviewSearch').focus();
+    };
+    $('questionReviewList').onclick = event => {
+        const locateButton = event.target.closest('[data-review-locate]');
+        if (locateButton) locateQuestionInBuilder(locateButton.dataset.reviewLocate);
+    };
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && modal.classList.contains('show')) {
+            event.preventDefault();
+            close();
+        }
+    });
+}
+
+function setQuestionReviewModal(open) {
+    ensureQuestionReviewModal();
+    const modal = $('questionReviewModal');
+    if (!modal) return;
+    const isOpen = modal.classList.contains('show');
+    if (open === isOpen) return;
+    if (open) {
+        questionReviewLastFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        renderQuestionReviewFilters();
+        renderQuestionReviewList();
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('question-review-open');
+        requestAnimationFrame(() => $('questionReviewSearch')?.focus());
+        return;
+    }
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('question-review-open');
+    const returnTarget = questionReviewLastFocus;
+    questionReviewLastFocus = null;
+    if (returnTarget?.isConnected) requestAnimationFrame(() => returnTarget.focus());
+}
+
+function renderQuestionReviewFilters() {
+    const select = $('questionReviewSection');
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = '<option value="">All sections</option>' + sections.map((section, index) =>
+        `<option value="${esc(section.id)}">Section ${toRoman(index + 1)} — ${esc(section.title)}</option>`
+    ).join('');
+    if ([...select.options].some(option => option.value === current)) select.value = current;
+}
+
+function questionMatchesReview(question, searchText) {
+    if (!searchText) return true;
+    const section = sections.find(item => item.id === question.sectionId);
+    const haystack = [section?.title, question.prompt, question.answer_key, ...(question.choices || [])]
+        .filter(Boolean).join(' ').toLowerCase();
+    return haystack.includes(searchText);
+}
+
+function renderQuestionReviewList() {
+    const list = $('questionReviewList');
+    const count = $('questionReviewCount');
+    if (!list || !count) return;
+    const searchText = ($('questionReviewSearch')?.value || '').trim().toLowerCase();
+    const sectionFilter = $('questionReviewSection')?.value || '';
+    const typeFilter = $('questionReviewType')?.value || '';
+    const ordered = sections.flatMap(section => sectionQuestions(section.id));
+    const filtered = ordered.filter(question =>
+        (!sectionFilter || question.sectionId === sectionFilter) &&
+        (!typeFilter || question.type === typeFilter) &&
+        questionMatchesReview(question, searchText)
+    );
+    count.textContent = `${filtered.length} question${filtered.length === 1 ? '' : 's'}`;
+
+    if (!filtered.length) {
+        list.innerHTML = `<div class="question-review-empty"><div><i class="ph-fill ph-magnifying-glass"></i><strong>No questions found</strong><p>${questions.length ? 'Try changing the search or filters.' : 'Add questions first, then return here to review them.'}</p></div></div>`;
+        return;
+    }
+
+    const globalIndex = new Map(ordered.map((question, index) => [question.id, index + 1]));
+    const groups = sections.map((section, sectionIndex) => ({
+        section,
+        sectionIndex,
+        items: filtered.filter(question => question.sectionId === section.id)
+    })).filter(group => group.items.length);
+
+    list.innerHTML = groups.map(group => `
+        <section class="question-review-section">
+            <div class="question-review-section__head">
+                <h3>Section ${toRoman(group.sectionIndex + 1)} — ${esc(group.section.title)}</h3>
+                <span>${group.items.length} shown</span>
+            </div>
+            <div class="question-review-list">
+                ${group.items.map(question => {
+                    const answer = question.answer_key || 'Manual grading';
+                    const choices = Array.isArray(question.choices) ? question.choices : [];
+                    const choiceHtml = choices.length ? `<div class="question-review-choices">${choices.map((choice, index) => `
+                        <div class="question-review-choice ${choice === question.answer_key ? 'is-correct' : ''}">
+                            <span class="question-review-choice__key">${String.fromCharCode(65 + index)}</span>
+                            <span>${esc(choice)}</span>
+                        </div>`).join('')}</div>` : '';
+                    return `<article class="question-review-item">
+                        <div class="question-review-item__top">
+                            <div class="question-review-item__identity">
+                                <span class="question-review-number">Q${globalIndex.get(question.id) || ''}</span>
+                                <span class="question-review-type">${esc(questionTypeName(question.type))}</span>
+                                <span class="question-review-points">${Number(question.points || 0)} pts</span>
+                            </div>
+                            <button class="btn secondary question-review-locate" type="button" data-review-locate="${esc(question.id)}"><i class="ph-bold ph-crosshair"></i>Locate in builder</button>
+                        </div>
+                        <div class="question-review-prompt">${esc(question.prompt || '(No question text)')}</div>
+                        ${choiceHtml}
+                        <div class="question-review-answer"><span>Answer key:</span><strong>${esc(answer)}</strong></div>
+                    </article>`;
+                }).join('')}
+            </div>
+        </section>`).join('');
+}
+
+function locateQuestionInBuilder(questionId) {
+    const question = questions.find(item => item.id === questionId);
+    if (!question) return;
+    const section = sections.find(item => item.id === question.sectionId);
+    if (section) section.collapsed = false;
+    setQuestionReviewModal(false);
+    renderQ();
+    requestAnimationFrame(() => {
+        const card = document.querySelector(`[data-question-card-id="${CSS.escape(questionId)}"]`);
+        if (!card) return;
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.classList.remove('question-located');
+        requestAnimationFrame(() => card.classList.add('question-located'));
+        setTimeout(() => card.classList.remove('question-located'), 1400);
+    });
+}
+
+function openQuestionReviewManager() {
+    setQuestionReviewModal(true);
+}
+
 function ensureQuestionBankModal() {
     if ($('questionBankModal')) return;
     document.body.insertAdjacentHTML('beforeend', `
@@ -1132,6 +1331,7 @@ function renderQ() {
             </div>
             <div class="builder-toolbar__actions">
                 <button class="btn secondary" type="button" id="addSectionBtn"><i class="ph-bold ph-plus"></i>Add Section</button>
+                <button class="btn secondary" type="button" id="questionReviewBtn"><i class="ph-bold ph-book-open-text"></i>Review Questions</button>
                 <button class="btn secondary" type="button" id="questionBankBtn"><i class="ph-bold ph-browsers"></i>Question Bank</button>
                 <button class="btn primary" type="button" id="saveAllBtn"><i class="ph-bold ph-floppy-disk"></i>Save All</button>
             </div>
@@ -1198,7 +1398,7 @@ function renderQ() {
                             </div>
                         `).join('') : '';
                         return `
-                        <article class="question-card">
+                        <article class="question-card" data-question-card-id="${esc(q.id)}">
                             <div class="question-card__top">
                                 <div>
                                     <div class="question-card__title">Question ${qIndex + 1}</div>
@@ -1225,6 +1425,10 @@ function renderQ() {
         <div class="builder-footer"><button class="btn secondary" type="button" id="footerAddSectionBtn"><i class="ph-bold ph-plus"></i>Add another section</button></div>`;
     renderSectionSelect();
     bindBuilderEvents();
+    if ($('questionReviewModal')?.classList.contains('show')) {
+        renderQuestionReviewFilters();
+        renderQuestionReviewList();
+    }
 }
 
 function sectionQuestions(sectionId) {
@@ -1362,6 +1566,7 @@ function bindBuilderEvents() {
             const target = event.target.closest('button');
             if (!target) return;
             if (target.id === 'addSectionBtn' || target.id === 'footerAddSectionBtn') return addSection();
+            if (target.id === 'questionReviewBtn') return openQuestionReviewManager();
             if (target.id === 'questionBankBtn') {
                 const section = sections.find(item => item.id === activeSectionId) || sections[0];
                 if (!section) return;
