@@ -26,6 +26,13 @@ let autosaveTimer = null;
 let lastAutosaveSignature = '';
 const DRAFT_KEY = 'plv-admin-assessment-draft-v2';
 
+const pageParams = new URLSearchParams(location.search);
+const standaloneMode = pageParams.get('standalone') === '1';
+const requestedWorkspace = pageParams.get('workspace') || 'tests';
+const requestedAssessmentId = pageParams.get('id') || '';
+const requestedNew = pageParams.get('new') === '1';
+const adminChannel = 'BroadcastChannel' in window ? new BroadcastChannel('plv-admin-assessments') : null;
+
 function uid(prefix = 'id') {
     return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
 }
@@ -335,7 +342,28 @@ function openQuestionBank(sectionId = '') {
     });
 }
 
+function ensureSecuritySettingsUi() {
+    if ($('securitySettingsCard')) return;
+    const grid = $('form')?.querySelector('.form-grid');
+    if (!grid) return;
+    grid.insertAdjacentHTML('beforeend', `
+        <div class="field full" id="securitySettingsCard">
+            <label>Exam Security</label>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;padding:14px;border:1px solid rgba(100,116,139,.16);border-radius:16px;background:rgba(255,255,255,.32)">
+                <label style="display:flex;align-items:flex-start;gap:10px;padding:10px;border-radius:12px;background:var(--accent-light);color:var(--text-main);font-size:12px;font-weight:800;text-transform:none;letter-spacing:0;cursor:pointer"><input id="securityFullscreen" type="checkbox" checked style="margin-top:2px;accent-color:var(--accent-primary)"><span><b>Require fullscreen</b><small style="display:block;color:var(--text-muted);margin-top:3px">Pause the exam when fullscreen is exited.</small></span></label>
+                <label style="display:flex;align-items:flex-start;gap:10px;padding:10px;border-radius:12px;background:var(--accent-light);color:var(--text-main);font-size:12px;font-weight:800;text-transform:none;letter-spacing:0;cursor:pointer"><input id="securityAutoSubmit" type="checkbox" checked style="margin-top:2px;accent-color:var(--accent-primary)"><span><b>Auto-submit at limit</b><small style="display:block;color:var(--text-muted);margin-top:3px">Submit when the anomaly threshold is reached.</small></span></label>
+                <div style="padding:10px;border-radius:12px;background:var(--accent-light)"><label for="securityMaxViolations" style="font-size:11px">Anomaly limit</label><input class="input" id="securityMaxViolations" type="number" min="1" max="50" value="5" style="margin-top:6px"><small style="display:block;color:var(--text-muted);font-weight:700;margin-top:4px">Recommended: 3–5</small></div>
+            </div>
+            <p class="mini" style="margin-top:7px">Tab changes, focus loss, restricted shortcuts, clipboard actions, printing, duplicate exam tabs, and fullscreen exits are logged.</p>
+        </div>`);
+    ['securityFullscreen', 'securityAutoSubmit', 'securityMaxViolations'].forEach(id => {
+        $(id)?.addEventListener('input', scheduleAutosave);
+        $(id)?.addEventListener('change', scheduleAutosave);
+    });
+}
+
 function ensureBuilderUi() {
+    ensureSecuritySettingsUi();
     if (!$('qSection') && $('qPoints')) {
         $('qPoints').closest('.field')?.insertAdjacentHTML('afterend', `<div class="field"><label>Section</label><select class="select" id="qSection"></select></div>`);
     }
@@ -343,6 +371,86 @@ function ensureBuilderUi() {
     renderChoiceEditor();
     updateAnswerKeyUi();
     ensureQuestionBankModal();
+}
+
+function assessmentTabUrl(workspace = 'details', idValue = '', isNew = false) {
+    const url = new URL('admin-assessments.html', location.href);
+    url.searchParams.set('standalone', '1');
+    url.searchParams.set('workspace', workspace);
+    if (idValue) url.searchParams.set('id', idValue);
+    if (isNew) url.searchParams.set('new', '1');
+    return url.toString();
+}
+
+function openAssessmentTab(workspace = 'details', idValue = '', isNew = false) {
+    const name = idValue
+        ? `plv_assessment_${workspace}_${String(idValue).replace(/[^a-zA-Z0-9_-]/g, '')}`
+        : `plv_assessment_new_${Date.now()}`;
+    const opened = window.open(assessmentTabUrl(workspace, idValue, isNew), name);
+    if (!opened) return toast('Allow pop-ups for this site to open the assessment workspace.');
+    opened.focus();
+}
+
+function broadcastAssessmentChange(type = 'updated', idValue = editing || '') {
+    const payload = { type, id: idValue, at: Date.now() };
+    adminChannel?.postMessage(payload);
+    localStorage.setItem('plvAdminAssessmentChange', JSON.stringify(payload));
+}
+
+function setupStandaloneShell() {
+    if (!standaloneMode) return;
+    document.body.classList.add('assessment-standalone');
+    document.head.insertAdjacentHTML('beforeend', `<style>
+        body.assessment-standalone{display:block;min-height:100vh}
+        body.assessment-standalone .sidebar,body.assessment-standalone .mobile-nav-bar,body.assessment-standalone .assessment-workspace-tabs,body.assessment-standalone .main-wrapper>.header{display:none!important}
+        body.assessment-standalone .main-wrapper{width:100%;max-width:none;padding:20px clamp(16px,3vw,42px) 40px;overflow:visible}
+        body.assessment-standalone .assessment-grid[data-workspace="details"],body.assessment-standalone .assessment-grid[data-workspace="details"].builder-mode{max-width:1220px;margin:0 auto}
+        body.assessment-standalone .standalone-assessment-bar{position:sticky;top:0;z-index:300;margin:-20px -20px 22px;padding:13px clamp(16px,3vw,42px);display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--glass-bg);backdrop-filter:blur(24px);border-bottom:1px solid var(--glass-border);box-shadow:0 10px 30px rgba(15,23,42,.08)}
+        body.assessment-standalone .standalone-assessment-bar__title{display:flex;align-items:center;gap:12px;min-width:0}
+        body.assessment-standalone .standalone-assessment-bar__icon{width:42px;height:42px;border-radius:14px;background:var(--accent-light);color:var(--accent-primary);display:flex;align-items:center;justify-content:center;font-size:22px;flex:0 0 auto}
+        body.assessment-standalone .standalone-assessment-bar h1{font-size:17px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        body.assessment-standalone .standalone-assessment-bar p{font-size:11px;color:var(--text-muted);font-weight:700;margin-top:2px}
+        body.assessment-standalone .standalone-assessment-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+        @media(max-width:650px){body.assessment-standalone .standalone-assessment-bar{align-items:flex-start;flex-direction:column}.standalone-assessment-actions{width:100%}.standalone-assessment-actions .btn{flex:1}}
+    </style>`);
+    const main = document.querySelector('.main-wrapper');
+    main?.insertAdjacentHTML('afterbegin', `<div class="standalone-assessment-bar"><div class="standalone-assessment-bar__title"><div class="standalone-assessment-bar__icon"><i class="ph-fill ph-clipboard-text"></i></div><div><h1 id="standaloneTitle">Assessment Workspace</h1><p id="standaloneSub">Changes are saved to the same PLV Portal assessment record.</p></div></div><div class="standalone-assessment-actions"><button class="btn secondary" type="button" id="standaloneDetails"><i class="ph-bold ph-sliders-horizontal"></i> Details</button><button class="btn secondary" type="button" id="standaloneQuestions"><i class="ph-bold ph-list-checks"></i> Questions</button><button class="btn secondary" type="button" id="standaloneLibrary"><i class="ph-bold ph-stack"></i> Library</button><button class="btn secondary" type="button" id="standaloneTheme" aria-label="Change theme"><i class="ph-fill ph-sun"></i></button><button class="btn danger" type="button" id="standaloneClose"><i class="ph-bold ph-x"></i> Close</button></div></div>`);
+    $('standaloneDetails').onclick = () => showWorkspace('details');
+    $('standaloneQuestions').onclick = () => showWorkspace('builder');
+    $('standaloneLibrary').onclick = () => {
+        if (window.opener && !window.opener.closed) {
+            window.opener.focus();
+            window.close();
+        } else location.href = 'admin-assessments.html';
+    };
+    $('standaloneClose').onclick = () => {
+        window.close();
+        setTimeout(() => location.href = 'admin-assessments.html', 200);
+    };
+    $('standaloneTheme').onclick = () => $('themeToggle')?.click();
+}
+
+function updateStandaloneTitle(workspace = requestedWorkspace) {
+    if (!standaloneMode || !$('standaloneTitle')) return;
+    const labels = {
+        details: editing ? 'Edit Assessment Details' : 'Create New Assessment',
+        builder: 'Questions Manager',
+        results: 'Assessment Results',
+        security: 'Assessment Anomaly Log',
+        tests: 'Assessment Library'
+    };
+    $('standaloneTitle').textContent = labels[workspace] || 'Assessment Workspace';
+    $('standaloneSub').textContent = editing
+        ? `Assessment ID: ${editing} • autosave is enabled for question changes.`
+        : 'Save the assessment details first, then continue to the Questions Manager.';
+    if ($('standaloneQuestions')) {
+        $('standaloneQuestions').disabled = !editing;
+        $('standaloneQuestions').title = editing ? 'Open Questions Manager' : 'Save the assessment details first';
+    }
+    $('standaloneDetails')?.classList.toggle('primary', workspace === 'details');
+    $('standaloneDetails')?.classList.toggle('secondary', workspace !== 'details');
+    $('standaloneQuestions')?.classList.toggle('primary', workspace === 'builder');
+    $('standaloneQuestions')?.classList.toggle('secondary', workspace !== 'builder');
 }
 
 function toast(message) {
@@ -407,6 +515,7 @@ function showWorkspace(name) {
     if (name === 'results' && editing) attempts(editing);
     if (name === 'security') incidents();
     setBuilderLock();
+    updateStandaloneTitle(name);
 }
 
 async function loadSelects() {
@@ -435,19 +544,23 @@ function autosaveSignature(assessment, questionList) {
     return JSON.stringify({ assessment: stableAssessment, sections: builderSettingsSnapshot(), questions: questionList });
 }
 
+function draftStore() {
+    return standaloneMode ? sessionStorage : localStorage;
+}
+
 function persistDraft() {
     try {
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(draftPayload()));
+        draftStore().setItem(DRAFT_KEY, JSON.stringify(draftPayload()));
     } catch (_) {}
 }
 
 function clearDraft() {
-    localStorage.removeItem(DRAFT_KEY);
+    draftStore().removeItem(DRAFT_KEY);
 }
 
 function restoreDraft() {
     try {
-        const raw = localStorage.getItem(DRAFT_KEY);
+        const raw = draftStore().getItem(DRAFT_KEY);
         if (!raw || editing) return;
         const draft = JSON.parse(raw);
         const assessment = draft.assessment || {};
@@ -461,6 +574,10 @@ function restoreDraft() {
         $('duration').value = assessment.duration_minutes || 30;
         $('opensAt').value = assessment.opens_at ? String(assessment.opens_at).slice(0, 16) : '';
         $('closesAt').value = assessment.closes_at ? String(assessment.closes_at).slice(0, 16) : '';
+        ensureSecuritySettingsUi();
+        $('securityFullscreen').checked = assessment.settings?.fullscreen !== false;
+        $('securityAutoSubmit').checked = assessment.settings?.autoSubmitOnViolation !== false;
+        $('securityMaxViolations').value = Math.max(1, Number(assessment.settings?.maxViolations || 5));
         questions = Array.isArray(draft.questions) ? draft.questions : [];
         normalizeBuilderState();
         if (editing) lastAutosaveSignature = autosaveSignature(assessment, questions);
@@ -478,9 +595,17 @@ async function runAutosave() {
     const data = await api('admin/save', { method: 'POST', body: JSON.stringify({ assessment, questions }) });
     editing = data.id;
     assessment.id = data.id;
+    if (standaloneMode) {
+        const nextUrl = new URL(location.href);
+        nextUrl.searchParams.delete('new');
+        nextUrl.searchParams.set('id', data.id);
+        history.replaceState({}, '', nextUrl);
+    }
+    broadcastAssessmentChange('autosaved', data.id);
     lastAutosaveSignature = signature;
     persistDraft();
     setBuilderLock();
+    updateStandaloneTitle(document.querySelector('[data-assessment-view].active')?.dataset.assessmentView || 'details');
     return true;
 }
 
@@ -773,6 +898,10 @@ function reset() {
     clearTimeout(autosaveTimer);
     $('form').reset();
     $('duration').value = 30;
+    ensureSecuritySettingsUi();
+    $('securityFullscreen').checked = true;
+    $('securityAutoSubmit').checked = true;
+    $('securityMaxViolations').value = 5;
     sections = [createSection('Section 1')];
     activeSectionId = sections[0].id;
     questions = [];
@@ -796,7 +925,7 @@ function currentAssessment() {
         duration_minutes: Number($('duration').value || 30),
         opens_at: iso($('opensAt').value),
         closes_at: iso($('closesAt').value),
-        settings: { fullscreen: true, maxViolations: 5, builderSections: builderSettingsSnapshot() }
+        settings: { fullscreen: $('securityFullscreen')?.checked !== false, maxViolations: Math.max(1, Number($('securityMaxViolations')?.value || 5)), autoSubmitOnViolation: $('securityAutoSubmit')?.checked !== false, builderSections: builderSettingsSnapshot() }
     };
 }
 
@@ -809,6 +938,14 @@ async function save(event) {
         const data = await api('admin/save', { method: 'POST', body: JSON.stringify({ assessment, questions }) });
         editing = data.id;
         assessment.id = data.id;
+        if (standaloneMode) {
+            const nextUrl = new URL(location.href);
+            nextUrl.searchParams.delete('new');
+            nextUrl.searchParams.set('id', data.id);
+            nextUrl.searchParams.set('workspace', 'builder');
+            history.replaceState({}, '', nextUrl);
+        }
+        broadcastAssessmentChange('saved', data.id);
         lastAutosaveSignature = autosaveSignature(assessment, questions);
         persistDraft();
         setBuilderLock();
@@ -848,8 +985,8 @@ function renderAssessments() {
                 <button class="btn danger" data-delete="${esc(a.id)}"><i class="ph-bold ph-trash"></i>Delete</button>
             </div>
         </article>`).join('') : '<p class="mini">No assessments yet.</p>';
-    document.querySelectorAll('[data-edit]').forEach(btn => btn.onclick = () => edit(btn.dataset.edit, 'details'));
-    document.querySelectorAll('[data-builder]').forEach(btn => btn.onclick = () => edit(btn.dataset.builder, 'builder'));
+    document.querySelectorAll('[data-edit]').forEach(btn => btn.onclick = () => openAssessmentTab('details', btn.dataset.edit));
+    document.querySelectorAll('[data-builder]').forEach(btn => btn.onclick = () => openAssessmentTab('builder', btn.dataset.builder));
     document.querySelectorAll('[data-attempts]').forEach(btn => btn.onclick = () => {
         editing = btn.dataset.attempts;
         showWorkspace('results');
@@ -871,6 +1008,10 @@ async function edit(id, workspace = 'details') {
         $('duration').value = a.duration_minutes || 30;
         $('opensAt').value = a.opens_at ? String(a.opens_at).slice(0, 16) : '';
         $('closesAt').value = a.closes_at ? String(a.closes_at).slice(0, 16) : '';
+        ensureSecuritySettingsUi();
+        $('securityFullscreen').checked = a.settings?.fullscreen !== false;
+        $('securityAutoSubmit').checked = a.settings?.autoSubmitOnViolation !== false;
+        $('securityMaxViolations').value = Math.max(1, Number(a.settings?.maxViolations || 5));
         sections = Array.isArray(a.settings?.builderSections) && a.settings.builderSections.length ? a.settings.builderSections : [];
         questions = data.questions || [];
         normalizeBuilderState();
@@ -891,6 +1032,7 @@ async function del(id) {
     try {
         await api('admin/delete', { method: 'POST', body: JSON.stringify({ id }) });
         if (editing === id) reset();
+        broadcastAssessmentChange('deleted', id);
         toast('Deleted.');
         loadAssessments();
     } catch (error) {
@@ -967,10 +1109,13 @@ $('addQ').onclick = () => {
 };
 
 $('form').onsubmit = save;
-$('newBtn').onclick = () => { reset(); showWorkspace('details'); };
+$('newBtn').onclick = () => standaloneMode ? (reset(), showWorkspace('details')) : openAssessmentTab('details', '', true);
 $('refresh').onclick = loadAssessments;
 document.querySelectorAll('[data-assessment-view]').forEach(btn => btn.onclick = () => {
-    showWorkspace(btn.dataset.assessmentView);
+    const target = btn.dataset.assessmentView;
+    if (!standaloneMode && target === 'details') return openAssessmentTab('details', '', true);
+    if (!standaloneMode && target === 'builder' && editing) return openAssessmentTab('builder', editing);
+    showWorkspace(target);
 });
 document.querySelectorAll('#form input, #form textarea, #form select, #qType, #qPoints, #qPrompt, #qAnswer, #qSection').forEach(input => {
     input.addEventListener('input', scheduleAutosave);
@@ -984,10 +1129,28 @@ window.addEventListener('keydown', event => {
 window.addEventListener('beforeunload', persistDraft);
 
 theme();
+setupStandaloneShell();
 ensureBuilderUi();
 await loadSelects();
-restoreDraft();
-renderQ();
-setBuilderLock();
 await loadAssessments();
-showWorkspace('tests');
+
+if (standaloneMode) {
+    if (requestedNew) {
+        reset();
+        showWorkspace('details');
+    } else if (requestedAssessmentId) {
+        await edit(requestedAssessmentId, requestedWorkspace === 'builder' ? 'builder' : 'details');
+    } else {
+        showWorkspace(requestedWorkspace);
+    }
+} else {
+    restoreDraft();
+    renderQ();
+    setBuilderLock();
+    showWorkspace('tests');
+}
+
+adminChannel && (adminChannel.onmessage = () => { if (!standaloneMode) loadAssessments(); });
+window.addEventListener('storage', event => {
+    if (event.key === 'plvAdminAssessmentChange' && !standaloneMode) loadAssessments();
+});

@@ -596,12 +596,38 @@ async function studentList(env, profile) {
     });
 }
 
+function sessionIsFresh(meta, nowMs = Date.now()) {
+    const last = Date.parse(meta?.lastHeartbeatAt || '');
+    return Number.isFinite(last) && nowMs - last < 45000;
+}
+
+function sanitizeDraftAnswers(runtimeQuestions, rawAnswers) {
+    const source = rawAnswers && typeof rawAnswers === 'object' ? rawAnswers : {};
+    const allowed = new Set((runtimeQuestions || []).map(question => String(question.id)));
+    const clean = {};
+    for (const [questionId, value] of Object.entries(source)) {
+        if (!allowed.has(String(questionId))) continue;
+        clean[String(questionId)] = String(value ?? '').slice(0, 12000);
+    }
+    return clean;
+}
+
+function attemptSessionError(attemptMeta, clientSessionId) {
+    const active = clampText(attemptMeta?.activeSessionId, 120);
+    if (!active) return '';
+    if (!clientSessionId || active !== clientSessionId) {
+        return 'This exam is active in another tab or window. Close the other exam tab and wait about one minute before resuming.';
+    }
+    return '';
+}
+
 async function studentStart(request, env, profile) {
     const body = await readBody(request);
     const assessmentId = clampText(body.assessment_id, 80);
+    const clientSessionId = clampText(body.client_session_id, 120);
     const studentNo = String(profile.studentNo || profile.student_no || profile.username || '').trim();
     const studentName = String(profile.studentName || profile.fullName || profile.name || profile.email || 'Student').trim();
-    if (!assessmentId || !studentNo) return json({ error: 'Assessment cannot be started.' }, 422);
+    if (!assessmentId || !studentNo || !clientSessionId) return json({ error: 'Assessment session cannot be started.' }, 422);
 
     const [assessmentResult, questionsResult, attemptResult] = await turso(env, [
         { sql: `select * from assessments where id = ? limit 1`, args: [assessmentId] },
@@ -627,20 +653,36 @@ async function studentStart(request, env, profile) {
 
     const allQuestions = rows(questionsResult).map(row => questionFromRow(row, true));
     const existing = rows(attemptResult)[0];
-    const now = new Date().toISOString();
+    const now = new Date(nowMs).toISOString();
     const computedDeadline = new Date(nowMs + Number(assessment.duration_minutes || 30) * 60000).toISOString();
 
     let attemptId = existing?.id || '';
-    let startedAt = existing?.started_at || now;
-    let deadlineAt = existing?.deadline_at || computedDeadline;
+    const startedAt = existing?.started_at || now;
+    const deadlineAt = existing?.deadline_at || computedDeadline;
     let attemptMeta = parseJson(existing?.answers_json, {});
+    const previousSessionId = clampText(attemptMeta.activeSessionId, 120);
+    const activeElsewhere = previousSessionId && previousSessionId !== clientSessionId && sessionIsFresh(attemptMeta, nowMs);
+    if (activeElsewhere) {
+        return json({
+            error: 'This assessment is already open in another active tab or window.',
+            code: 'EXAM_ALREADY_ACTIVE'
+        }, 409);
+    }
+
     const hadRuntimeQuestions = Array.isArray(attemptMeta.runtimeQuestions) && attemptMeta.runtimeQuestions.length > 0;
     let runtimeQuestions = hadRuntimeQuestions ? attemptMeta.runtimeQuestions : [];
+    if (!runtimeQuestions.length) runtimeQuestions = buildRuntimeQuestions(assessment, allQuestions);
 
-    if (!runtimeQuestions.length) {
-        runtimeQuestions = buildRuntimeQuestions(assessment, allQuestions);
-        attemptMeta = { ...attemptMeta, runtimeQuestions };
-    }
+    const draftAnswers = sanitizeDraftAnswers(runtimeQuestions, attemptMeta.draftAnswers || {});
+    const recoveredSession = !!(previousSessionId && previousSessionId !== clientSessionId);
+    attemptMeta = {
+        ...attemptMeta,
+        runtimeQuestions,
+        draftAnswers,
+        activeSessionId: clientSessionId,
+        lastHeartbeatAt: now,
+        lastQuestionIndex: Math.max(0, Number(attemptMeta.lastQuestionIndex || 0))
+    };
 
     if (!attemptId) {
         attemptId = id('att');
@@ -662,17 +704,83 @@ async function studentStart(request, env, profile) {
                 now
             ]
         }]);
-    } else if (!hadRuntimeQuestions) {
-        await turso(env, [{
-            sql: `update assessment_attempts set answers_json = ? where id = ? and student_no = ?`,
+    } else {
+        const statements = [{
+            sql: `update assessment_attempts set answers_json = ? where id = ? and student_no = ? and status = 'started'`,
             args: [JSON.stringify(attemptMeta), attemptId, studentNo]
-        }]);
+        }];
+        if (recoveredSession) {
+            statements.push({
+                sql: `insert into assessment_incidents (id,attempt_id,assessment_id,student_no,type,details,created_at) values (?,?,?,?,?,?,?)`,
+                args: [id('inc'), attemptId, assessmentId, studentNo, 'session_recovered', 'A stale exam session was recovered in a new tab.', now]
+            });
+        }
+        await turso(env, statements);
     }
 
     return json({
-        attempt: { id: attemptId, deadline_at: deadlineAt, started_at: startedAt },
+        attempt: {
+            id: attemptId,
+            deadline_at: deadlineAt,
+            started_at: startedAt,
+            violations: Number(existing?.violations || 0),
+            last_question_index: Math.max(0, Number(attemptMeta.lastQuestionIndex || 0))
+        },
         assessment: assessmentFromRow(assessment),
-        questions: runtimeQuestions.map(safeRuntimeQuestion)
+        questions: runtimeQuestions.map(safeRuntimeQuestion),
+        answers: draftAnswers,
+        recovered: recoveredSession
+    });
+}
+
+async function studentAutosave(request, env, profile) {
+    const body = await readBody(request);
+    const attemptId = clampText(body.attempt_id, 80);
+    const clientSessionId = clampText(body.client_session_id, 120);
+    const studentNo = String(profile.studentNo || profile.student_no || profile.username || '').trim();
+    if (!attemptId || !clientSessionId) return json({ error: 'Invalid exam session.' }, 422);
+
+    const [attemptResult] = await turso(env, [{
+        sql: `select * from assessment_attempts where id = ? and student_no = ? limit 1`,
+        args: [attemptId, studentNo]
+    }]);
+    const attempt = rows(attemptResult)[0];
+    if (!attempt) return json({ error: 'Attempt not found.' }, 404);
+    if (attempt.status === 'submitted') return json({ ok: true, submitted: true });
+
+    const attemptMeta = parseJson(attempt.answers_json, {});
+    const sessionError = attemptSessionError(attemptMeta, clientSessionId);
+    if (sessionError) return json({ error: sessionError, code: 'SESSION_MISMATCH' }, 409);
+
+    let runtimeQuestions = Array.isArray(attemptMeta.runtimeQuestions) ? attemptMeta.runtimeQuestions : [];
+    if (!runtimeQuestions.length) {
+        const [questionsResult] = await turso(env, [{
+            sql: `select * from assessment_questions where assessment_id = ? order by order_no`,
+            args: [attempt.assessment_id]
+        }]);
+        runtimeQuestions = rows(questionsResult).map(row => questionFromRow(row, true));
+    }
+
+    const cleanAnswers = sanitizeDraftAnswers(runtimeQuestions, body.answers || attemptMeta.draftAnswers || {});
+    const now = new Date().toISOString();
+    const nextMeta = {
+        ...attemptMeta,
+        runtimeQuestions,
+        draftAnswers: cleanAnswers,
+        activeSessionId: clientSessionId,
+        lastHeartbeatAt: now,
+        lastQuestionIndex: Math.max(0, Math.min(runtimeQuestions.length - 1, Number(body.question_index || 0)))
+    };
+    await turso(env, [{
+        sql: `update assessment_attempts set answers_json = ? where id = ? and student_no = ? and status = 'started'`,
+        args: [JSON.stringify(nextMeta), attemptId, studentNo]
+    }]);
+
+    return json({
+        ok: true,
+        saved_at: now,
+        violations: Number(attempt.violations || 0),
+        deadline_at: attempt.deadline_at
     });
 }
 
@@ -699,7 +807,7 @@ function grade(questions, answers) {
 async function studentSubmit(request, env, profile) {
     const body = await readBody(request);
     const attemptId = clampText(body.attempt_id, 80);
-    const answers = body.answers && typeof body.answers === 'object' ? body.answers : {};
+    const clientSessionId = clampText(body.client_session_id, 120);
     const studentNo = String(profile.studentNo || profile.student_no || profile.username || '').trim();
 
     const [attemptResult] = await turso(env, [{
@@ -708,9 +816,12 @@ async function studentSubmit(request, env, profile) {
     }]);
     const attempt = rows(attemptResult)[0];
     if (!attempt) return json({ error: 'Attempt not found.' }, 404);
-    if (attempt.status === 'submitted') return json({ ok: true, alreadySubmitted: true });
+    if (attempt.status === 'submitted') return json({ ok: true, alreadySubmitted: true, score: Number(attempt.score || 0), total_points: Number(attempt.total_points || 0) });
 
     const attemptMeta = parseJson(attempt.answers_json, {});
+    const sessionError = attemptSessionError(attemptMeta, clientSessionId);
+    if (sessionError) return json({ error: sessionError, code: 'SESSION_MISMATCH' }, 409);
+
     let runtimeQuestions = Array.isArray(attemptMeta.runtimeQuestions) ? attemptMeta.runtimeQuestions : [];
     if (!runtimeQuestions.length) {
         const [questionsResult] = await turso(env, [{
@@ -720,6 +831,8 @@ async function studentSubmit(request, env, profile) {
         runtimeQuestions = rows(questionsResult).map(row => questionFromRow(row, true));
     }
 
+    const submittedAnswers = body.answers && typeof body.answers === 'object' ? body.answers : attemptMeta.draftAnswers;
+    const answers = sanitizeDraftAnswers(runtimeQuestions, submittedAnswers || {});
     const result = grade(runtimeQuestions, answers);
     const now = new Date().toISOString();
     await turso(env, [{
@@ -728,7 +841,9 @@ async function studentSubmit(request, env, profile) {
             JSON.stringify({
                 raw: answers,
                 graded: result.detail,
-                runtimeQuestionIds: runtimeQuestions.map(question => question.id)
+                runtimeQuestionIds: runtimeQuestions.map(question => question.id),
+                completedSessionId: clientSessionId,
+                completedAt: now
             }),
             result.score,
             result.total,
@@ -744,30 +859,84 @@ async function studentSubmit(request, env, profile) {
 async function studentIncident(request, env, profile) {
     const body = await readBody(request);
     const attemptId = clampText(body.attempt_id, 80);
+    const clientSessionId = clampText(body.client_session_id, 120);
     const type = clampText(body.type, 80) || 'unknown';
     const details = clampText(body.details, 1000);
     const studentNo = String(profile.studentNo || profile.student_no || profile.username || '').trim();
 
     const [attemptResult] = await turso(env, [{
-        sql: `select * from assessment_attempts where id = ? and student_no = ? limit 1`,
+        sql: `select a.*, s.settings_json from assessment_attempts a join assessments s on s.id = a.assessment_id where a.id = ? and a.student_no = ? limit 1`,
         args: [attemptId, studentNo]
     }]);
     const attempt = rows(attemptResult)[0];
     if (!attempt) return json({ error: 'Attempt not found.' }, 404);
+    if (attempt.status === 'submitted') return json({ ok: true, submitted: true, violations: Number(attempt.violations || 0) });
 
+    const attemptMeta = parseJson(attempt.answers_json, {});
+    const sessionError = attemptSessionError(attemptMeta, clientSessionId);
+    if (sessionError) return json({ error: sessionError, code: 'SESSION_MISMATCH' }, 409);
+
+    const settings = parseJson(attempt.settings_json, {});
+    const maxViolations = Math.max(1, Math.min(50, Number(settings.maxViolations || settings.maxViol || 5)));
+    const autoSubmitOnViolation = settings.autoSubmitOnViolation !== false;
     const now = new Date().toISOString();
     const newCount = Number(attempt.violations || 0) + 1;
-    await turso(env, [
-        {
-            sql: `insert into assessment_incidents (id,attempt_id,assessment_id,student_no,type,details,created_at) values (?,?,?,?,?,?,?)`,
-            args: [id('inc'), attemptId, attempt.assessment_id, studentNo, type, details, now]
-        },
-        {
-            sql: `update assessment_attempts set violations = ? where id = ?`,
-            args: [newCount, attemptId]
+    const shouldAutoSubmit = autoSubmitOnViolation && newCount >= maxViolations;
+    const statements = [{
+        sql: `insert into assessment_incidents (id,attempt_id,assessment_id,student_no,type,details,created_at) values (?,?,?,?,?,?,?)`,
+        args: [id('inc'), attemptId, attempt.assessment_id, studentNo, type, details, now]
+    }];
+
+    let automaticResult = null;
+    if (shouldAutoSubmit) {
+        let runtimeQuestions = Array.isArray(attemptMeta.runtimeQuestions) ? attemptMeta.runtimeQuestions : [];
+        if (!runtimeQuestions.length) {
+            const [questionsResult] = await turso(env, [{
+                sql: `select * from assessment_questions where assessment_id = ? order by order_no`,
+                args: [attempt.assessment_id]
+            }]);
+            runtimeQuestions = rows(questionsResult).map(row => questionFromRow(row, true));
         }
-    ]);
-    return json({ ok: true, violations: newCount });
+        const answers = sanitizeDraftAnswers(runtimeQuestions, attemptMeta.draftAnswers || {});
+        automaticResult = grade(runtimeQuestions, answers);
+        statements.push({
+            sql: `update assessment_attempts set status = 'submitted', violations = ?, answers_json = ?, score = ?, total_points = ?, submitted_at = ? where id = ? and student_no = ? and status = 'started'`,
+            args: [
+                newCount,
+                JSON.stringify({
+                    raw: answers,
+                    graded: automaticResult.detail,
+                    runtimeQuestionIds: runtimeQuestions.map(question => question.id),
+                    completedSessionId: clientSessionId,
+                    completedAt: now,
+                    autoSubmitReason: 'anomaly_limit',
+                    triggeringIncident: type
+                }),
+                automaticResult.score,
+                automaticResult.total,
+                now,
+                attemptId,
+                studentNo
+            ]
+        });
+    } else {
+        const nextMeta = { ...attemptMeta, lastHeartbeatAt: now };
+        statements.push({
+            sql: `update assessment_attempts set violations = ?, answers_json = ? where id = ?`,
+            args: [newCount, JSON.stringify(nextMeta), attemptId]
+        });
+    }
+
+    await turso(env, statements);
+    return json({
+        ok: true,
+        violations: newCount,
+        max_violations: maxViolations,
+        auto_submit: shouldAutoSubmit,
+        submitted: shouldAutoSubmit,
+        score: automaticResult?.score,
+        total_points: automaticResult?.total
+    });
 }
 
 export async function onRequest({ request, env, params }) {
@@ -793,6 +962,7 @@ export async function onRequest({ request, env, params }) {
             if (auth.error) return auth.error;
             if (request.method === 'GET' && path === '/student/list') return studentList(env, auth.profile);
             if (request.method === 'POST' && path === '/student/start') return studentStart(request, env, auth.profile);
+            if (request.method === 'POST' && path === '/student/autosave') return studentAutosave(request, env, auth.profile);
             if (request.method === 'POST' && path === '/student/submit') return studentSubmit(request, env, auth.profile);
             if (request.method === 'POST' && path === '/student/incident') return studentIncident(request, env, auth.profile);
         }
