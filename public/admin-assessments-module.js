@@ -61,6 +61,101 @@ function defaultSectionTitle(index = sections.length) {
     return `Section ${toRoman(index + 1)}`;
 }
 
+
+const QUESTION_TYPE_META = {
+    multiple_choice: {
+        name: 'Multiple Choice', icon: 'ph-list-bullets',
+        help: 'Paste the question together with choices A, B, C, and D. Smart Paste can detect the correct answer from “Answer: B”.',
+        format: '<b>Fastest method:</b> paste a full block such as <code>Question + A. choice + B. choice + Answer: B</code>. The choices and answer will fill automatically.',
+        button: 'Add Multiple Choice Question'
+    },
+    true_false: {
+        name: 'True or False', icon: 'ph-check-square',
+        help: 'Enter a statement, then choose whether the correct answer is True or False.',
+        format: 'You may paste <code>The statement...\\nAnswer: True</code> and the correct answer will be selected automatically.',
+        button: 'Add True or False Question'
+    },
+    short_answer: {
+        name: 'Identification', icon: 'ph-textbox',
+        help: 'Enter the question and provide the accepted short answer.',
+        format: 'You may paste <code>Question...\\nAnswer: accepted answer</code> to fill both fields automatically.',
+        button: 'Add Identification Question'
+    },
+    essay: {
+        name: 'Essay', icon: 'ph-article',
+        help: 'Enter an open-ended question. The teacher will grade the response manually.',
+        format: 'Type or paste only the essay prompt. No answer key is required.',
+        button: 'Add Essay Question'
+    }
+};
+
+function syncGuidedQuestionTypeUi(type = $('qType')?.value || 'multiple_choice', reveal = false) {
+    const meta = QUESTION_TYPE_META[type] || QUESTION_TYPE_META.multiple_choice;
+    document.querySelectorAll('[data-question-type]').forEach(button => {
+        button.classList.toggle('selected', button.dataset.questionType === type);
+        button.setAttribute('aria-pressed', button.dataset.questionType === type ? 'true' : 'false');
+    });
+    const panel = $('questionEditorPanel');
+    if (panel && reveal) panel.hidden = false;
+    if ($('selectedTypeName')) $('selectedTypeName').textContent = meta.name;
+    if ($('selectedTypeHelp')) $('selectedTypeHelp').textContent = meta.help;
+    if ($('questionFormatHelp')) $('questionFormatHelp').innerHTML = meta.format;
+    if ($('addQuestionButtonText')) $('addQuestionButtonText').textContent = meta.button;
+    if ($('selectedTypeIcon')) $('selectedTypeIcon').innerHTML = `<i class="ph-fill ${meta.icon}"></i>`;
+}
+
+function chooseGuidedQuestionType(type, options = {}) {
+    if (!QUESTION_TYPE_META[type]) return;
+    const typeSelect = $('qType');
+    if (typeSelect) {
+        typeSelect.value = type;
+        typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    syncGuidedQuestionTypeUi(type, true);
+    if (options.scroll !== false) $('questionEditorPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (options.focus !== false) setTimeout(() => $('qPrompt')?.focus(), 280);
+    $('questionEditorPanel')?.classList.remove('question-editor-flash');
+    requestAnimationFrame(() => $('questionEditorPanel')?.classList.add('question-editor-flash'));
+}
+
+function closeGuidedQuestionEditor({ clear = false, scroll = true } = {}) {
+    if (clear) {
+        if ($('qPrompt')) $('qPrompt').value = '';
+        if ($('qPoints')) $('qPoints').value = '1';
+        if ($('qAnswer')) $('qAnswer').value = '';
+        choiceDraft = [];
+        correctChoiceIndex = 0;
+        renderChoiceEditor();
+        updateAnswerKeyUi();
+    }
+    if ($('questionEditorPanel')) $('questionEditorPanel').hidden = true;
+    document.querySelectorAll('[data-question-type]').forEach(button => button.classList.remove('selected'));
+    if (scroll) $('questionTypeStep')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function setupGuidedQuestionBuilder() {
+    const picker = $('questionTypePicker');
+    if (picker && !picker.dataset.bound) {
+        picker.dataset.bound = '1';
+        picker.addEventListener('click', event => {
+            const button = event.target.closest('[data-question-type]');
+            if (button) chooseGuidedQuestionType(button.dataset.questionType);
+        });
+    }
+    const changeButton = $('changeQuestionTypeBtn');
+    if (changeButton && !changeButton.dataset.bound) {
+        changeButton.dataset.bound = '1';
+        changeButton.addEventListener('click', () => closeGuidedQuestionEditor({ clear: false }));
+    }
+    const cancelButton = $('cancelQuestionBtn');
+    if (cancelButton && !cancelButton.dataset.bound) {
+        cancelButton.dataset.bound = '1';
+        cancelButton.addEventListener('click', () => closeGuidedQuestionEditor({ clear: true }));
+    }
+    const hasDraftContent = !!$('qPrompt')?.value.trim();
+    syncGuidedQuestionTypeUi($('qType')?.value || 'multiple_choice', hasDraftContent);
+}
+
 function createSection(title = '') {
     return {
         id: uid('sec'),
@@ -146,9 +241,11 @@ function questionDraftFromUi() {
 }
 
 function renderSectionSelect() {
+    const options = sections.map(section => `<option value="${esc(section.id)}" ${section.id === activeSectionId ? 'selected' : ''}>${esc(section.title)}</option>`).join('');
     const select = $('qSection');
-    if (!select) return;
-    select.innerHTML = sections.map(section => `<option value="${esc(section.id)}" ${section.id === activeSectionId ? 'selected' : ''}>${esc(section.title)}</option>`).join('');
+    if (select) select.innerHTML = options;
+    const smartSelect = $('smartPasteSection');
+    if (smartSelect) smartSelect.innerHTML = options;
 }
 
 function initChoiceDraft(type) {
@@ -437,6 +534,7 @@ function restoreQuestionEditorState(state) {
     renderChoiceEditor();
     updateAnswerKeyUi();
     if (state.type === 'short_answer') $('qAnswer').value = state.answer;
+    syncGuidedQuestionTypeUi(state.type, true);
     inlinePasteUndo = null;
     showInlinePasteFeedback('Smart Paste was undone.', 'neutral', false);
 }
@@ -466,6 +564,7 @@ function applyParsedQuestionToEditor(parsed) {
     renderChoiceEditor();
     updateAnswerKeyUi();
     if (parsed.type === 'short_answer') $('qAnswer').value = parsed.answer_key || '';
+    syncGuidedQuestionTypeUi(parsed.type, true);
     const typeLabel = {
         multiple_choice: 'Multiple Choice', true_false: 'True or False',
         short_answer: 'Short Answer', essay: 'Essay'
@@ -516,7 +615,7 @@ function mapSmartParsedToQuestion(parsed, sectionId, orderNo) {
 }
 
 function importSmartPasteQuestions() {
-    const sectionId = $('qSection')?.value || activeSectionId || sections[0]?.id || '';
+    const sectionId = $('smartPasteSection')?.value || $('qSection')?.value || activeSectionId || sections[0]?.id || '';
     if (!sectionId) return toast('Create or select a section first.');
     const ready = smartPasteCache.filter(question => question.valid);
     if (!ready.length) return toast('No questions are ready to import.');
@@ -541,13 +640,14 @@ function setSmartPastePanel(open) {
     toggle.classList.toggle('secondary', !open);
     toggle.innerHTML = open
         ? '<i class="ph-bold ph-caret-up"></i>Hide Smart Paste'
-        : '<i class="ph-bold ph-clipboard-text"></i>Paste Multiple Questions';
+        : '<i class="ph-bold ph-magic-wand"></i>Open Smart Paste';
     if (open) requestAnimationFrame(() => $('smartPasteInput')?.focus());
 }
 
 function openSmartPasteForSection(sectionId) {
     activeSectionId = sectionId;
     if ($('qSection')) $('qSection').value = sectionId;
+    if ($('smartPasteSection')) $('smartPasteSection').value = sectionId;
     setSmartPastePanel(true);
     $('smartPasteBox')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
@@ -739,6 +839,7 @@ function ensureBuilderUi() {
     renderChoiceEditor();
     updateAnswerKeyUi();
     setupSmartPasteUi();
+    setupGuidedQuestionBuilder();
     ensureQuestionBankModal();
 }
 
@@ -999,9 +1100,9 @@ function renderQ() {
     $('qList').innerHTML = `
         <div class="builder-toolbar">
             <div class="builder-toolbar__title">
-                <span class="builder-summary__label">Question Builder</span>
-                <strong>${editing ? `Editing ${editing}` : 'New test draft'}</strong>
-                <p class="mini">Organize questions by section, set random picks, and shuffle order when needed.</p>
+                <span class="builder-summary__label">Assessment outline</span>
+                <strong>${$('title')?.value?.trim() || (editing ? 'Saved assessment' : 'New assessment')}</strong>
+                <p class="mini">Rename sections, choose random question counts, and review all saved questions.</p>
             </div>
             <div class="builder-toolbar__actions">
                 <button class="btn secondary" type="button" id="addSectionBtn"><i class="ph-bold ph-plus"></i>Add Section</button>
@@ -1051,9 +1152,13 @@ function renderQ() {
                 </div>
                 <div class="section-head__sub">
                     <span class="mini">${bankLabel}</span>
-                    <div class="section-sub-actions">
-                        <button class="btn secondary btn-sm" type="button" data-smart-paste-section="${esc(section.id)}"><i class="ph-bold ph-clipboard-text"></i> Smart Paste</button>
-                        <button class="btn secondary btn-sm" type="button" data-add-q-section="${esc(section.id)}"><i class="ph-bold ph-plus"></i> Add Question</button>
+                    <div class="section-add-menu">
+                        <span class="section-add-label">Add:</span>
+                        <button class="btn section-type-btn mc" type="button" data-add-q-type="multiple_choice" data-section-id="${esc(section.id)}"><i class="ph-bold ph-list-bullets"></i> Multiple Choice</button>
+                        <button class="btn section-type-btn tf" type="button" data-add-q-type="true_false" data-section-id="${esc(section.id)}"><i class="ph-bold ph-check-square"></i> True/False</button>
+                        <button class="btn section-type-btn id" type="button" data-add-q-type="short_answer" data-section-id="${esc(section.id)}"><i class="ph-bold ph-textbox"></i> Identification</button>
+                        <button class="btn section-type-btn es" type="button" data-add-q-type="essay" data-section-id="${esc(section.id)}"><i class="ph-bold ph-article"></i> Essay</button>
+                        <button class="btn secondary section-type-btn" type="button" data-smart-paste-section="${esc(section.id)}"><i class="ph-bold ph-clipboard-text"></i> Smart Paste</button>
                     </div>
                 </div>
                 <div class="section-body ${section.collapsed ? 'is-collapsed' : ''}">
@@ -1207,11 +1312,17 @@ function moveSection(sectionId, direction) {
     scheduleAutosave();
 }
 
-function addQuestionToSection(sectionId) {
+function addQuestionToSection(sectionId, type = '') {
     activeSectionId = sectionId;
     const select = $('qSection');
+    const smartSelect = $('smartPasteSection');
     if (select) select.value = sectionId;
-    $('qPrompt')?.focus();
+    if (smartSelect) smartSelect.value = sectionId;
+    if (type) chooseGuidedQuestionType(type);
+    else {
+        closeGuidedQuestionEditor({ clear: false, scroll: true });
+        setTimeout(() => $('questionTypeStep')?.classList.add('question-editor-flash'), 250);
+    }
 }
 
 function applyQuestionBank(sectionId) {
@@ -1238,6 +1349,7 @@ function bindBuilderEvents() {
                 return;
             }
             if (target.dataset.smartPasteSection) return openSmartPasteForSection(target.dataset.smartPasteSection);
+            if (target.dataset.addQType) return addQuestionToSection(target.dataset.sectionId, target.dataset.addQType);
             if (target.dataset.addQSection) return addQuestionToSection(target.dataset.addQSection);
             if (target.dataset.sectionBank) return applyQuestionBank(target.dataset.sectionBank);
             if (target.dataset.sectionToggle) return updateSection(target.dataset.sectionToggle, { collapsed: !sections.find(item => item.id === target.dataset.sectionToggle)?.collapsed });
@@ -1282,8 +1394,18 @@ function bindBuilderEvents() {
         };
     }
     const sectionSelect = $('qSection');
+    const smartSectionSelect = $('smartPasteSection');
     if (sectionSelect) {
-        sectionSelect.onchange = () => { activeSectionId = sectionSelect.value; };
+        sectionSelect.onchange = () => {
+            activeSectionId = sectionSelect.value;
+            if (smartSectionSelect) smartSectionSelect.value = activeSectionId;
+        };
+    }
+    if (smartSectionSelect) {
+        smartSectionSelect.onchange = () => {
+            activeSectionId = smartSectionSelect.value;
+            if (sectionSelect) sectionSelect.value = activeSectionId;
+        };
     }
 }
 
@@ -1304,6 +1426,7 @@ function reset() {
     correctChoiceIndex = 0;
     clearDraft();
     ensureBuilderUi();
+    closeGuidedQuestionEditor({ clear: true, scroll: false });
     renderQ();
     setBuilderLock();
     $('bldSub') && ($('bldSub').textContent = 'Create a new Turso test');
@@ -1470,6 +1593,7 @@ $('qType').onchange = () => {
     initChoiceDraft(type);
     renderChoiceEditor();
     updateAnswerKeyUi();
+    syncGuidedQuestionTypeUi(type, true);
 };
 
 $('addQ').onclick = () => {
@@ -1503,6 +1627,8 @@ $('addQ').onclick = () => {
     renderChoiceEditor();
     updateAnswerKeyUi();
     renderQ();
+    toast(`${QUESTION_TYPE_META[type]?.name || 'Question'} added successfully.`);
+    closeGuidedQuestionEditor({ clear: false, scroll: true });
 };
 
 $('form').onsubmit = save;
@@ -1514,7 +1640,7 @@ document.querySelectorAll('[data-assessment-view]').forEach(btn => btn.onclick =
     if (!standaloneMode && target === 'builder' && editing) return openAssessmentTab('builder', editing);
     showWorkspace(target);
 });
-document.querySelectorAll('#form input, #form textarea, #form select, #qType, #qPoints, #qPrompt, #qAnswer, #qSection').forEach(input => {
+document.querySelectorAll('#form input, #form textarea, #form select, #qType, #qPoints, #qPrompt, #qAnswer, #qSection, #smartPasteSection').forEach(input => {
     input.addEventListener('input', scheduleAutosave);
     input.addEventListener('change', scheduleAutosave);
 });

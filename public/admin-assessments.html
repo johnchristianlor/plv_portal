@@ -190,23 +190,150 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 @media(max-width:900px){.bank-row{grid-template-columns:1fr}.bank-row__controls{justify-content:flex-start}.section-head__controls{justify-content:flex-start}}
 @media(max-width:620px){.bank-modal{padding:10px}.bank-modal__head,.bank-modal__list,.bank-modal__footer{padding-left:16px;padding-right:16px}.bank-row__controls{align-items:stretch;flex-direction:column}.bank-row__controls>*{width:100%;justify-content:center}.bank-pick{grid-template-columns:1fr 80px}.section-identity{flex-basis:100%}.section-head__controls{flex-basis:100%;align-items:stretch;flex-direction:column}.section-head__controls>*{width:100%;justify-content:center}.section-icon-actions{display:grid;grid-template-columns:repeat(5,1fr)}.section-icon-actions .btn-icon{width:100%}}
 </style>
+
+<style>
+/* ===== Guided question builder redesign ===== */
+.builder-redesign{padding:clamp(18px,3vw,30px)!important;overflow:visible!important}
+.builder-page-intro{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:20px}
+.builder-page-intro h2{font-size:clamp(22px,3vw,30px)!important;letter-spacing:-.8px;margin:5px 0 7px!important}
+.builder-page-intro>div:first-child>p{color:var(--text-muted);font-weight:650;line-height:1.65;max-width:720px}
+.builder-kicker{display:inline-flex;align-items:center;gap:7px;color:var(--accent-primary);font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.75px}
+.builder-help-chip{display:flex;align-items:flex-start;gap:9px;max-width:330px;padding:11px 13px;border:1px solid rgba(212,175,55,.22);background:rgba(212,175,55,.09);border-radius:14px;color:var(--text-main);font-size:11px;line-height:1.45}
+.builder-help-chip i{font-size:18px;color:var(--accent-gold);flex:0 0 auto}
+.guided-step-card{border:1px solid rgba(100,116,139,.15);background:rgba(255,255,255,.38);border-radius:22px;padding:clamp(16px,2.5vw,24px);margin-bottom:18px;box-shadow:0 12px 30px -24px rgba(15,23,42,.28)}
+.dark-theme .guided-step-card{background:rgba(15,23,42,.3)}
+.guided-step-heading{display:flex;align-items:flex-start;gap:12px;margin-bottom:17px}.guided-step-heading.compact{margin-bottom:0}.guided-step-heading h3{font-size:16px;font-weight:900;margin:0 0 3px}.guided-step-heading p{font-size:12px;color:var(--text-muted);font-weight:650;line-height:1.5}
+.guided-step-number{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;border-radius:11px;background:linear-gradient(135deg,var(--accent-primary),#2563eb);color:#fff;font-size:13px;font-weight:900;box-shadow:0 8px 18px -10px var(--accent-primary)}
+.question-type-picker{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.question-type-card{position:relative;min-height:112px;border:1px solid rgba(100,116,139,.16);border-radius:18px;background:rgba(255,255,255,.62);color:var(--text-main);padding:16px;text-align:left;display:grid;grid-template-columns:44px minmax(0,1fr) 20px;align-items:center;gap:11px;cursor:pointer;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease,background .18s ease}
+.dark-theme .question-type-card{background:rgba(15,23,42,.48)}
+.question-type-card:hover{transform:translateY(-3px);border-color:rgba(0,61,165,.28);box-shadow:0 14px 28px -22px rgba(0,61,165,.55)}
+.question-type-card.selected{border-color:var(--accent-primary);box-shadow:0 0 0 3px var(--accent-light),0 16px 28px -22px var(--accent-primary);background:rgba(255,255,255,.84)}
+.dark-theme .question-type-card.selected{background:rgba(30,41,59,.8)}
+.question-type-icon,.selected-type-icon{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;background:var(--accent-light);color:var(--accent-primary)}
+.type-truefalse .question-type-icon{background:rgba(16,185,129,.11);color:#059669}.type-identification .question-type-icon{background:rgba(245,158,11,.12);color:#d97706}.type-essay .question-type-icon{background:rgba(139,92,246,.12);color:#7c3aed}
+.question-type-copy{min-width:0;display:flex;flex-direction:column;gap:4px}.question-type-copy strong{font-size:13px;font-weight:900}.question-type-copy small{font-size:10.5px;color:var(--text-muted);font-weight:650;line-height:1.45}.question-type-arrow{color:var(--text-muted);transition:.18s}.question-type-card:hover .question-type-arrow{transform:translateX(3px);color:var(--accent-primary)}
+.guided-editor{scroll-margin-top:92px}.guided-editor[hidden]{display:none!important}.guided-editor-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.selected-type-banner{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:15px;background:var(--accent-light);border:1px solid rgba(0,61,165,.12);margin-bottom:16px}.selected-type-banner small{display:block;color:var(--text-muted);font-size:9px;text-transform:uppercase;letter-spacing:.65px;font-weight:900}.selected-type-banner strong{display:block;font-size:13px;font-weight:900;margin-top:1px}
+.guided-meta-grid{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:13px}.field-help{font-size:10px;color:var(--text-muted);font-weight:650;line-height:1.45}.field-label-row{display:flex;align-items:center;justify-content:space-between;gap:10px}.paste-ready-badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 9px;background:rgba(16,185,129,.09);color:#047857;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.45px}.question-prompt-input{min-height:150px!important;font-size:14px!important;line-height:1.65!important}.question-format-help{margin-top:8px;padding:10px 12px;border:1px dashed rgba(100,116,139,.2);border-radius:12px;background:rgba(255,255,255,.26);color:var(--text-muted);font-size:10.5px;font-weight:650;line-height:1.55}.dark-theme .question-format-help{background:rgba(15,23,42,.23)}.question-format-help code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text-main);font-weight:750}.answer-key-card{padding:13px;border:1px solid rgba(245,158,11,.18);background:rgba(245,158,11,.06);border-radius:15px}
+.guided-editor-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:18px;padding-top:17px;border-top:1px solid rgba(100,116,139,.12)}.guided-add-question{min-width:240px;justify-content:center}
+.bulk-import-card{display:flex;align-items:flex-start;gap:14px;margin:18px 0!important;padding:17px!important}.bulk-import-icon{width:48px;height:48px;border-radius:15px;background:linear-gradient(135deg,rgba(124,92,255,.16),rgba(192,132,252,.1));color:#7c3aed;display:flex;align-items:center;justify-content:center;font-size:24px;flex:0 0 auto}.bulk-import-main{flex:1;min-width:0}.smart-paste-section-row{display:grid;grid-template-columns:auto minmax(180px,320px);align-items:center;gap:10px}.smart-paste-section-row label{font-size:10px!important;margin:0!important}.question-list-heading{margin:26px 0 12px;padding:0 2px}
+.section-add-menu{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.section-add-label{font-size:10px;font-weight:900;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px}.section-type-btn{padding:7px 10px!important;border-radius:10px!important;font-size:10px!important}.section-type-btn.mc{background:rgba(59,130,246,.1)!important;color:#2563eb!important}.section-type-btn.tf{background:rgba(16,185,129,.1)!important;color:#059669!important}.section-type-btn.id{background:rgba(245,158,11,.1)!important;color:#d97706!important}.section-type-btn.es{background:rgba(139,92,246,.1)!important;color:#7c3aed!important}
+.question-editor-flash{animation:editorFlash .65s ease}@keyframes editorFlash{0%{box-shadow:0 0 0 0 rgba(0,61,165,.38)}100%{box-shadow:0 0 0 12px rgba(0,61,165,0)}}
+@media(max-width:980px){.question-type-picker{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){.question-type-picker{grid-template-columns:1fr}.question-type-card{min-height:88px}.guided-meta-grid{grid-template-columns:1fr}.guided-editor-actions>*{width:100%}.guided-add-question{min-width:0}.bulk-import-card{flex-direction:column}.smart-paste-section-row{grid-template-columns:1fr}.builder-help-chip{max-width:none;width:100%}}
+</style>
 </head>
 <body>
 <div class="ambient-mesh"><div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div></div>
 <aside class="sidebar"><div class="logo-container"><img src="https://res.cloudinary.com/dfdlqf6ng/image/upload/v1772078917/PamantasanNgLungsodNgValenzuelaLogo_t53djy.png" alt="PLV Logo" class="logo-img"><div class="logo-text"><h2>PLV Admin</h2><p>System Management</p></div></div><ul class="nav-menu"><li class="nav-item"><a href="admin-dashboard.html"><i class="ph-fill ph-squares-four"></i> Dashboard Overview</a></li><li class="nav-item"><a href="admin-records.html"><i class="ph ph-pen"></i> Student Records</a></li><li class="nav-item"><a href="admin-sections.html"><i class="ph-fill ph-users-three"></i> Manage Sections</a></li><li class="nav-item"><a href="admin-subjects.html"><i class="ph ph-notebook"></i> Manage Subjects</a></li><li class="nav-item"><a href="admin-schedule.html"><i class="ph-fill ph-clock"></i> Manage Schedules</a></li><li class="nav-item"><a href="admin-accounts.html"><i class="ph-fill ph-users"></i> Student Accounts</a></li><li class="nav-item"><a href="admin-activities.html"><i class="ph-fill ph-list-checks"></i> Activities Setup</a></li><li class="nav-item"><a href="admin-assessments.html" class="active"><i class="ph-fill ph-clipboard-text"></i> Create Assessments</a></li><li class="nav-item"><a href="admin-grades.html"><i class="ph-fill ph-exam"></i> Input Grades</a></li><li class="nav-item"><a href="admin-attendance.html"><i class="ph-fill ph-calendar-check"></i> Attendance</a></li><li class="nav-item"><a href="admin-settings.html"><i class="ph-fill ph-gear"></i> System Settings</a></li><li class="nav-item" style="margin-top:auto;"><a onclick="window.logout()"><i class="ph ph-sign-out"></i> Logout</a></li></ul></aside>
-<main class="main-wrapper"><header class="header"><div><h1>Create Assessments</h1><p>Create quizzes, publish by section, and review submissions.</p></div><div class="icon-btn theme-toggle" id="themeToggle"><i class="ph-fill ph-sun" id="themeIcon"></i></div></header><div class="assessment-workspace-tabs"><button class="active" data-assessment-view="tests"><i class="ph-fill ph-stack"></i>My Tests</button><button data-assessment-view="details"><i class="ph-bold ph-plus-circle"></i>New Test</button><button data-assessment-view="builder"><i class="ph-fill ph-list-checks"></i>Questions Manager</button><button data-assessment-view="results"><i class="ph-fill ph-chart-bar"></i>Results</button><button data-assessment-view="security"><i class="ph-fill ph-shield-warning"></i>Anomaly Log</button></div><div class="assessment-grid" data-workspace="details"><section class="glass panel assessment-detail-panel"><h2>Assessment Details</h2><form id="form"><div class="form-grid"><div class="field full"><label>Title</label><input class="input" id="title" maxlength="120" required></div><div class="field full"><label>Instructions</label><textarea class="textarea" id="instructions"></textarea></div><div class="field"><label>Subject</label><select class="select" id="subject" required></select></div><div class="field"><label>Section</label><select class="select" id="section" required></select></div><div class="field"><label>Status</label><select class="select" id="status"><option value="draft">Draft</option><option value="published">Published</option><option value="closed">Closed</option></select></div><div class="field"><label>Duration minutes</label><input class="input" id="duration" type="number" min="1" max="240" value="30"></div><div class="field"><label>Open date</label><input class="input" id="opensAt" type="datetime-local"></div><div class="field"><label>Close date</label><input class="input" id="closesAt" type="datetime-local"></div></div><div class="actions"><button class="btn primary" type="submit"><i class="ph-bold ph-floppy-disk"></i>Save</button><button class="btn secondary" type="button" id="newBtn"><i class="ph-bold ph-plus"></i>New</button></div></form></section><section class="glass panel assessment-builder-panel"><h2>Question Builder</h2><div class="form-grid"><div class="field"><label>Type</label><select class="select" id="qType"><option value="multiple_choice">Multiple Choice</option><option value="true_false">True or False</option><option value="short_answer">Short Answer</option><option value="essay">Essay</option></select></div><div class="field"><label>Points</label><input class="input" id="qPoints" type="number" min="1" max="1000" value="1"></div><div class="field"><label>Section</label><select class="select" id="qSection"></select></div><div class="field full"><label>Question</label><textarea class="textarea" id="qPrompt" placeholder="Type a question, or paste a complete block with choices and Answer: B"></textarea><p class="mini" style="margin-top:7px"><i class="ph-bold ph-magic-wand"></i> Smart Paste: paste the question, A–D choices, and the answer key directly in this box.</p></div><div class="field full smart-paste-box" id="smartPasteBox"><div class="smart-paste-head"><div><label><i class="ph-bold ph-clipboard-text"></i> Smart Paste Questions</label><p class="mini">Use this panel to import several questions into the selected section at once.</p></div><button class="btn secondary btn-sm" type="button" id="smartPasteToggle"><i class="ph-bold ph-clipboard-text"></i>Paste Multiple Questions</button></div><div class="inline-paste-feedback" id="inlinePasteFeedback" hidden></div><div class="smart-paste-panel" id="smartPastePanel" hidden><textarea class="textarea smart-paste-input" id="smartPasteInput" placeholder="Example:
+<main class="main-wrapper"><header class="header"><div><h1>Create Assessments</h1><p>Create quizzes, publish by section, and review submissions.</p></div><div class="icon-btn theme-toggle" id="themeToggle"><i class="ph-fill ph-sun" id="themeIcon"></i></div></header><div class="assessment-workspace-tabs"><button class="active" data-assessment-view="tests"><i class="ph-fill ph-stack"></i>My Tests</button><button data-assessment-view="details"><i class="ph-bold ph-plus-circle"></i>New Test</button><button data-assessment-view="builder"><i class="ph-fill ph-list-checks"></i>Questions Manager</button><button data-assessment-view="results"><i class="ph-fill ph-chart-bar"></i>Results</button><button data-assessment-view="security"><i class="ph-fill ph-shield-warning"></i>Anomaly Log</button></div><div class="assessment-grid" data-workspace="details"><section class="glass panel assessment-detail-panel"><h2>Assessment Details</h2><form id="form"><div class="form-grid"><div class="field full"><label>Title</label><input class="input" id="title" maxlength="120" required></div><div class="field full"><label>Instructions</label><textarea class="textarea" id="instructions"></textarea></div><div class="field"><label>Subject</label><select class="select" id="subject" required></select></div><div class="field"><label>Section</label><select class="select" id="section" required></select></div><div class="field"><label>Status</label><select class="select" id="status"><option value="draft">Draft</option><option value="published">Published</option><option value="closed">Closed</option></select></div><div class="field"><label>Duration minutes</label><input class="input" id="duration" type="number" min="1" max="240" value="30"></div><div class="field"><label>Open date</label><input class="input" id="opensAt" type="datetime-local"></div><div class="field"><label>Close date</label><input class="input" id="closesAt" type="datetime-local"></div></div><div class="actions"><button class="btn primary" type="submit"><i class="ph-bold ph-floppy-disk"></i>Save</button><button class="btn secondary" type="button" id="newBtn"><i class="ph-bold ph-plus"></i>New</button></div></form></section><section class="glass panel assessment-builder-panel builder-redesign">
+<div class="builder-page-intro">
+  <div>
+    <span class="builder-kicker"><i class="ph-fill ph-magic-wand"></i> Simple Question Builder</span>
+    <h2>Create questions step by step</h2>
+    <p>Choose a question type first, then type or paste the question. The builder will show only the fields you need.</p>
+  </div>
+  <div class="builder-help-chip"><i class="ph-bold ph-lightbulb"></i><span><b>Tip:</b> You can rename every section by clicking its name below.</span></div>
+</div>
 
-1. What is an iteration structure?
+<div class="guided-step-card" id="questionTypeStep">
+  <div class="guided-step-heading">
+    <span class="guided-step-number">1</span>
+    <div><h3>Choose the question type</h3><p>Select what students will answer. You can change it before adding the question.</p></div>
+  </div>
+  <div class="question-type-picker" id="questionTypePicker">
+    <button class="question-type-card type-multiple" type="button" data-question-type="multiple_choice">
+      <span class="question-type-icon"><i class="ph-fill ph-list-bullets"></i></span>
+      <span class="question-type-copy"><strong>Multiple Choice</strong><small>Question with two or more choices</small></span>
+      <i class="ph-bold ph-arrow-right question-type-arrow"></i>
+    </button>
+    <button class="question-type-card type-truefalse" type="button" data-question-type="true_false">
+      <span class="question-type-icon"><i class="ph-fill ph-check-square"></i></span>
+      <span class="question-type-copy"><strong>True or False</strong><small>A statement answered True or False</small></span>
+      <i class="ph-bold ph-arrow-right question-type-arrow"></i>
+    </button>
+    <button class="question-type-card type-identification" type="button" data-question-type="short_answer">
+      <span class="question-type-icon"><i class="ph-fill ph-textbox"></i></span>
+      <span class="question-type-copy"><strong>Identification</strong><small>Student types a short answer</small></span>
+      <i class="ph-bold ph-arrow-right question-type-arrow"></i>
+    </button>
+    <button class="question-type-card type-essay" type="button" data-question-type="essay">
+      <span class="question-type-icon"><i class="ph-fill ph-article"></i></span>
+      <span class="question-type-copy"><strong>Essay</strong><small>Student writes a longer response</small></span>
+      <i class="ph-bold ph-arrow-right question-type-arrow"></i>
+    </button>
+  </div>
+  <select class="select" id="qType" hidden aria-hidden="true" tabindex="-1">
+    <option value="multiple_choice">Multiple Choice</option>
+    <option value="true_false">True or False</option>
+    <option value="short_answer">Identification</option>
+    <option value="essay">Essay</option>
+  </select>
+</div>
+
+<div class="guided-step-card guided-editor" id="questionEditorPanel" hidden>
+  <div class="guided-editor-head">
+    <div class="guided-step-heading compact">
+      <span class="guided-step-number">2</span>
+      <div><h3>Add the question</h3><p id="selectedTypeHelp">Type or paste your question below.</p></div>
+    </div>
+    <button class="btn secondary btn-sm" type="button" id="changeQuestionTypeBtn"><i class="ph-bold ph-arrows-left-right"></i>Change type</button>
+  </div>
+  <div class="selected-type-banner" id="selectedTypeBanner">
+    <span class="selected-type-icon" id="selectedTypeIcon"><i class="ph-fill ph-list-bullets"></i></span>
+    <div><small>Selected type</small><strong id="selectedTypeName">Multiple Choice</strong></div>
+  </div>
+
+  <div class="guided-meta-grid">
+    <div class="field"><label for="qSection">Add to section</label><select class="select" id="qSection"></select><p class="field-help">Choose where this question belongs.</p></div>
+    <div class="field"><label for="qPoints">Points</label><input class="input" id="qPoints" type="number" min="1" max="1000" value="1"><p class="field-help">Score given for a correct answer.</p></div>
+  </div>
+
+  <div class="field full question-prompt-field">
+    <div class="field-label-row"><label for="qPrompt">Question</label><span class="paste-ready-badge"><i class="ph-bold ph-clipboard-text"></i> Paste-ready</span></div>
+    <textarea class="textarea question-prompt-input" id="qPrompt" placeholder="Type your question here, or paste a complete question block..."></textarea>
+    <div class="question-format-help" id="questionFormatHelp"></div>
+  </div>
+
+  <div class="inline-paste-feedback" id="inlinePasteFeedback" hidden></div>
+  <div class="field full" id="choiceWrap"></div>
+  <div class="field full answer-key-card" id="answerKeyField"><label>Accepted answer</label><input class="input" id="qAnswer" placeholder="Enter the accepted short answer"><p class="mini">This comparison is not case-sensitive. Leave blank for manual checking.</p></div>
+
+  <div class="guided-editor-actions">
+    <button class="btn secondary" type="button" id="cancelQuestionBtn"><i class="ph-bold ph-x"></i>Cancel</button>
+    <button class="btn primary guided-add-question" type="button" id="addQ"><i class="ph-bold ph-plus-circle"></i><span id="addQuestionButtonText">Add Multiple Choice Question</span></button>
+  </div>
+</div>
+
+<div class="bulk-import-card smart-paste-box" id="smartPasteBox">
+  <div class="bulk-import-icon"><i class="ph-fill ph-clipboard-text"></i></div>
+  <div class="bulk-import-main">
+    <div class="smart-paste-head">
+      <div><label>Need to add many questions?</label><p class="mini">Paste a complete questionnaire and let Smart Paste detect the question types, choices, and answers.</p></div>
+      <button class="btn secondary" type="button" id="smartPasteToggle"><i class="ph-bold ph-magic-wand"></i>Open Smart Paste</button>
+    </div>
+    <div class="smart-paste-panel" id="smartPastePanel" hidden>
+      <div class="smart-paste-section-row"><label for="smartPasteSection">Import into</label><select class="select" id="smartPasteSection"></select></div>
+      <textarea class="textarea smart-paste-input" id="smartPasteInput" placeholder="Example:
+
+What is an iteration structure?
 A. A structure used to declare variables
 B. A structure used to repeat statements
 C. A structure used to create classes
 D. A structure used to import packages
-Answer: B
+Answer: B"></textarea>
+      <div class="smart-paste-actions"><button class="btn secondary" type="button" id="smartPasteDetect"><i class="ph-bold ph-magnifying-glass"></i>Preview detected questions</button><button class="btn primary" type="button" id="smartPasteImport" disabled><i class="ph-bold ph-download-simple"></i>Import questions</button><button class="btn secondary" type="button" id="smartPasteClear"><i class="ph-bold ph-eraser"></i>Clear</button></div>
+      <div class="smart-paste-preview" id="smartPastePreview"></div>
+    </div>
+  </div>
+</div>
 
-2. Another question...
-A. Choice one
-B. Choice two
-Answer: A"></textarea><div class="smart-paste-actions"><button class="btn secondary" type="button" id="smartPasteDetect"><i class="ph-bold ph-magnifying-glass"></i>Detect Questions</button><button class="btn primary" type="button" id="smartPasteImport" disabled><i class="ph-bold ph-download-simple"></i>Import to Selected Section</button><button class="btn secondary" type="button" id="smartPasteClear"><i class="ph-bold ph-eraser"></i>Clear</button></div><div class="smart-paste-preview" id="smartPastePreview"></div></div></div><div class="field full" id="choiceWrap"></div><div class="field full" id="answerKeyField"><label>Accepted short answer</label><input class="input" id="qAnswer" placeholder="Enter the accepted short answer"><p class="mini">Leave this blank when the instructor will grade the answer manually.</p></div></div><div class="actions"><button class="btn secondary" type="button" id="addQ"><i class="ph-bold ph-plus"></i>Add Question</button></div><div id="qList"></div></section></div><section class="glass panel" data-workspace="tests"><div class="row"><h2>Assessment Library</h2><button class="btn secondary" id="refresh"><i class="ph-bold ph-arrow-clockwise"></i>Refresh</button></div><div id="list"></div></section><section class="glass panel" data-workspace="results"><h2>Submissions / Anomaly Log</h2><div id="attempts"><p class="mini">Select an assessment to view submissions.</p></div></section></main>
+<div class="question-list-heading">
+  <div class="guided-step-heading compact"><span class="guided-step-number">3</span><div><h3>Review and organize</h3><p>Your sections and saved questions appear below.</p></div></div>
+</div>
+<div id="qList"></div>
+</section></div><section class="glass panel" data-workspace="tests"><div class="row"><h2>Assessment Library</h2><button class="btn secondary" id="refresh"><i class="ph-bold ph-arrow-clockwise"></i>Refresh</button></div><div id="list"></div></section><section class="glass panel" data-workspace="results"><h2>Submissions / Anomaly Log</h2><div id="attempts"><p class="mini">Select an assessment to view submissions.</p></div></section></main>
 <nav class="mobile-nav-bar"><ul><li><a href="admin-dashboard.html" id="mnav-dash"><i class="ph-fill ph-squares-four"></i>Dashboard</a></li><li><a href="admin-records.html" id="mnav-rec"><i class="ph ph-pen"></i>Records</a></li><li><a href="admin-sections.html" id="mnav-sec"><i class="ph-fill ph-users-three"></i>Sections</a></li><li><a href="admin-subjects.html" id="mnav-sub"><i class="ph ph-notebook"></i>Subjects</a></li><li><a href="admin-schedule.html" id="mnav-sch"><i class="ph-fill ph-clock"></i>Schedules</a></li><li><a href="admin-accounts.html" id="mnav-acc"><i class="ph-fill ph-users"></i>Accounts</a></li><li><a href="admin-activities.html" id="mnav-act"><i class="ph-fill ph-list-checks"></i>Activities</a></li><li><a href="admin-assessments.html" id="mnav-ass" class="active"><i class="ph-fill ph-clipboard-text"></i>Assessments</a></li><li><a href="admin-grades.html" id="mnav-grd"><i class="ph-fill ph-exam"></i>Grades</a></li><li><a href="admin-attendance.html" id="mnav-att"><i class="ph-fill ph-calendar-check"></i>Attendance</a></li><li><a href="admin-settings.html" id="mnav-set"><i class="ph-fill ph-gear"></i>Settings</a></li><li><a href="#" onclick="window.logout()" id="mnav-out"><i class="ph ph-sign-out"></i>Logout</a></li></ul></nav>
 <div class="toast" id="toast"></div>
 <script type="module" src="./admin-assessments-module.js"></script>
