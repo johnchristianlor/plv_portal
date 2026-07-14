@@ -23,6 +23,7 @@ let correctChoiceIndex = 0;
 let questionBankDraft = [];
 let smartPasteCache = [];
 let inlinePasteUndo = null;
+let smartPasteLastFocus = null;
 let assessments = [];
 let autosaveTimer = null;
 let lastAutosaveSignature = '';
@@ -629,19 +630,30 @@ function importSmartPasteQuestions() {
     $('smartPasteInput').value = '';
     smartPasteCache = [];
     renderSmartPastePreview();
+    setSmartPastePanel(false);
 }
 
 function setSmartPastePanel(open) {
-    const panel = $('smartPastePanel');
-    const toggle = $('smartPasteToggle');
-    if (!panel || !toggle) return;
-    panel.hidden = !open;
-    toggle.classList.toggle('primary', open);
-    toggle.classList.toggle('secondary', !open);
-    toggle.innerHTML = open
-        ? '<i class="ph-bold ph-caret-up"></i>Hide Smart Paste'
-        : '<i class="ph-bold ph-magic-wand"></i>Open Smart Paste';
-    if (open) requestAnimationFrame(() => $('smartPasteInput')?.focus());
+    const modal = $('smartPasteModal');
+    if (!modal) return;
+    const isOpen = modal.classList.contains('show');
+    if (open === isOpen) return;
+
+    if (open) {
+        smartPasteLastFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('smart-paste-open');
+        requestAnimationFrame(() => $('smartPasteInput')?.focus());
+        return;
+    }
+
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('smart-paste-open');
+    const returnTarget = smartPasteLastFocus;
+    smartPasteLastFocus = null;
+    if (returnTarget?.isConnected) requestAnimationFrame(() => returnTarget.focus());
 }
 
 function openSmartPasteForSection(sectionId) {
@@ -649,7 +661,6 @@ function openSmartPasteForSection(sectionId) {
     if ($('qSection')) $('qSection').value = sectionId;
     if ($('smartPasteSection')) $('smartPasteSection').value = sectionId;
     setSmartPastePanel(true);
-    $('smartPasteBox')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function handleQuestionPromptPaste(event) {
@@ -676,13 +687,21 @@ function setupSmartPasteUi() {
         prompt.onpaste = handleQuestionPromptPaste;
         prompt.placeholder = 'Type a question, or paste a full block with A–D choices and Answer: B';
     }
-    if ($('smartPasteToggle')) $('smartPasteToggle').onclick = () => setSmartPastePanel($('smartPastePanel')?.hidden !== false);
+
+    if ($('smartPasteToggle')) $('smartPasteToggle').onclick = () => setSmartPastePanel(true);
+    if ($('smartPasteClose')) $('smartPasteClose').onclick = () => setSmartPastePanel(false);
+    if ($('smartPasteCancel')) $('smartPasteCancel').onclick = () => setSmartPastePanel(false);
+    document.querySelectorAll('[data-smart-paste-close]').forEach(element => {
+        element.onclick = () => setSmartPastePanel(false);
+    });
+
     if ($('smartPasteDetect')) $('smartPasteDetect').onclick = detectSmartPasteQuestions;
     if ($('smartPasteImport')) $('smartPasteImport').onclick = importSmartPasteQuestions;
     if ($('smartPasteClear')) $('smartPasteClear').onclick = () => {
         $('smartPasteInput').value = '';
         smartPasteCache = [];
         renderSmartPastePreview();
+        $('smartPasteInput').focus();
     };
     if ($('smartPasteInput')) {
         $('smartPasteInput').oninput = () => {
@@ -691,6 +710,13 @@ function setupSmartPasteUi() {
         };
         $('smartPasteInput').onpaste = () => setTimeout(detectSmartPasteQuestions, 0);
     }
+
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && $('smartPasteModal')?.classList.contains('show')) {
+            event.preventDefault();
+            setSmartPastePanel(false);
+        }
+    });
     renderSmartPastePreview();
 }
 
