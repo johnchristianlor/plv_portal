@@ -1,0 +1,15 @@
+PLV Portal Layered Secure Assessment Upgrade
+Validation date: 2026-07-15
+
+PASS - JavaScript syntax check for all public, function, and test JavaScript files.
+PASS - Static security contract validation.
+PASS - 30 canonical incident codes match between frontend and backend.
+PASS - Standard, Monitored, Strict, and Secure Browser Ready modes found in frontend and backend.
+PASS - Turso schema executed successfully in SQLite/libSQL-compatible validation (6 tables).
+PASS - No duplicate HTML IDs in admin-assessments.html, student-assessments.html, or student-exam.html.
+PASS - No frontend references to private Turso, Supabase service-role, Backblaze, or secure-browser secret environment variables.
+PASS - Assessment API local Turso/Supabase emulator smoke test: 19 checks.
+
+Smoke coverage includes assignment enforcement, public setting sanitization, no answer keys, official deadline capping, active-session preflight, duplicate session rejection, stable question restore, ordered/idempotent autosave, incident idempotency, bounded incident batching, fair connection-event handling, server expiry finalization, max-attempt enforcement, ownership protection, admin review/timeline, protected submission fields, all core modes, automatic submission policy, secure-browser unavailable blocking, and legacy settings compatibility.
+
+Not performed against live services: Cloudflare production deployment, production Turso, real Supabase token-expiry timing, physical mobile browser matrix, media-permission matrix, or approved secure-browser provider verification.

@@ -1,5 +1,7 @@
 import { supabase } from './supabase-adapter.js';
 import { startAdminSessionGuard } from './admin-session.js';
+import { normalizeSecurityConfig, MODE_DEFAULTS, SECURITY_MODE_LABELS } from './exam-security-config.js';
+import { INCIDENT_CODES, incidentLabel, canonicalIncidentCode } from './exam-incident-codes.js';
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
@@ -33,6 +35,11 @@ let incidentAssessmentFilterId = null;
 let incidentTypeFilter = 'all';
 let incidentSearch = '';
 let incidentSearchTimer = null;
+let incidentNextCursor = null;
+let incidentHasMore = false;
+let incidentFilters = { section: 'all', student: '', attempt: '', session: '', severity: 'all', review: 'all', submission: 'all', category: 'all', dateFrom: '', dateTo: '' };
+let auditReviewIncidentId = '';
+let auditReviewAttemptId = '';
 let autosaveTimer = null;
 let draftPersistTimer = null;
 let lastAutosaveSignature = '';
@@ -1051,23 +1058,203 @@ function openQuestionBank(sectionId = '') {
     });
 }
 
+function securityToggle(id, title, description, checked = false) {
+    return `<label class="security-toggle-card"><input id="${id}" type="checkbox" ${checked ? 'checked' : ''}><span><b>${title}</b><small>${description}</small></span></label>`;
+}
+
 function ensureSecuritySettingsUi() {
     if ($('securitySettingsCard')) return;
     const grid = $('form')?.querySelector('.form-grid');
     if (!grid) return;
+    if (!$('assessmentSecurityStyles')) {
+        document.head.insertAdjacentHTML('beforeend', `<style id="assessmentSecurityStyles">
+            .security-settings-shell{border:1px solid rgba(100,116,139,.17);border-radius:20px;background:rgba(255,255,255,.38);overflow:hidden}.security-settings-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding:18px 20px;border-bottom:1px solid rgba(100,116,139,.14);background:linear-gradient(135deg,rgba(0,61,165,.07),rgba(15,159,110,.04))}.security-settings-head h3{font-size:16px;margin:2px 0 4px}.security-settings-head p{font-size:11px;color:var(--text-muted);font-weight:700;max-width:650px;line-height:1.55}.security-mode-field{min-width:230px}.security-mode-field label{font-size:10px;margin-bottom:5px}.security-mode-note{padding:10px 20px;background:var(--accent-light);font-size:11px;color:var(--text-muted);font-weight:700;line-height:1.55}.security-group{border-top:1px solid rgba(100,116,139,.13)}.security-group summary{display:flex;align-items:center;gap:9px;padding:14px 20px;cursor:pointer;font-size:12px;font-weight:900;color:var(--text-main);list-style:none}.security-group summary::-webkit-details-marker{display:none}.security-group summary:after{content:'+';margin-left:auto;font-size:17px;color:var(--text-muted)}.security-group[open] summary:after{content:'−'}.security-group-body{padding:0 20px 18px}.security-control-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:10px}.security-toggle-card{display:flex!important;align-items:flex-start;gap:10px;padding:12px!important;border-radius:14px;background:var(--accent-light);border:1px solid rgba(100,116,139,.12);color:var(--text-main)!important;font-size:12px!important;font-weight:800!important;text-transform:none!important;letter-spacing:0!important;cursor:pointer}.security-toggle-card input{margin-top:2px;accent-color:var(--accent-primary);width:16px;height:16px}.security-toggle-card span{display:grid;gap:3px}.security-toggle-card small{font-size:10px;color:var(--text-muted);font-weight:700;line-height:1.45}.security-number-card{padding:12px;border-radius:14px;background:var(--accent-light);border:1px solid rgba(100,116,139,.12)}.security-number-card label{font-size:10px;margin-bottom:6px}.security-number-card small{display:block;margin-top:5px;color:var(--text-muted);font-size:10px;font-weight:700;line-height:1.4}.security-provider-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:10px}.security-integration-note{margin-top:10px;padding:11px 12px;border-radius:13px;background:rgba(245,158,11,.09);border:1px solid rgba(245,158,11,.2);color:#9a6500;font-size:10px;font-weight:750;line-height:1.5}.security-policy-scroll{overflow:auto;border:1px solid rgba(100,116,139,.14);border-radius:15px}.security-policy-table{width:100%;min-width:1050px;border-collapse:collapse;font-size:10px}.security-policy-table th,.security-policy-table td{padding:9px 8px;border-bottom:1px solid rgba(100,116,139,.11);text-align:left;vertical-align:middle}.security-policy-table th{position:sticky;top:0;background:var(--bg-body);z-index:1;color:var(--text-muted);font-size:8px;text-transform:uppercase;letter-spacing:.45px}.security-policy-table td:first-child{min-width:190px}.security-policy-table .select,.security-policy-table .input{height:34px!important;padding:6px 8px!important;border-radius:9px!important;font-size:9px!important}.security-policy-check{display:flex;justify-content:center}.security-policy-check input{width:15px;height:15px;accent-color:var(--accent-primary)}.security-policy-help{margin-bottom:10px;color:var(--text-muted);font-size:10px;font-weight:700;line-height:1.5}@media(max-width:720px){.security-settings-head{flex-direction:column}.security-mode-field{width:100%;min-width:0}.security-settings-head,.security-group-body{padding-left:14px;padding-right:14px}.security-group summary{padding-left:14px;padding-right:14px}}
+        </style>`);
+    }
     grid.insertAdjacentHTML('beforeend', `
         <div class="field full" id="securitySettingsCard">
-            <label>Exam Security</label>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;padding:14px;border:1px solid rgba(100,116,139,.16);border-radius:16px;background:rgba(255,255,255,.32)">
-                <label style="display:flex;align-items:flex-start;gap:10px;padding:10px;border-radius:12px;background:var(--accent-light);color:var(--text-main);font-size:12px;font-weight:800;text-transform:none;letter-spacing:0;cursor:pointer"><input id="securityFullscreen" type="checkbox" checked style="margin-top:2px;accent-color:var(--accent-primary)"><span><b>Require fullscreen</b><small style="display:block;color:var(--text-muted);margin-top:3px">Pause the exam when fullscreen is exited.</small></span></label>
-                <label style="display:flex;align-items:flex-start;gap:10px;padding:10px;border-radius:12px;background:var(--accent-light);color:var(--text-main);font-size:12px;font-weight:800;text-transform:none;letter-spacing:0;cursor:pointer"><input id="securityAutoSubmit" type="checkbox" checked style="margin-top:2px;accent-color:var(--accent-primary)"><span><b>Auto-submit at limit</b><small style="display:block;color:var(--text-muted);margin-top:3px">Submit when the anomaly threshold is reached.</small></span></label>
-                <div style="padding:10px;border-radius:12px;background:var(--accent-light)"><label for="securityMaxViolations" style="font-size:11px">Anomaly limit</label><input class="input" id="securityMaxViolations" type="number" min="1" max="50" value="5" style="margin-top:6px"><small style="display:block;color:var(--text-muted);font-weight:700;margin-top:4px">Recommended: 3–5</small></div>
-            </div>
-            <p class="mini" style="margin-top:7px">Tab changes, focus loss, restricted shortcuts, clipboard actions, printing, duplicate exam tabs, and fullscreen exits are logged.</p>
+            <label>Security and Monitoring</label>
+            <section class="security-settings-shell">
+                <header class="security-settings-head">
+                    <div><span class="assessment-library-kicker">Assessment protection</span><h3>Security and Monitoring</h3><p>Choose a mode, then adjust only the controls your class needs. Settings affect real student and server behavior.</p></div>
+                    <div class="security-mode-field"><label for="securityMode">Security mode</label><select class="select" id="securityMode"><option value="standard">Standard</option><option value="monitored">Monitored</option><option value="strict">Strict</option><option value="secure_browser_ready">Secure Browser Ready</option></select></div>
+                </header>
+                <div class="security-mode-note" id="securityModeDescription"></div>
+                <details class="security-group" open><summary><i class="ph-fill ph-sliders-horizontal"></i>Basic exam controls</summary><div class="security-group-body"><div class="security-control-grid">
+                    ${securityToggle('securityFullscreen','Require fullscreen','Pause the assessment when required fullscreen is exited.')}
+                    ${securityToggle('securityBacktracking','Allow question backtracking','Students may return to earlier questions.')}
+                    ${securityToggle('securityOneQuestionPage','One question per page','Show one focused question at a time.', true)}
+                    ${securityToggle('securityShowNavigator','Show question navigator','Display question numbers and answered status.', true)}
+                    ${securityToggle('securityResumeRefresh','Allow resume after refresh','Restore the same attempt and stable questions after a permitted refresh.', true)}
+                    ${securityToggle('securityResumeConnection','Allow resume after connection loss','Keep saved answers and reconnect within the grace period.', true)}
+                    <div class="security-number-card"><label for="securityMaxAttempts">Maximum attempts</label><input class="input" id="securityMaxAttempts" type="number" min="1" max="20" value="1"><small>Additional attempts require an explicit value above 1.</small></div>
+                    <div class="security-number-card"><label for="securityGraceSeconds">Connection grace period (seconds)</label><input class="input" id="securityGraceSeconds" type="number" min="5" max="600" value="60"><small>Brief interruptions are not automatically treated as cheating.</small></div>
+                    <div class="security-number-card"><label for="securityMaxSessions">Maximum simultaneous sessions</label><input class="input" id="securityMaxSessions" type="number" min="1" max="5" value="1"><small>One session is recommended for normal exams.</small></div>
+                </div></div></details>
+                <details class="security-group" open><summary><i class="ph-fill ph-warning-circle"></i>Warnings and responses</summary><div class="security-group-body"><div class="security-control-grid">
+                    <div class="security-number-card"><label for="securityMaxViolations">Warning limit</label><input class="input" id="securityMaxViolations" type="number" min="1" max="100" value="5"><small>Weighted warning score allowed before the configured final response.</small></div>
+                    <div class="security-number-card"><label for="securityFinalWarning">Final-warning threshold</label><input class="input" id="securityFinalWarning" type="number" min="0" max="100" value="4"><small>Shows a stronger warning before the final limit.</small></div>
+                    <div class="security-number-card"><label for="securityPauseAfter">Pause after warning score</label><input class="input" id="securityPauseAfter" type="number" min="0" max="100" value="0"><small>Use 0 to pause only for selected high-risk events.</small></div>
+                    <div class="security-number-card"><label for="securityWarningCalculation">Warning calculation</label><select class="select" id="securityWarningCalculation"><option value="weighted">Weighted by severity</option><option value="count">Count each warning event</option></select><small>Weighted scoring treats low and critical events differently.</small></div>
+                    ${securityToggle('securityAutoSubmit','Auto-submit at final limit','Server finalizes the latest saved answers when the configured rule is reached.')}
+                    ${securityToggle('securityHighRiskOnly','Auto-submit only for high-risk events','Low-severity events cannot trigger automatic submission by themselves.', true)}
+                    ${securityToggle('securityAdminReview','Require administrator review instead','Pause and flag the attempt rather than auto-submitting.', true)}
+                    ${securityToggle('securityResetWarningOnRecovery','Reset warnings on approved recovery','When an administrator approves a recovery, the server may reset the attempt warning score.')}
+                </div></div></details>
+                <details class="security-group"><summary><i class="ph-fill ph-eye"></i>Monitoring controls</summary><div class="security-group-body"><div class="security-control-grid">
+                    ${securityToggle('monitorTabSwitch','Tab or app switching','Record grouped page-visibility changes.')}
+                    ${securityToggle('monitorWindowFocus','Window focus changes','Record focus loss when it is not part of a grouped tab switch.')}
+                    ${securityToggle('monitorFullscreen','Fullscreen exits','Record required fullscreen exits.')}
+                    ${securityToggle('monitorClipboard','Copy, cut, and paste','Block and record clipboard actions.')}
+                    ${securityToggle('monitorContextMenu','Right-click menu','Block and record the context menu.')}
+                    ${securityToggle('monitorDragDrop','Drag and drop','Block external drag-and-drop into the exam.')}
+                    ${securityToggle('monitorPrint','Printing','Record print requests.')}
+                    ${securityToggle('monitorShortcuts','Restricted shortcuts','Block configured browser and developer shortcuts.')}
+                    ${securityToggle('monitorNavigation','Browser navigation','Block and record back navigation.')}
+                    ${securityToggle('monitorConnection','Connection state','Track offline duration and synchronization.', true)}
+                    ${securityToggle('monitorDuplicateSession','Duplicate sessions','Prevent conflicting tabs, windows, or devices.', true)}
+                </div></div></details>
+                <details class="security-group"><summary><i class="ph-fill ph-list-checks"></i>Advanced event policies</summary><div class="security-group-body"><p class="security-policy-help">Fine-tune how each event is handled. Keep the defaults unless your assessment policy requires a different severity, warning weight, pause action, cooldown, or tolerated count.</p><div id="securityPolicyEditor"></div></div></details>
+                <details class="security-group"><summary><i class="ph-fill ph-video-camera"></i>Optional device checks</summary><div class="security-group-body"><div class="security-control-grid">
+                    ${securityToggle('securityCameraRequired','Require camera availability','Check that a camera stream remains available. No video is recorded or uploaded.')}
+                    ${securityToggle('securityMicrophoneRequired','Require microphone availability','Check that a microphone stream remains available. No audio is recorded or uploaded.')}
+                    ${securityToggle('securityScreenRequired','Require screen sharing','Require an active browser screen-share track. The portal does not record the stream.')}
+                </div><p class="mini" style="margin-top:10px">Enable these only with an appropriate privacy notice and institutional policy.</p></div></details>
+                <details class="security-group"><summary><i class="ph-fill ph-browser"></i>Secure browser integration</summary><div class="security-group-body">
+                    <div class="security-control-grid">${securityToggle('securitySecureBrowserRequired','Require verified secure browser','Block exam start unless the configured backend verifier succeeds.')}${securityToggle('securitySecureBrowserVerification','Enable verification hook','Use the protected Cloudflare verification service when configured.')}</div>
+                    <div class="security-provider-grid"><div class="security-number-card"><label for="securitySecureBrowserProvider">Provider</label><select class="select" id="securitySecureBrowserProvider"><option value="none">Not configured</option><option value="safe_exam_browser">Safe Exam Browser</option><option value="approved_provider">Other approved provider</option></select></div><div class="security-number-card"><label for="securitySecureBrowserConfigId">Public configuration ID</label><input class="input" id="securitySecureBrowserConfigId" maxlength="120" placeholder="Example: plv-midterm-2026"><small>Do not enter private Browser Exam Keys or signing secrets.</small></div></div>
+                    <div class="security-integration-note"><i class="ph-fill ph-info"></i> Secure-browser verification remains unavailable until a real backend verification endpoint and protected credentials are configured. The portal never relies only on the user-agent string.</div>
+                </div></details>
+            </section>
         </div>`);
-    ['securityFullscreen', 'securityAutoSubmit', 'securityMaxViolations'].forEach(id => {
+    const ids = [
+        'securityMode','securityFullscreen','securityBacktracking','securityOneQuestionPage','securityShowNavigator','securityResumeRefresh','securityResumeConnection','securityMaxAttempts','securityGraceSeconds','securityMaxSessions','securityMaxViolations','securityFinalWarning','securityPauseAfter','securityWarningCalculation','securityAutoSubmit','securityHighRiskOnly','securityAdminReview','securityResetWarningOnRecovery','monitorTabSwitch','monitorWindowFocus','monitorFullscreen','monitorClipboard','monitorContextMenu','monitorDragDrop','monitorPrint','monitorShortcuts','monitorNavigation','monitorConnection','monitorDuplicateSession','securityCameraRequired','securityMicrophoneRequired','securityScreenRequired','securitySecureBrowserRequired','securitySecureBrowserVerification','securitySecureBrowserProvider','securitySecureBrowserConfigId'
+    ];
+    ids.forEach(id => {
         $(id)?.addEventListener('input', scheduleAutosave);
         $(id)?.addEventListener('change', scheduleAutosave);
+    });
+    $('securityPolicyEditor')?.addEventListener('input', scheduleAutosave);
+    $('securityPolicyEditor')?.addEventListener('change', scheduleAutosave);
+    $('securityMode').addEventListener('change', event => {
+        applySecuritySettings({ security: MODE_DEFAULTS[event.target.value] || MODE_DEFAULTS.standard }, { preserveMode: false });
+        scheduleAutosave();
+    });
+    applySecuritySettings({ security: MODE_DEFAULTS.standard });
+}
+
+function renderSecurityPolicyEditor(policies = {}) {
+    const host = $('securityPolicyEditor');
+    if (!host) return;
+    host.innerHTML = `<div class="security-policy-scroll"><table class="security-policy-table"><thead><tr><th>Event</th><th>Enabled</th><th>Severity</th><th>Counts</th><th>Weight</th><th>Pause</th><th>Restore FS</th><th>May submit</th><th>Cooldown sec</th><th>Max count</th></tr></thead><tbody>${INCIDENT_CODES.map(code => {
+        const policy = policies[code] || {};
+        return `<tr data-policy-code="${esc(code)}"><td><b>${esc(incidentLabel(code))}</b><small style="display:block;color:var(--text-muted);margin-top:2px">${esc(code)}</small></td><td><label class="security-policy-check"><input data-policy-field="enabled" type="checkbox" ${policy.enabled !== false ? 'checked' : ''}></label></td><td><select class="select" data-policy-field="severity">${['info','low','medium','high','critical'].map(value => `<option value="${value}" ${policy.severity===value?'selected':''}>${value}</option>`).join('')}</select></td><td><label class="security-policy-check"><input data-policy-field="countsWarning" type="checkbox" ${policy.countsWarning ? 'checked' : ''}></label></td><td><input class="input" data-policy-field="warningWeight" type="number" min="0" max="20" step="0.5" value="${Number(policy.warningWeight || 0)}"></td><td><label class="security-policy-check"><input data-policy-field="pausesExam" type="checkbox" ${policy.pausesExam ? 'checked' : ''}></label></td><td><label class="security-policy-check"><input data-policy-field="requireFullscreenRestore" type="checkbox" ${policy.requireFullscreenRestore ? 'checked' : ''}></label></td><td><label class="security-policy-check"><input data-policy-field="mayAutoSubmit" type="checkbox" ${policy.mayAutoSubmit !== false ? 'checked' : ''}></label></td><td><input class="input" data-policy-field="cooldownSeconds" type="number" min="0" max="300" step="1" value="${Math.round(Number(policy.cooldownMs || 0)/1000)}"></td><td><input class="input" data-policy-field="maxToleratedCount" type="number" min="0" max="1000" step="1" value="${Number(policy.maxToleratedCount || 0)}"></td></tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+
+function collectEventPolicies() {
+    const policies = {};
+    document.querySelectorAll('#securityPolicyEditor [data-policy-code]').forEach(row => {
+        const code = row.dataset.policyCode;
+        const read = field => row.querySelector(`[data-policy-field="${field}"]`);
+        policies[code] = {
+            enabled: read('enabled')?.checked !== false,
+            severity: read('severity')?.value || 'low',
+            countsWarning: read('countsWarning')?.checked === true,
+            warningWeight: Number(read('warningWeight')?.value || 0),
+            pausesExam: read('pausesExam')?.checked === true,
+            requireFullscreenRestore: read('requireFullscreenRestore')?.checked === true,
+            mayAutoSubmit: read('mayAutoSubmit')?.checked !== false,
+            cooldownMs: Math.max(0, Number(read('cooldownSeconds')?.value || 0) * 1000),
+            maxToleratedCount: Math.max(0, Math.floor(Number(read('maxToleratedCount')?.value || 0)))
+        };
+    });
+    return policies;
+}
+
+function securityModeDescription(mode) {
+    return {
+        standard: 'Server-controlled timing, one active attempt, autosaving, randomized questions, and server-side scoring without aggressive browser monitoring.',
+        monitored: 'Standard protections plus configurable tab, focus, clipboard, navigation, print, connection, and duplicate-session monitoring.',
+        strict: 'Monitored protections with required fullscreen, stronger warning responses, and optional automatic submission.',
+        secure_browser_ready: 'Strict protections plus a backend-ready boundary for an approved secure browser. Real verification credentials are required before students can start.'
+    }[mode] || '';
+}
+
+function applySecuritySettings(settings = {}, options = {}) {
+    ensureSecuritySettingsUi();
+    const config = normalizeSecurityConfig(settings?.security || settings || {});
+    const setChecked = (id, value) => { if ($(id)) $(id).checked = !!value; };
+    const setValue = (id, value) => { if ($(id)) $(id).value = value ?? ''; };
+    setValue('securityMode', config.mode);
+    setChecked('securityFullscreen', config.requireFullscreen);
+    setChecked('securityBacktracking', config.allowBacktracking);
+    setChecked('securityOneQuestionPage', config.oneQuestionPerPage);
+    setChecked('securityShowNavigator', config.showNavigator);
+    setChecked('securityResumeRefresh', config.allowResumeAfterRefresh);
+    setChecked('securityResumeConnection', config.allowResumeAfterConnectionLoss);
+    setValue('securityMaxAttempts', config.maxAttempts);
+    setValue('securityGraceSeconds', config.connectionGraceSeconds);
+    setValue('securityMaxSessions', config.maxSimultaneousSessions);
+    setValue('securityMaxViolations', config.warningLimit);
+    setValue('securityFinalWarning', config.finalWarningThreshold);
+    setValue('securityPauseAfter', config.pauseAfterWarningCount);
+    setValue('securityWarningCalculation', config.warningCalculation);
+    setChecked('securityAutoSubmit', config.autoSubmitAfterFinalViolation);
+    setChecked('securityHighRiskOnly', config.autoSubmitHighRiskOnly);
+    setChecked('securityAdminReview', config.adminReviewInsteadOfAutoSubmit);
+    setChecked('securityResetWarningOnRecovery', config.resetWarningOnApprovedResume);
+    const m = config.monitoring || {};
+    setChecked('monitorTabSwitch', m.tabSwitch); setChecked('monitorWindowFocus', m.windowFocus); setChecked('monitorFullscreen', m.fullscreenExit);
+    setChecked('monitorClipboard', m.clipboard); setChecked('monitorContextMenu', m.contextMenu); setChecked('monitorDragDrop', m.dragDrop);
+    setChecked('monitorPrint', m.print); setChecked('monitorShortcuts', m.restrictedShortcut); setChecked('monitorNavigation', m.browserNavigation);
+    setChecked('monitorConnection', m.connection); setChecked('monitorDuplicateSession', m.duplicateSession);
+    const media = config.media || {};
+    setChecked('securityCameraRequired', media.cameraRequired); setChecked('securityMicrophoneRequired', media.microphoneRequired); setChecked('securityScreenRequired', media.screenShareRequired);
+    setChecked('securitySecureBrowserRequired', config.requireSecureBrowser); setChecked('securitySecureBrowserVerification', config.secureBrowserVerificationEnabled);
+    setValue('securitySecureBrowserProvider', config.secureBrowserProvider || 'none'); setValue('securitySecureBrowserConfigId', config.secureBrowserConfigId || '');
+    renderSecurityPolicyEditor(config.eventPolicies || {});
+    if ($('securityModeDescription')) $('securityModeDescription').textContent = securityModeDescription(config.mode);
+    if (options.preserveMode === false && $('securityMode')) $('securityMode').value = config.mode;
+}
+
+function collectSecuritySettings() {
+    ensureSecuritySettingsUi();
+    return normalizeSecurityConfig({
+        mode: $('securityMode')?.value || 'standard',
+        requireFullscreen: $('securityFullscreen')?.checked === true,
+        maxAttempts: Number($('securityMaxAttempts')?.value || 1),
+        allowBacktracking: $('securityBacktracking')?.checked !== false,
+        oneQuestionPerPage: $('securityOneQuestionPage')?.checked !== false,
+        showNavigator: $('securityShowNavigator')?.checked !== false,
+        allowResumeAfterRefresh: $('securityResumeRefresh')?.checked !== false,
+        allowResumeAfterConnectionLoss: $('securityResumeConnection')?.checked !== false,
+        connectionGraceSeconds: Number($('securityGraceSeconds')?.value || 60),
+        maxSimultaneousSessions: Number($('securityMaxSessions')?.value || 1),
+        warningLimit: Number($('securityMaxViolations')?.value || 5),
+        finalWarningThreshold: Number($('securityFinalWarning')?.value || 4),
+        pauseAfterWarningCount: Number($('securityPauseAfter')?.value || 0),
+        warningCalculation: $('securityWarningCalculation')?.value || 'weighted',
+        autoSubmitAfterFinalViolation: $('securityAutoSubmit')?.checked === true,
+        autoSubmitHighRiskOnly: $('securityHighRiskOnly')?.checked !== false,
+        adminReviewInsteadOfAutoSubmit: $('securityAdminReview')?.checked === true,
+        resetWarningOnApprovedResume: $('securityResetWarningOnRecovery')?.checked === true,
+        monitoring: {
+            tabSwitch: $('monitorTabSwitch')?.checked === true, windowFocus: $('monitorWindowFocus')?.checked === true,
+            fullscreenExit: $('monitorFullscreen')?.checked === true, clipboard: $('monitorClipboard')?.checked === true,
+            contextMenu: $('monitorContextMenu')?.checked === true, dragDrop: $('monitorDragDrop')?.checked === true,
+            print: $('monitorPrint')?.checked === true, restrictedShortcut: $('monitorShortcuts')?.checked === true,
+            browserNavigation: $('monitorNavigation')?.checked === true, connection: $('monitorConnection')?.checked !== false,
+            duplicateSession: $('monitorDuplicateSession')?.checked !== false,
+            cameraState: $('securityCameraRequired')?.checked === true, microphoneState: $('securityMicrophoneRequired')?.checked === true,
+            screenSharing: $('securityScreenRequired')?.checked === true, secureBrowserVerification: $('securitySecureBrowserVerification')?.checked === true
+        },
+        media: { cameraRequired: $('securityCameraRequired')?.checked === true, microphoneRequired: $('securityMicrophoneRequired')?.checked === true, screenShareRequired: $('securityScreenRequired')?.checked === true },
+        requireSecureBrowser: $('securitySecureBrowserRequired')?.checked === true,
+        secureBrowserProvider: $('securitySecureBrowserProvider')?.value || 'none',
+        secureBrowserConfigId: $('securitySecureBrowserConfigId')?.value || '',
+        secureBrowserVerificationEnabled: $('securitySecureBrowserVerification')?.checked === true,
+        eventPolicies: collectEventPolicies()
     });
 }
 
@@ -1374,9 +1561,7 @@ function restoreDraft() {
         $('opensAt').value = assessment.opens_at ? String(assessment.opens_at).slice(0, 16) : '';
         $('closesAt').value = assessment.closes_at ? String(assessment.closes_at).slice(0, 16) : '';
         ensureSecuritySettingsUi();
-        $('securityFullscreen').checked = assessment.settings?.fullscreen !== false;
-        $('securityAutoSubmit').checked = assessment.settings?.autoSubmitOnViolation !== false;
-        $('securityMaxViolations').value = Math.max(1, Number(assessment.settings?.maxViolations || 5));
+        applySecuritySettings(assessment.settings || {});
         questions = Array.isArray(draft.questions) ? draft.questions : [];
         normalizeBuilderState();
         if (editing) lastAutosaveSignature = autosaveSignature(assessment, questions);
@@ -1775,9 +1960,7 @@ function reset() {
     $('form').reset();
     $('duration').value = 30;
     ensureSecuritySettingsUi();
-    $('securityFullscreen').checked = true;
-    $('securityAutoSubmit').checked = true;
-    $('securityMaxViolations').value = 5;
+    applySecuritySettings({ security: MODE_DEFAULTS.standard });
     sections = [createSection()];
     activeSectionId = sections[0].id;
     questions = [];
@@ -1802,7 +1985,7 @@ function currentAssessment() {
         duration_minutes: Number($('duration').value || 30),
         opens_at: iso($('opensAt').value),
         closes_at: iso($('closesAt').value),
-        settings: { fullscreen: $('securityFullscreen')?.checked !== false, maxViolations: Math.max(1, Number($('securityMaxViolations')?.value || 5)), autoSubmitOnViolation: $('securityAutoSubmit')?.checked !== false, builderSections: builderSettingsSnapshot() }
+        settings: (() => { const security = collectSecuritySettings(); return { security, fullscreen: security.requireFullscreen, maxViolations: security.warningLimit, autoSubmitOnViolation: security.autoSubmitAfterFinalViolation, builderSections: builderSettingsSnapshot() }; })()
     };
 }
 
@@ -2089,9 +2272,7 @@ async function edit(id, workspace = 'details') {
         $('opensAt').value = a.opens_at ? String(a.opens_at).slice(0, 16) : '';
         $('closesAt').value = a.closes_at ? String(a.closes_at).slice(0, 16) : '';
         ensureSecuritySettingsUi();
-        $('securityFullscreen').checked = a.settings?.fullscreen !== false;
-        $('securityAutoSubmit').checked = a.settings?.autoSubmitOnViolation !== false;
-        $('securityMaxViolations').value = Math.max(1, Number(a.settings?.maxViolations || 5));
+        applySecuritySettings(a.settings || {});
         sections = Array.isArray(a.settings?.builderSections) && a.settings.builderSections.length ? a.settings.builderSections : [];
         questions = data.questions || [];
         normalizeBuilderState();
@@ -2137,21 +2318,16 @@ async function attempts(id) {
 }
 
 function incidentTypeLabel(type = '') {
-    const normalized = String(type || '').toLowerCase();
-    const labels = {
-        tab_hidden: 'Tab switched', visibility_hidden: 'Tab switched', window_blur: 'Window lost focus',
-        fullscreen_exit: 'Fullscreen exited', duplicate_tab: 'Duplicate exam tab', copy: 'Copy attempt',
-        paste: 'Paste attempt', cut: 'Cut attempt', context_menu: 'Right-click attempt', print: 'Print attempt',
-        restricted_shortcut: 'Restricted shortcut', offline: 'Internet disconnected', unload: 'Exam page closed',
-        back_navigation: 'Back navigation', anomaly_limit: 'Anomaly limit reached'
-    };
-    return labels[normalized] || String(type || 'Unknown event').replace(/[_-]+/g, ' ').replace(/\b\w/g, value => value.toUpperCase());
+    return incidentLabel(type);
 }
 
-function incidentSeverity(type = '') {
-    const normalized = String(type || '').toLowerCase();
-    if (['duplicate_tab', 'anomaly_limit', 'print', 'fullscreen_exit'].includes(normalized)) return 'high';
-    if (['tab_hidden', 'visibility_hidden', 'window_blur', 'restricted_shortcut', 'copy', 'paste', 'cut', 'unload'].includes(normalized)) return 'medium';
+function incidentSeverity(itemOrType = '') {
+    if (itemOrType && typeof itemOrType === 'object' && itemOrType.severity) return String(itemOrType.severity).toLowerCase();
+    const normalized = canonicalIncidentCode(itemOrType);
+    if (['duplicate_device_session','session_replaced','anomaly_limit_reached','screen_share_stopped','secure_browser_failed'].includes(normalized)) return 'critical';
+    if (['duplicate_exam_tab','print_attempt','fullscreen_exit','camera_stopped','microphone_stopped'].includes(normalized)) return 'high';
+    if (['tab_switch','window_focus_lost','restricted_shortcut','copy_attempt','paste_attempt','cut_attempt','page_exit'].includes(normalized)) return 'medium';
+    if (normalized === 'network_reconnected' || normalized === 'session_recovered' || normalized === 'time_expired') return 'info';
     return 'low';
 }
 
@@ -2160,91 +2336,173 @@ function readableIncidentDetails(value = '') {
     if (!raw) return 'No additional details';
     try {
         const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object') {
-            return Object.entries(parsed).map(([key, item]) => `${key.replace(/[_-]+/g, ' ')}: ${typeof item === 'object' ? JSON.stringify(item) : item}`).join(' · ');
-        }
+        if (parsed && typeof parsed === 'object') return Object.entries(parsed).map(([key, item]) => `${key.replace(/[_-]+/g, ' ')}: ${typeof item === 'object' ? JSON.stringify(item) : item}`).join(' · ');
     } catch (_) {}
     return raw;
 }
 
-function renderIncidentManager() {
+function ensureAuditReviewModal() {
+    if ($('auditReviewModal')) return;
+    if (!$('auditReviewStyles')) document.head.insertAdjacentHTML('beforeend', `<style id="auditReviewStyles">
+        .audit-review-modal{position:fixed;inset:0;z-index:2800;display:none;align-items:center;justify-content:center;padding:18px}.audit-review-modal.show{display:flex}.audit-review-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.58);backdrop-filter:blur(6px)}.audit-review-dialog{position:relative;width:min(960px,100%);max-height:min(90vh,920px);display:flex;flex-direction:column;background:var(--glass-bg);color:var(--text-main);border:1px solid var(--glass-border);border-radius:22px;box-shadow:0 24px 80px rgba(15,23,42,.28);overflow:hidden;backdrop-filter:blur(30px)}.audit-review-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;padding:18px 20px;border-bottom:1px solid rgba(100,116,139,.15)}.audit-review-head h2{font-size:18px;margin-bottom:3px}.audit-review-body{overflow:auto;overscroll-behavior:contain;padding:18px 20px;display:grid;gap:16px}.audit-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:9px}.audit-detail-card{padding:11px;border-radius:13px;background:var(--accent-light);border:1px solid rgba(100,116,139,.12)}.audit-detail-card small{display:block;font-size:9px;color:var(--text-muted);font-weight:800;text-transform:uppercase}.audit-detail-card strong{display:block;font-size:12px;margin-top:4px}.audit-timeline{display:grid;gap:8px;max-height:300px;overflow:auto;padding-right:4px}.audit-timeline-item{display:grid;grid-template-columns:130px minmax(0,1fr);gap:12px;padding:10px 12px;border-radius:13px;border:1px solid rgba(100,116,139,.13);background:rgba(255,255,255,.35)}.dark-theme .audit-timeline-item{background:rgba(15,23,42,.42)}.audit-timeline-item time{font-size:10px;color:var(--text-muted);font-weight:800}.audit-timeline-item p{font-size:11px;line-height:1.5}.audit-review-form{display:grid;grid-template-columns:220px minmax(0,1fr);gap:10px}.audit-attempt-actions{display:flex;gap:8px;flex-wrap:wrap;padding:12px;border-radius:15px;background:var(--accent-light);border:1px solid rgba(100,116,139,.13)}.audit-review-footer{padding:14px 20px;border-top:1px solid rgba(100,116,139,.15);display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}.incident-badge.info{background:rgba(100,116,139,.11);color:var(--text-muted)}.incident-badge.critical{background:rgba(190,18,60,.13);color:#be123c}@media(max-width:650px){.audit-review-form{grid-template-columns:1fr}.audit-timeline-item{grid-template-columns:1fr}.audit-review-dialog{max-height:96vh}.audit-review-footer .btn{flex:1;justify-content:center}}
+    </style>`);
+    document.body.insertAdjacentHTML('beforeend', `<div class="audit-review-modal" id="auditReviewModal" aria-hidden="true"><div class="audit-review-backdrop" data-audit-close></div><section class="audit-review-dialog" role="dialog" aria-modal="true" aria-labelledby="auditReviewTitle"><header class="audit-review-head"><div><span class="audit-kicker"><i class="ph-fill ph-shield-check"></i>Administrator review</span><h2 id="auditReviewTitle">Review security event</h2><p class="mini" id="auditReviewSubtitle"></p></div><button class="btn secondary btn-icon" id="auditReviewClose" type="button" aria-label="Close review"><i class="ph-bold ph-x"></i></button></header><div class="audit-review-body"><div id="auditAttemptSummary"></div><div><h3 style="font-size:13px;margin-bottom:9px">Attempt timeline</h3><div class="audit-timeline" id="auditTimeline"></div></div><div><h3 style="font-size:13px;margin-bottom:9px">Review decision</h3><div class="audit-review-form"><select class="select" id="auditReviewStatus"><option value="reviewed">Reviewed</option><option value="false_positive">Likely false positive</option><option value="investigate">Flag for investigation</option><option value="archived">Archive event</option></select><textarea class="input" id="auditReviewNotes" rows="3" placeholder="Add review notes. Attempt actions require an audit reason."></textarea></div></div><div id="auditAttemptActionsWrap"><h3 style="font-size:13px;margin-bottom:9px">Authorized attempt actions</h3><div class="audit-attempt-actions"><button class="btn secondary btn-sm" type="button" id="auditFlagAttempt"><i class="ph-bold ph-flag"></i>Flag Attempt</button><button class="btn secondary btn-sm" type="button" id="auditApproveRecovery"><i class="ph-bold ph-arrows-clockwise"></i>Approve Recovery</button><button class="btn danger btn-sm" type="button" id="auditInvalidateAttempt"><i class="ph-bold ph-prohibit"></i>Invalidate</button><button class="btn secondary btn-sm" type="button" id="auditReopenAttempt"><i class="ph-bold ph-lock-open"></i>Reopen +30 min</button><label class="security-toggle-card" style="padding:7px 10px!important;min-width:190px"><input id="auditResetWarning" type="checkbox"><span><b>Reset warning score</b><small>Applied only when recovery is approved.</small></span></label></div><p class="mini" style="margin-top:7px">Every action is stored in the administrator audit trail. Incidents are never deleted here.</p></div></div><footer class="audit-review-footer"><button class="btn secondary" type="button" id="auditReviewCancel">Close</button><button class="btn primary" type="button" id="auditReviewSave"><i class="ph-bold ph-check"></i>Save Event Review</button></footer></section></div>`);
+    const close = () => { $('auditReviewModal').classList.remove('show'); $('auditReviewModal').setAttribute('aria-hidden','true'); };
+    $('auditReviewClose').onclick = close; $('auditReviewCancel').onclick = close; document.querySelector('#auditReviewModal [data-audit-close]').onclick = close;
+    $('auditReviewSave').onclick = saveAuditReview;
+    $('auditFlagAttempt').onclick = () => runAttemptAuditAction('review-attempt', 'flag this attempt', { review_status:'investigate' });
+    $('auditApproveRecovery').onclick = () => runAttemptAuditAction('approve-session-recovery', 'approve session recovery', { reset_warning_count:$('auditResetWarning')?.checked === true });
+    $('auditInvalidateAttempt').onclick = () => runAttemptAuditAction('invalidate-attempt', 'invalidate this attempt');
+    $('auditReopenAttempt').onclick = () => runAttemptAuditAction('reopen-attempt', 'reopen this attempt', { extra_minutes:30 });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape' && $('auditReviewModal')?.classList.contains('show')) close(); });
+}
+
+async function openAuditReview(incident) {
+    ensureAuditReviewModal();
+    auditReviewIncidentId = incident.id || '';
+    auditReviewAttemptId = incident.attempt_id || '';
+    $('auditReviewTitle').textContent = incidentTypeLabel(incident.type);
+    $('auditReviewSubtitle').textContent = `${incident.student_name || incident.student_no || 'Student'} • ${incident.assessment_title || 'Assessment'}`;
+    $('auditReviewStatus').value = incident.review_status && incident.review_status !== 'unreviewed' ? incident.review_status : 'reviewed';
+    $('auditReviewNotes').value = incident.review_notes || '';
+    $('auditAttemptSummary').innerHTML = '<div class="audit-loading"><i class="ph-bold ph-spinner-gap duplicate-spinner"></i><span>Loading attempt summary…</span></div>';
+    $('auditTimeline').innerHTML = '<div class="audit-loading"><span>Loading timeline…</span></div>';
+    $('auditReviewModal').classList.add('show'); $('auditReviewModal').setAttribute('aria-hidden','false');
+    $('auditAttemptActionsWrap').style.display = auditReviewAttemptId ? '' : 'none';
+    if (!auditReviewAttemptId) {
+        $('auditAttemptSummary').innerHTML = '<p class="mini">This legacy event is not linked to an attempt summary.</p>';
+        $('auditTimeline').innerHTML = `<div class="audit-timeline-item"><time>${esc(new Date(incident.created_at).toLocaleString())}</time><p><b>${esc(incidentTypeLabel(incident.type))}</b><br>${esc(readableIncidentDetails(incident.details))}</p></div>`;
+        return;
+    }
+    try {
+        const [detail, timeline] = await Promise.all([
+            api('admin/attempt-detail?attempt_id=' + encodeURIComponent(auditReviewAttemptId)),
+            api('admin/attempt-timeline?attempt_id=' + encodeURIComponent(auditReviewAttemptId))
+        ]);
+        const a = detail.attempt || {}, summary = detail.summary || {};
+        const sessionCards = (detail.sessions || []).map(session => `<div class="audit-detail-card"><small>Session ${esc(session.status || '')}</small><strong>${esc(session.device_type || 'device')} · ${esc(session.browser_name || 'browser')}</strong><small>${esc(session.started_at ? new Date(session.started_at).toLocaleString() : '')}${session.termination_reason ? ` · ${esc(session.termination_reason.replace(/_/g,' '))}` : ''}</small></div>`).join('');
+        $('auditAttemptSummary').innerHTML = `<div class="audit-detail-grid"><div class="audit-detail-card"><small>Student</small><strong>${esc(a.student_name || a.student_no || '-')}</strong></div><div class="audit-detail-card"><small>Attempt</small><strong>#${Number(a.attempt_no || 1)} · ${esc(a.status || '-')}</strong></div><div class="audit-detail-card"><small>Submission reason</small><strong>${esc((a.submission_reason || 'In progress').replace(/_/g,' '))}</strong></div><div class="audit-detail-card"><small>Warning score</small><strong>${Number(a.warning_count || a.violations || 0)}</strong></div><div class="audit-detail-card"><small>Security score</small><strong>${Number(a.security_score || 0)}</strong></div><div class="audit-detail-card"><small>Highest severity</small><strong>${esc(summary.highest_severity || 'info')}</strong></div><div class="audit-detail-card"><small>Hidden duration</small><strong>${Number(summary.hidden_duration || 0).toFixed(1)} sec</strong></div><div class="audit-detail-card"><small>Offline duration</small><strong>${Number(summary.offline_duration || 0).toFixed(1)} sec</strong></div><div class="audit-detail-card"><small>Tab switches</small><strong>${Number(summary.tab_switch_count || 0)}</strong></div><div class="audit-detail-card"><small>Fullscreen exits</small><strong>${Number(summary.fullscreen_exit_count || 0)}</strong></div><div class="audit-detail-card"><small>Duplicate sessions</small><strong>${Number(summary.duplicate_session_count || 0)}</strong></div><div class="audit-detail-card"><small>Incident records</small><strong>${Number(summary.incident_count || 0)}</strong></div><div class="audit-detail-card"><small>Started</small><strong>${esc(a.started_at ? new Date(a.started_at).toLocaleString() : '-')}</strong></div><div class="audit-detail-card"><small>Deadline</small><strong>${esc(a.deadline_at ? new Date(a.deadline_at).toLocaleString() : '-')}</strong></div><div class="audit-detail-card"><small>Submitted</small><strong>${esc(a.submitted_at ? new Date(a.submitted_at).toLocaleString() : '-')}</strong></div><div class="audit-detail-card"><small>Review status</small><strong>${esc(a.review_status || 'unreviewed')}</strong></div>${sessionCards}</div>`;
+        const groups = timeline.groups || [];
+        $('auditTimeline').innerHTML = groups.length ? groups.map(group => `<div class="audit-timeline-item"><time>${esc(new Date(group.first_created_at).toLocaleString())}${group.count > 1 ? `<br>${group.count} grouped records` : ''}</time><p><b>${esc(incidentTypeLabel(group.type))}</b> <span class="incident-badge ${esc(group.highest_severity || 'low')}">${esc(group.highest_severity || 'low')}</span><br>${esc(readableIncidentDetails(group.details))}${Number(group.duration_seconds || 0) ? `<br><small>Total duration: ${Number(group.duration_seconds).toFixed(1)} seconds</small>` : ''}</p></div>`).join('') : '<p class="mini">No timeline events found.</p>';
+    } catch (error) {
+        $('auditAttemptSummary').innerHTML = `<p class="mini">${esc(error.message)}</p>`;
+    }
+}
+
+async function saveAuditReview() {
+    if (!auditReviewIncidentId) return;
+    const button = $('auditReviewSave'); button.disabled = true;
+    try {
+        await api('admin/review-incident', { method:'POST', body:JSON.stringify({ incident_id:auditReviewIncidentId, review_status:$('auditReviewStatus').value, review_notes:$('auditReviewNotes').value.trim() }) });
+        $('auditReviewModal').classList.remove('show');
+        toast('Security event review saved.');
+        await incidents(true);
+    } catch (error) { toast(error.message); }
+    finally { button.disabled = false; }
+}
+
+async function runAttemptAuditAction(path, label, extra = {}) {
+    if (!auditReviewAttemptId) return toast('This event is not linked to an attempt.');
+    const notes = $('auditReviewNotes').value.trim();
+    if (!notes) return toast(`Add an audit reason before you ${label}.`);
+    const buttons = ['auditFlagAttempt','auditApproveRecovery','auditInvalidateAttempt','auditReopenAttempt'].map($).filter(Boolean);
+    buttons.forEach(button => button.disabled = true);
+    try {
+        const body = path === 'review-attempt'
+            ? { attempt_id:auditReviewAttemptId, review_notes:notes, ...extra }
+            : { attempt_id:auditReviewAttemptId, reason:notes, ...extra };
+        await api(`admin/${path}`, { method:'POST', body:JSON.stringify(body) });
+        toast(`Attempt action completed: ${label}.`);
+        await incidents(true);
+        $('auditReviewModal').classList.remove('show');
+    } catch (error) { toast(error.message); }
+    finally { buttons.forEach(button => button.disabled = false); }
+}
+
+function localIncidentFilter(items) {
     const query = incidentSearch.trim().toLowerCase();
-    const filtered = incidentCache.filter(incident => {
-        const matchesType = incidentTypeFilter === 'all' || incident.type === incidentTypeFilter;
-        const matchesSearch = !query || [incident.student_no, incident.type, incident.details, incident.assessment_title, incident.assessment_section]
-            .some(value => String(value || '').toLowerCase().includes(query));
+    return items.filter(incident => {
+        const matchesType = incidentTypeFilter === 'all' || canonicalIncidentCode(incident.type) === canonicalIncidentCode(incidentTypeFilter);
+        const matchesSearch = !query || [incident.student_no, incident.student_name, incident.type, incident.details, incident.assessment_title, incident.assessment_section, incident.attempt_no].some(value => String(value || '').toLowerCase().includes(query));
         return matchesType && matchesSearch;
     });
-    const typeOptions = [...new Set(incidentCache.map(item => item.type).filter(Boolean))].sort();
+}
+
+function renderIncidentManager() {
+    const filtered = localIncidentFilter(incidentCache);
+    const typeOptions = [...new Set(incidentCache.map(item => canonicalIncidentCode(item.type)).filter(Boolean))].sort();
+    const sectionsList = [...new Set(assessments.map(item => item.section).filter(Boolean))].sort();
     const uniqueStudents = new Set(filtered.map(item => item.student_no).filter(Boolean)).size;
-    const highRiskCount = filtered.filter(item => incidentSeverity(item.type) === 'high').length;
+    const highRiskCount = filtered.filter(item => ['high','critical'].includes(incidentSeverity(item))).length;
     const latest = filtered[0]?.created_at ? new Date(filtered[0].created_at).toLocaleString() : 'No events';
     const selectedAssessment = incidentAssessmentFilterId ?? '';
 
-    $('attempts').innerHTML = `
-        <section class="audit-manager">
-            <div class="audit-manager-header">
-                <div><span class="audit-kicker"><i class="ph-fill ph-shield-check"></i>Security audit trail</span><h2>Anomaly Log</h2><p>Review security events by test, student, and incident type.</p></div>
-                <button class="btn secondary" type="button" id="refreshIncidents"><i class="ph-bold ph-arrow-clockwise"></i>Refresh Log</button>
-            </div>
-            <div class="audit-summary-grid">
-                <div class="audit-summary"><i class="ph-fill ph-warning-circle"></i><span><small>Visible events</small><strong>${filtered.length}</strong></span></div>
-                <div class="audit-summary"><i class="ph-fill ph-student"></i><span><small>Students involved</small><strong>${uniqueStudents}</strong></span></div>
-                <div class="audit-summary ${highRiskCount ? 'alert' : ''}"><i class="ph-fill ph-siren"></i><span><small>High-priority events</small><strong>${highRiskCount}</strong></span></div>
-                <div class="audit-summary"><i class="ph-fill ph-clock"></i><span><small>Latest event</small><strong>${esc(latest)}</strong></span></div>
-            </div>
-            <div class="audit-filters">
-                <label><span>Test or exam</span><select class="select" id="incidentAssessmentFilter"><option value="">All tests</option>${assessments.map(item => `<option value="${esc(item.id)}" ${selectedAssessment === item.id ? 'selected' : ''}>${esc(item.title)} — ${esc(item.section || 'No section')}</option>`).join('')}</select></label>
-                <label><span>Event type</span><select class="select" id="incidentTypeFilter"><option value="all">All event types</option>${typeOptions.map(type => `<option value="${esc(type)}" ${incidentTypeFilter === type ? 'selected' : ''}>${esc(incidentTypeLabel(type))}</option>`).join('')}</select></label>
-                <label class="audit-search"><span>Search audit trail</span><div><i class="ph-bold ph-magnifying-glass"></i><input class="input" id="incidentSearch" type="search" value="${esc(incidentSearch)}" placeholder="Student number, test, or details"></div></label>
-            </div>
-            <div class="audit-result-bar"><span><b>${filtered.length}</b> event${filtered.length === 1 ? '' : 's'} shown</span>${selectedAssessment ? `<button class="audit-clear-filter" type="button" id="showAllIncidents"><i class="ph-bold ph-x"></i>Show all tests</button>` : ''}</div>
-            ${filtered.length ? `<div class="table-wrap audit-table-wrap"><table class="assessment-table audit-table"><thead><tr><th>Date and time</th><th>Test</th><th>Student</th><th>Security event</th><th>Details</th></tr></thead><tbody>${filtered.map(item => {
-                const severity = incidentSeverity(item.type);
-                return `<tr><td><strong>${esc(new Date(item.created_at).toLocaleDateString())}</strong><small>${esc(new Date(item.created_at).toLocaleTimeString())}</small></td><td><strong>${esc(item.assessment_title || 'Deleted assessment')}</strong><small>${esc(item.subject_code || '')}${item.assessment_section ? ` · ${esc(item.assessment_section)}` : ''}</small></td><td><strong>${esc(item.student_no || 'Unknown student')}</strong><small>Student account</small></td><td><span class="incident-badge ${severity}"><i class="ph-fill ${severity === 'high' ? 'ph-siren' : severity === 'medium' ? 'ph-warning' : 'ph-info'}"></i>${esc(incidentTypeLabel(item.type))}</span></td><td><span class="audit-details">${esc(readableIncidentDetails(item.details))}</span></td></tr>`;
-            }).join('')}</tbody></table></div>` : `<div class="audit-empty"><i class="ph-fill ph-shield-check"></i><h3>No matching anomaly records</h3><p>There are no logged events for the selected filters.</p></div>`}
-        </section>`;
+    $('attempts').innerHTML = `<section class="audit-manager"><div class="audit-manager-header"><div><span class="audit-kicker"><i class="ph-fill ph-shield-check"></i>Security audit trail</span><h2>Anomaly Log</h2><p>Filter, review, and export server-validated assessment security events.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn secondary" type="button" id="exportIncidents"><i class="ph-bold ph-download-simple"></i>Export CSV</button><button class="btn secondary" type="button" id="refreshIncidents"><i class="ph-bold ph-arrow-clockwise"></i>Refresh Log</button></div></div>
+    <div class="audit-summary-grid"><div class="audit-summary"><i class="ph-fill ph-warning-circle"></i><span><small>Loaded events</small><strong>${filtered.length}</strong></span></div><div class="audit-summary"><i class="ph-fill ph-student"></i><span><small>Students involved</small><strong>${uniqueStudents}</strong></span></div><div class="audit-summary ${highRiskCount ? 'alert' : ''}"><i class="ph-fill ph-siren"></i><span><small>High or critical</small><strong>${highRiskCount}</strong></span></div><div class="audit-summary"><i class="ph-fill ph-clock"></i><span><small>Latest event</small><strong>${esc(latest)}</strong></span></div></div>
+    <details class="audit-filter-panel" open><summary><span><i class="ph-bold ph-funnel"></i>Audit filters</span><small>Filter by test, student, attempt, session, risk, and review status</small></summary><div class="audit-filters"><label><span>Test or exam</span><select class="select" id="incidentAssessmentFilter"><option value="">All tests</option>${assessments.map(item => `<option value="${esc(item.id)}" ${selectedAssessment === item.id ? 'selected' : ''}>${esc(item.title)} — ${esc(item.section || 'No section')}</option>`).join('')}</select></label><label><span>Section</span><select class="select" id="incidentSectionFilter"><option value="all">All sections</option>${sectionsList.map(value => `<option value="${esc(value)}" ${incidentFilters.section===value?'selected':''}>${esc(value)}</option>`).join('')}</select></label><label><span>Student number</span><input class="input" id="incidentStudentFilter" value="${esc(incidentFilters.student)}" placeholder="Exact student no."></label><label><span>Attempt ID</span><input class="input" id="incidentAttemptFilter" value="${esc(incidentFilters.attempt)}" placeholder="Attempt ID"></label><label><span>Session ID</span><input class="input" id="incidentSessionFilter" value="${esc(incidentFilters.session)}" placeholder="Session ID"></label><label><span>Event type</span><select class="select" id="incidentTypeFilter"><option value="all">All event types</option>${typeOptions.map(type => `<option value="${esc(type)}" ${incidentTypeFilter===type?'selected':''}>${esc(incidentTypeLabel(type))}</option>`).join('')}</select></label><label><span>Event group</span><select class="select" id="incidentCategoryFilter"><option value="all">All event groups</option><option value="duplicate_session" ${incidentFilters.category==='duplicate_session'?'selected':''}>Duplicate sessions</option><option value="automatic_submission" ${incidentFilters.category==='automatic_submission'?'selected':''}>Automatic submissions</option><option value="connection" ${incidentFilters.category==='connection'?'selected':''}>Connection events</option></select></label><label><span>Severity</span><select class="select" id="incidentSeverityFilter"><option value="all">All severities</option>${['info','low','medium','high','critical'].map(value=>`<option value="${value}" ${incidentFilters.severity===value?'selected':''}>${value}</option>`).join('')}</select></label><label><span>Submission reason</span><select class="select" id="incidentSubmissionFilter"><option value="all">All reasons</option>${['manual_submit','time_expired','anomaly_limit_reached','administrator_invalidated'].map(value=>`<option value="${value}" ${incidentFilters.submission===value?'selected':''}>${value.replace(/_/g,' ')}</option>`).join('')}</select></label><label><span>Review</span><select class="select" id="incidentReviewFilter"><option value="all">All review statuses</option><option value="unreviewed" ${incidentFilters.review==='unreviewed'?'selected':''}>Unreviewed</option><option value="reviewed" ${incidentFilters.review==='reviewed'?'selected':''}>Reviewed</option><option value="false_positive" ${incidentFilters.review==='false_positive'?'selected':''}>Likely false positive</option><option value="investigate" ${incidentFilters.review==='investigate'?'selected':''}>Investigation</option></select></label><label><span>From date</span><input class="input" id="incidentDateFrom" type="date" value="${esc(incidentFilters.dateFrom)}"></label><label><span>To date</span><input class="input" id="incidentDateTo" type="date" value="${esc(incidentFilters.dateTo)}"></label><label class="audit-search"><span>Search loaded events</span><div><i class="ph-bold ph-magnifying-glass"></i><input class="input" id="incidentSearch" type="search" value="${esc(incidentSearch)}" placeholder="Name, test, or details"></div></label></div></details>
+    <div class="audit-result-bar"><span><b>${filtered.length}</b> event${filtered.length===1?'':'s'} loaded</span>${selectedAssessment ? `<button class="audit-clear-filter" type="button" id="showAllIncidents"><i class="ph-bold ph-x"></i>Show all tests</button>` : ''}</div>
+    ${filtered.length ? `<div class="table-wrap audit-table-wrap"><table class="assessment-table audit-table"><thead><tr><th>Date and time</th><th>Test</th><th>Student and attempt</th><th>Security event</th><th>Details</th><th>Review</th></tr></thead><tbody>${filtered.map(item => { const severity=incidentSeverity(item); return `<tr><td><strong>${esc(new Date(item.created_at).toLocaleDateString())}</strong><small>${esc(new Date(item.created_at).toLocaleTimeString())}</small></td><td><strong>${esc(item.assessment_title || 'Deleted assessment')}</strong><small>${esc(item.subject_code || '')}${item.assessment_section?` · ${esc(item.assessment_section)}`:''}</small></td><td><strong>${esc(item.student_name || item.student_no || 'Unknown student')}</strong><small>${esc(item.student_no || '')}${item.attempt_no?` · Attempt ${Number(item.attempt_no)}`:''}</small></td><td><span class="incident-badge ${severity}"><i class="ph-fill ${['high','critical'].includes(severity)?'ph-siren':severity==='medium'?'ph-warning':'ph-info'}"></i>${esc(incidentTypeLabel(item.type))}</span><small>${esc(severity)} · weight ${Number(item.warning_weight || 0)}</small></td><td><span class="audit-details">${esc(readableIncidentDetails(item.details))}</span>${Number(item.duration_seconds||0)?`<small>${Number(item.duration_seconds).toFixed(1)} sec</small>`:''}</td><td><button class="btn secondary btn-sm" type="button" data-review-incident="${esc(item.id)}"><i class="ph-bold ph-magnifying-glass"></i>${item.review_status && item.review_status!=='unreviewed'?'Reviewed':'Review'}</button><small>${esc((item.review_status||'unreviewed').replace(/_/g,' '))}</small></td></tr>`; }).join('')}</tbody></table></div>` : `<div class="audit-empty"><i class="ph-fill ph-shield-check"></i><h3>No matching anomaly records</h3><p>There are no logged events for the selected filters.</p></div>`}
+    ${incidentHasMore ? `<div style="display:flex;justify-content:center;margin-top:14px"><button class="btn secondary" id="loadMoreIncidents"><i class="ph-bold ph-arrow-down"></i>Load more events</button></div>` : ''}</section>`;
 
-    $('refreshIncidents').onclick = () => incidents(true);
-    $('incidentAssessmentFilter').onchange = event => {
-        incidentAssessmentFilterId = event.target.value;
-        incidentTypeFilter = 'all';
-        incidentSearch = '';
-        incidents(true);
-    };
-    $('incidentTypeFilter').onchange = event => {
-        incidentTypeFilter = event.target.value;
-        renderIncidentManager();
-    };
-    $('incidentSearch').oninput = event => {
-        incidentSearch = event.target.value;
-        clearTimeout(incidentSearchTimer);
-        incidentSearchTimer = setTimeout(() => {
-            renderIncidentManager();
-            const input = $('incidentSearch');
-            input?.focus();
-            input?.setSelectionRange(input.value.length, input.value.length);
-        }, 140);
-    };
-    if ($('showAllIncidents')) $('showAllIncidents').onclick = () => {
-        incidentAssessmentFilterId = '';
-        incidentTypeFilter = 'all';
-        incidentSearch = '';
-        incidents(true);
-    };
+    const reload = () => { incidentCache=[]; incidentNextCursor=null; incidents(true); };
+    $('refreshIncidents').onclick = reload;
+    $('exportIncidents').onclick = exportIncidentAudit;
+    $('incidentAssessmentFilter').onchange = event => { incidentAssessmentFilterId=event.target.value; reload(); };
+    $('incidentSectionFilter').onchange = event => { incidentFilters.section=event.target.value; reload(); };
+    $('incidentTypeFilter').onchange = event => { incidentTypeFilter=event.target.value; reload(); };
+    $('incidentCategoryFilter').onchange = event => { incidentFilters.category=event.target.value; reload(); };
+    $('incidentSeverityFilter').onchange = event => { incidentFilters.severity=event.target.value; reload(); };
+    $('incidentSubmissionFilter').onchange = event => { incidentFilters.submission=event.target.value; reload(); };
+    $('incidentReviewFilter').onchange = event => { incidentFilters.review=event.target.value; reload(); };
+    $('incidentDateFrom').onchange = event => { incidentFilters.dateFrom=event.target.value; reload(); };
+    $('incidentDateTo').onchange = event => { incidentFilters.dateTo=event.target.value; reload(); };
+    for (const [id,key] of [['incidentStudentFilter','student'],['incidentAttemptFilter','attempt'],['incidentSessionFilter','session']]) {
+        $(id).onchange = event => { incidentFilters[key]=event.target.value.trim(); reload(); };
+    }
+    $('incidentSearch').oninput = event => { incidentSearch=event.target.value; clearTimeout(incidentSearchTimer); incidentSearchTimer=setTimeout(()=>{ renderIncidentManager(); const input=$('incidentSearch'); input?.focus(); input?.setSelectionRange(input.value.length,input.value.length); },140); };
+    document.querySelectorAll('[data-review-incident]').forEach(button => button.onclick = () => { const incident=incidentCache.find(item=>item.id===button.dataset.reviewIncident); if(incident) openAuditReview(incident); });
+    if ($('loadMoreIncidents')) $('loadMoreIncidents').onclick = () => incidents(false, true);
+    if ($('showAllIncidents')) $('showAllIncidents').onclick = () => { incidentAssessmentFilterId=''; reload(); };
 }
 
-async function incidents(force = false) {
+function incidentQuery(cursor = '') {
+    const params = new URLSearchParams();
+    if (incidentAssessmentFilterId) params.set('assessment_id', incidentAssessmentFilterId);
+    if (incidentFilters.section !== 'all') params.set('section', incidentFilters.section);
+    if (incidentFilters.student) params.set('student_no', incidentFilters.student);
+    if (incidentFilters.attempt) params.set('attempt_id', incidentFilters.attempt);
+    if (incidentFilters.session) params.set('session_id', incidentFilters.session);
+    if (incidentTypeFilter !== 'all') params.set('type', canonicalIncidentCode(incidentTypeFilter));
+    if (incidentFilters.category !== 'all') params.set('category', incidentFilters.category);
+    if (incidentFilters.severity !== 'all') params.set('severity', incidentFilters.severity);
+    if (incidentFilters.review !== 'all') params.set('review_status', incidentFilters.review);
+    if (incidentFilters.submission !== 'all') params.set('submission_reason', incidentFilters.submission);
+    if (incidentFilters.dateFrom) params.set('date_from', `${incidentFilters.dateFrom}T00:00:00.000Z`);
+    if (incidentFilters.dateTo) params.set('date_to', `${incidentFilters.dateTo}T23:59:59.999Z`);
+    if (cursor) params.set('cursor', cursor);
+    params.set('limit','100');
+    return params;
+}
+
+async function incidents(force = false, append = false) {
     if (incidentAssessmentFilterId === null) incidentAssessmentFilterId = editing || '';
-    $('attempts').innerHTML = '<div class="audit-loading"><i class="ph-bold ph-spinner-gap duplicate-spinner"></i><span>Loading security audit trail…</span></div>';
+    if (!append) $('attempts').innerHTML = '<div class="audit-loading"><i class="ph-bold ph-spinner-gap duplicate-spinner"></i><span>Loading security audit trail…</span></div>';
     try {
-        const suffix = incidentAssessmentFilterId ? `?assessment_id=${encodeURIComponent(incidentAssessmentFilterId)}` : '';
-        const data = await api('admin/incidents' + suffix);
-        incidentCache = data.incidents || [];
+        const data = await api('admin/incidents?' + incidentQuery(append ? incidentNextCursor : '').toString());
+        incidentCache = append ? [...incidentCache, ...(data.incidents || [])] : (data.incidents || []);
+        incidentNextCursor = data.next_cursor || null; incidentHasMore = !!data.has_more;
         renderIncidentManager();
-    } catch (error) {
-        $('attempts').innerHTML = `<div class="audit-empty error"><i class="ph-fill ph-warning-circle"></i><h3>Could not load anomaly records</h3><p>${esc(error.message)}</p></div>`;
-    }
+    } catch (error) { $('attempts').innerHTML = `<div class="audit-empty error"><i class="ph-fill ph-warning-circle"></i><h3>Could not load anomaly records</h3><p>${esc(error.message)}</p></div>`; }
+}
+
+async function exportIncidentAudit() {
+    try {
+        const params = incidentQuery(''); params.delete('limit');
+        const response = await fetch('/api/assessments/admin/export-audit?' + params.toString(), { headers: { authorization: 'Bearer ' + await getToken() }, cache:'no-store' });
+        if (!response.ok) throw new Error('Audit export failed.');
+        const blob = await response.blob(), url=URL.createObjectURL(blob), link=document.createElement('a');
+        link.href=url; link.download='assessment-security-audit.csv'; link.click(); URL.revokeObjectURL(url);
+    } catch (error) { toast(error.message); }
 }
 
 $('qType').onchange = () => {

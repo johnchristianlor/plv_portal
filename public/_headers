@@ -1,4 +1,4 @@
-/*
+﻿/*
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
@@ -9,6 +9,8 @@
 /student-exam.html
   Cache-Control: no-store, no-cache, must-revalidate, max-age=0
   Pragma: no-cache
+  Permissions-Policy: camera=(self), microphone=(self), display-capture=(self)
 
 /student-exam-module.js
   Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+

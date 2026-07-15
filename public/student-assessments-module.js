@@ -82,8 +82,11 @@ function formatDate(value, fallback) {
 
 function securitySummary(assessment) {
     const settings = assessment.settings || {};
-    const max = Math.max(1, Number(settings.maxViolations || 5));
-    return `${settings.fullscreen === false ? 'Dedicated tab' : 'Fullscreen'} • ${max} anomaly limit`;
+    const mode = String(settings.mode || settings.securityMode || 'standard');
+    const labels = { standard: 'Standard', monitored: 'Monitored', strict: 'Strict', secure_browser_ready: 'Secure Browser Ready' };
+    const attempts = Math.max(1, Number(settings.maxAttempts || 1));
+    const fullscreen = settings.requireFullscreen ?? settings.fullscreen;
+    return `${labels[mode] || 'Standard'} • ${attempts} attempt${attempts === 1 ? '' : 's'}${fullscreen ? ' • Fullscreen' : ''}`;
 }
 
 function render() {
@@ -106,7 +109,7 @@ function render() {
                 <span class="badge"><i class="ph-fill ph-shield-check"></i>${esc(securitySummary(assessment))}</span>
             </div>
             <p style="color:var(--text-muted);font-weight:700;line-height:1.7">Open: ${esc(formatDate(assessment.opens_at, 'Anytime'))}<br>Close: ${esc(formatDate(assessment.closes_at, 'No close date'))}</p>
-            ${submitted ? `<p><b>Score:</b> ${Number(submitted.score || 0)} / ${Number(submitted.total_points || 0)} &bull; <b>Anomalies:</b> ${Number(submitted.violations || 0)}</p>` : ''}
+            ${submitted ? `<p><b>Score:</b> ${Number(submitted.score || 0)} / ${Number(submitted.total_points || 0)} &bull; <b>Warning score:</b> ${Number(submitted.warning_count ?? submitted.violations ?? 0)}</p>` : ''}
             <button class="btn" data-open-exam="${esc(assessment.id)}" ${state !== 'active' || submitted ? 'disabled' : ''}>${buttonLabel}</button>
         </article>`;
     }).join('') : '<article class="glass assessment-card"><b>No assessments here.</b><p style="color:var(--text-muted);font-weight:700">Nothing matches this tab.</p></article>';
