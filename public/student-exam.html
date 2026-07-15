@@ -34,6 +34,7 @@ body.dark-theme{--bg:#050b16;--surface:#0e1727;--surface2:#131f33;--surface3:#1a
 .secure-browser-setup{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0;padding:12px 14px;border-radius:14px;background:var(--accent-light);border:1px solid rgba(100,116,139,.14)}.secure-browser-setup b{font-size:11px}.secure-browser-setup p{font-size:10px;color:var(--text-muted);font-weight:700;margin-top:4px;line-height:1.45}.secure-browser-setup .btn{flex-shrink:0}@media(max-width:560px){.secure-browser-setup{align-items:flex-start;flex-direction:column}.secure-browser-setup .btn{width:100%;justify-content:center}}
 .all-question-list{display:grid;gap:16px;margin-top:16px}.all-question-card{content-visibility:auto;contain-intrinsic-size:420px;padding:18px;border:1px solid var(--border);border-radius:18px;background:var(--surface-2);scroll-margin-top:82px}.all-question-card h3{font-size:16px;line-height:1.65;margin:14px 0}.all-question-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.all-question-head>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.all-question-head small{color:var(--text-muted);font-size:10px;font-weight:800}@media(max-width:560px){.all-question-card{padding:14px}.all-question-head{align-items:stretch;flex-direction:column}.all-question-head .btn{align-self:flex-start}}
 </style>
+<link rel="stylesheet" href="./plv-responsive.css">
 </head>
 <body>
 <div class="ambient"></div>
@@ -61,7 +62,7 @@ body.dark-theme{--bg:#050b16;--surface:#0e1727;--surface2:#131f33;--surface3:#1a
         </ul>
       </div>
       <aside class="preflight-side">
-        <div class="warning-box"><i class="ph-fill ph-warning"></i> Close unrelated apps and tabs. Permission prompts used by this preflight are not counted as anomalies.</div>
+        <div class="warning-box"><i class="ph-fill ph-warning"></i> Close unrelated apps, tabs, chat heads, floating windows, notification panels, and picture-in-picture apps before starting. Brief system prompts are handled fairly.</div>
         <div class="preflight-checks" id="preflightChecks"></div>
         <div class="secure-browser-setup hidden" id="secureBrowserSetup"><div><b><i class="ph-fill ph-browser"></i> Secure browser setup</b><p id="secureBrowserSetupText"></p></div><a class="btn secondary hidden" id="secureBrowserLaunch" href="#" target="_blank" rel="noopener noreferrer">Open setup</a></div>
         <label class="confirm"><input type="checkbox" id="confirmReady"><span>I understand the rules, privacy notice, and monitoring settings for this assessment.</span></label>

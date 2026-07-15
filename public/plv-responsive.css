@@ -1,0 +1,137 @@
+/* PLV shared responsive polish. Loaded after page-level styles. */
+*{box-sizing:border-box;min-width:0}
+html{width:100%;max-width:100%;overflow-x:hidden;text-size-adjust:100%;-webkit-text-size-adjust:100%}
+body{width:100%;max-width:100%;overflow-x:hidden}
+img,svg,video,canvas{max-width:100%;height:auto}
+button,a,input,select,textarea{font:inherit}
+input,select,textarea{max-width:100%;min-width:0}
+textarea{line-height:1.5}
+.glass,.card,.panel,.modal-box,.modal-card,.lock-card{max-width:100%}
+.table-wrap,.table-container,.records-table-wrap,.spreadsheet-wrap,.master-table-wrap,.attendance-table-wrap,.grades-table-wrap,.scores-table-wrap,.accounts-table-wrap,.list-table-wrap,.data-table-wrap{max-width:100%;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;scrollbar-gutter:stable}
+table{max-width:100%;border-collapse:separate}
+.btn,button{min-height:42px;touch-action:manipulation}
+.btn:not(.btn-icon),button:not(.icon-btn):not(.btn-icon){white-space:normal}
+.header,.topbar,.toolbar,.filters,.actions,.modal-actions,.form-actions,.admin-assessment-header-actions,.header-actions{flex-wrap:wrap}
+.header h1,.page-title h1,.main-wrapper h1{font-size:clamp(24px,5vw,38px);line-height:1.12}
+.header p,.page-title p{font-size:clamp(13px,2.8vw,16px);line-height:1.55}
+
+@media (max-width:1180px){
+  .main-wrapper,.main-content,.content,.dashboard-content,.page-content{padding:30px 24px!important}
+  .dashboard-grid,.cards-grid,.stats-grid,.content-grid,.assessment-grid,.records-grid,.settings-grid,.form-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))!important}
+  .panel,.card,.glass{border-radius:20px}
+}
+
+@media (max-width:900px){
+  body{display:block!important;min-height:100svh}
+  .ambient-mesh{position:fixed}
+  .sidebar{position:sticky!important;top:0!important;z-index:900!important;width:100%!important;min-width:0!important;max-width:none!important;height:auto!important;max-height:none!important;padding:14px 14px!important;display:flex!important;flex-direction:row!important;align-items:center!important;gap:12px!important;overflow-x:auto!important;overflow-y:hidden!important;border-right:0!important;border-bottom:1px solid var(--glass-border,rgba(148,163,184,.25))!important;background:rgba(255,255,255,.72)!important;backdrop-filter:blur(22px)!important;-webkit-backdrop-filter:blur(22px)!important;scrollbar-width:none!important}
+  .dark-theme .sidebar,body.dark-theme .sidebar{background:rgba(4,9,20,.78)!important;border-bottom-color:rgba(255,255,255,.08)!important}
+  .sidebar::-webkit-scrollbar{display:none}
+  .logo-container{margin:0!important;padding:0!important;gap:10px!important;flex:0 0 auto!important}
+  .logo-img,.logo-container img{width:44px!important;height:44px!important}
+  .logo-text h2{font-size:18px!important;line-height:1.05!important}
+  .logo-text p{font-size:10px!important;line-height:1.2!important}
+  .nav-menu{display:flex!important;flex:1 1 auto!important;flex-direction:row!important;gap:8px!important;overflow-x:auto!important;overflow-y:hidden!important;padding:2px 2px 4px!important;scrollbar-width:none!important}
+  .nav-menu::-webkit-scrollbar{display:none}
+  .nav-item{flex:0 0 auto!important}
+  .nav-item a{min-height:44px!important;padding:10px 13px!important;border-radius:14px!important;white-space:nowrap!important;font-size:13px!important;gap:8px!important}
+  .nav-item a i{font-size:20px!important}
+  .nav-item[style*="margin-top"]{margin-top:0!important}
+  .main-wrapper,.main-content,.content,.dashboard-content,.page-content{width:100%!important;max-width:100%!important;margin:0!important;padding:22px 16px 92px!important}
+  .header,.topbar,.page-header{align-items:flex-start!important;gap:12px!important}
+  .icon-btn,.theme-toggle{width:46px!important;height:46px!important;flex:0 0 auto!important}
+  .form-grid,.grid-2,.grid-3,.profile-grid,.settings-grid,.assessment-grid{grid-template-columns:1fr!important}
+  .filters,.toolbar,.actions{gap:9px!important}
+  .filters>* ,.toolbar>*{flex:1 1 min(100%,220px)!important}
+  .modal-overlay,.modal,.security-lock{padding:14px!important}
+  .modal-box,.modal-card,.lock-card{width:min(100%,680px)!important;max-height:calc(100svh - 28px)!important;overflow:auto!important;border-radius:22px!important;padding:22px!important}
+}
+
+@media (max-width:760px){
+  body:has(.mobile-nav-bar) .main-wrapper,body:has(.mobile-nav-bar) .main-content,body:has(.mobile-nav-bar) .content{padding-bottom:calc(96px + env(safe-area-inset-bottom))!important}
+  body:has(.mobile-nav-bar) .sidebar .nav-menu{display:none!important}
+  body:has(.mobile-nav-bar) .mobile-nav-bar{display:block!important;box-shadow:0 -18px 50px rgba(15,23,42,.12)}
+  .mobile-nav-bar ul{gap:4px!important;padding:6px 8px!important}
+  .mobile-nav-bar a{min-width:58px!important;border-radius:16px!important}
+  .header h1,.page-title h1{font-size:clamp(23px,7vw,30px)!important}
+  .panel,.card,.glass{border-radius:18px!important}
+  .panel,.card{padding:18px!important}
+  .table-wrap,.table-container,.records-table-wrap{margin-inline:-6px;padding-inline:6px}
+  .btn{justify-content:center}
+}
+
+@media (max-width:520px){
+  .main-wrapper,.main-content,.content,.dashboard-content,.page-content{padding-inline:12px!important}
+  .logo-text p{display:none!important}
+  .nav-item a{font-size:12px!important;padding:9px 11px!important}
+  .filters>* ,.toolbar>* ,.actions .btn,.actions button{flex:1 1 100%!important;width:100%!important}
+  input,select,textarea{font-size:16px!important}
+  .modal-actions{display:grid!important;grid-template-columns:1fr!important}
+  .modal-actions .btn,.modal-actions button{width:100%!important;justify-content:center!important}
+}
+
+/* Login page */
+@media (max-width:760px){
+  .login-card,.auth-card,.login-box{width:min(100%,420px)!important;margin-inline:auto!important;border-radius:24px!important}
+  .school-header,.brand-header{padding-inline:16px!important}
+}
+
+/* Secure assessment mobile experience */
+body:has(#examShell){overscroll-behavior:none}
+@media (max-width:900px){
+  #loadingScreen,#preflightScreen,#completedScreen,#blockedScreen{min-height:100svh!important;padding:14px!important;align-items:flex-start!important}
+  #preflightScreen .center-card,#loadingScreen .center-card,#completedScreen .center-card,#blockedScreen .center-card{margin-top:8px!important;width:100%!important;padding:20px!important;border-radius:24px!important}
+  .brand{gap:10px!important;margin-bottom:18px!important}
+  .brand img{width:46px!important;height:46px!important}
+  .brand h1{font-size:18px!important}
+  .brand p{font-size:11px!important}
+  .preflight-grid{display:grid!important;grid-template-columns:1fr!important;gap:14px!important}
+  .preflight-main,.preflight-side{padding:18px!important;border-radius:22px!important}
+  .preflight-title{font-size:clamp(25px,8vw,34px)!important}
+  .rules{gap:10px!important}
+  .rules li{font-size:12.5px!important;line-height:1.5!important}
+  .preflight-check{grid-template-columns:26px minmax(0,1fr)!important;align-items:start!important}
+  .preflight-check em{grid-column:2!important;justify-self:start!important}
+  .preflight-actions{display:grid!important;grid-template-columns:1fr!important;gap:9px!important}
+  .preflight-actions .btn{width:100%!important;justify-content:center!important}
+  .exam-topbar{min-height:74px!important;height:auto!important;padding:10px 12px!important;padding-top:max(10px,env(safe-area-inset-top))!important;gap:9px!important}
+  .exam-title h1{font-size:14px!important}
+  .exam-title p{display:none!important}
+  .exam-status{gap:6px!important}
+  .status-pill{display:none!important}
+  .violations{height:42px!important;min-width:42px!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:8px!important;border-radius:14px!important}
+  .violations i{margin-right:4px}
+  .timer{min-width:88px!important;height:42px!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:8px 10px!important;border-radius:14px!important;font-size:14px!important}
+  .exam-layout{display:block!important;padding:88px 12px calc(92px + env(safe-area-inset-bottom))!important;max-width:100%!important}
+  .navigator{display:none!important}
+  .exam-main{width:100%!important}
+  .question-card{min-height:calc(100svh - 188px)!important;padding:18px!important;border-radius:24px!important}
+  .question-prompt{font-size:clamp(19px,5.6vw,24px)!important;line-height:1.45!important}
+  .question-meta,.exam-section-line{gap:7px!important}
+  .choice,.answer-card,.all-question-card{border-radius:16px!important}
+  .choice{min-height:54px!important;padding:13px!important}
+  .question-tools{display:grid!important;grid-template-columns:1fr!important;gap:10px!important}
+  .question-tools .btn,.question-tools button{width:100%!important;justify-content:center!important}
+  .save-state{text-align:center!important}
+  .exam-footer{padding:8px 10px max(8px,env(safe-area-inset-bottom))!important}
+  .footer-inner{display:grid!important;grid-template-columns:auto 1fr!important;gap:8px!important;align-items:end!important}
+  .footer-inner>div:first-child{display:grid!important;gap:4px!important}
+  .mobile-progress{display:block!important;font-size:10px!important;text-align:center!important}
+  .footer-group{display:grid!important;grid-template-columns:repeat(3,minmax(44px,1fr))!important;gap:7px!important}
+  .exam-footer .btn{min-height:46px!important;border-radius:15px!important;padding:10px 12px!important}
+  .exam-footer .btn span{display:none!important}
+  .modal,.security-lock{align-items:flex-end!important;padding:10px!important}
+  .modal-card,.lock-card{width:100%!important;max-height:88svh!important;border-radius:24px 24px 18px 18px!important;padding:22px!important}
+  .warning-grid,.review-stats{grid-template-columns:1fr!important}
+}
+
+@media (max-width:520px){
+  .exam-topbar{grid-template-columns:minmax(0,1fr) auto!important}
+  .exam-title{min-width:0!important}
+  .violations{font-size:0!important}
+  .violations span{font-size:12px!important}
+  .question-card{padding:16px!important}
+  .choice{font-size:14px!important}
+  .all-question-card{padding:14px!important}
+  #submitExam{background:var(--blue)!important;color:#fff!important}
+}
