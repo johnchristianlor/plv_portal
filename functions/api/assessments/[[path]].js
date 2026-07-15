@@ -225,7 +225,9 @@ async function ensureSchema(env) {
         { sql: `create index if not exists idx_assessments_status_section on assessments(status, section)` },
         { sql: `create index if not exists idx_questions_assessment_order on assessment_questions(assessment_id, order_no)` },
         { sql: `create index if not exists idx_attempts_student on assessment_attempts(student_no, assessment_id, status)` },
-        { sql: `create index if not exists idx_incidents_attempt on assessment_incidents(attempt_id, created_at)` }
+        { sql: `create index if not exists idx_attempts_assessment on assessment_attempts(assessment_id, started_at)` },
+        { sql: `create index if not exists idx_incidents_attempt on assessment_incidents(attempt_id, created_at)` },
+        { sql: `create index if not exists idx_incidents_assessment on assessment_incidents(assessment_id, created_at)` }
     ]);
 }
 
@@ -237,6 +239,9 @@ function assessmentFromRow(row) {
     return {
         ...row,
         duration_minutes: Number(row.duration_minutes || 30),
+        question_count: Number(row.question_count || 0),
+        attempt_count: Number(row.attempt_count || 0),
+        violation_count: Number(row.violation_count || 0),
         settings: parseJson(row.settings_json, {})
     };
 }
@@ -440,7 +445,14 @@ function safeRuntimeQuestion(question) {
 }
 
 async function adminList(env) {
-    const [list] = await turso(env, [{ sql: `select * from assessments order by created_at desc` }]);
+    const [list] = await turso(env, [{
+        sql: `select a.*,
+            (select count(*) from assessment_questions q where q.assessment_id = a.id) as question_count,
+            (select count(*) from assessment_attempts t where t.assessment_id = a.id) as attempt_count,
+            (select coalesce(sum(t.violations), 0) from assessment_attempts t where t.assessment_id = a.id) as violation_count
+            from assessments a
+            order by a.updated_at desc, a.created_at desc`
+    }]);
     return json({ assessments: rows(list).map(assessmentFromRow) });
 }
 
@@ -548,6 +560,75 @@ async function adminDelete(request, env) {
     return json({ ok: true });
 }
 
+async function adminDuplicate(request, env, admin) {
+    const body = await readBody(request);
+    const sourceId = clampText(body.source_id || body.id, 80);
+    if (!sourceId) return json({ error: 'Select a test to duplicate.' }, 422);
+
+    const [assessmentResult, questionsResult] = await turso(env, [
+        { sql: `select * from assessments where id = ? limit 1`, args: [sourceId] },
+        { sql: `select * from assessment_questions where assessment_id = ? order by order_no`, args: [sourceId] }
+    ]);
+    const source = rows(assessmentResult)[0];
+    if (!source) return json({ error: 'The source assessment no longer exists.' }, 404);
+
+    const now = new Date().toISOString();
+    const duplicateId = id('asm');
+    const duplicateTitle = clampText(body.title, 140) || clampText(`${source.title} (Copy)`, 140);
+    const duplicateSection = clampText(body.section, 80) || clampText(source.section || 'ALL', 80);
+    const keepSchedule = body.keep_schedule === true;
+    const sourceQuestions = rows(questionsResult);
+
+    const statements = [{
+        sql: `insert into assessments (id,title,instructions,subject_code,section,status,duration_minutes,opens_at,closes_at,settings_json,created_by,created_at,updated_at) values (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        args: [
+            duplicateId,
+            duplicateTitle,
+            source.instructions || '',
+            source.subject_code || '',
+            duplicateSection,
+            'draft',
+            Number(source.duration_minutes || 30),
+            keepSchedule ? (source.opens_at || null) : null,
+            keepSchedule ? (source.closes_at || null) : null,
+            source.settings_json || '{}',
+            String(admin.id || admin.uid || admin.email || 'admin'),
+            now,
+            now
+        ]
+    }];
+
+    sourceQuestions.forEach((question, index) => {
+        statements.push({
+            sql: `insert into assessment_questions (id,assessment_id,type,prompt,points,answer_key,choices_json,category,difficulty,explanation,order_no,created_at) values (?,?,?,?,?,?,?,?,?,?,?,?)`,
+            args: [
+                id('q'),
+                duplicateId,
+                question.type,
+                question.prompt,
+                Number(question.points || 1),
+                question.answer_key || '',
+                question.choices_json || '[]',
+                question.category || '',
+                question.difficulty || '',
+                question.explanation || '',
+                index + 1,
+                now
+            ]
+        });
+    });
+
+    await turso(env, statements);
+    return json({
+        ok: true,
+        id: duplicateId,
+        title: duplicateTitle,
+        section: duplicateSection,
+        status: 'draft',
+        questions: sourceQuestions.length
+    });
+}
+
 async function adminAttempts(env, assessmentId) {
     const [result] = await turso(env, [{
         sql: `select * from assessment_attempts where assessment_id = ? order by submitted_at desc, started_at desc`,
@@ -564,8 +645,18 @@ async function adminAttempts(env, assessmentId) {
     });
 }
 
-async function adminIncidents(env) {
-    const [result] = await turso(env, [{ sql: `select * from assessment_incidents order by created_at desc limit 200` }]);
+async function adminIncidents(env, assessmentId = '') {
+    const cleanAssessmentId = clampText(assessmentId, 80);
+    const where = cleanAssessmentId ? 'where i.assessment_id = ?' : '';
+    const [result] = await turso(env, [{
+        sql: `select i.*, a.title as assessment_title, a.section as assessment_section, a.subject_code
+            from assessment_incidents i
+            left join assessments a on a.id = i.assessment_id
+            ${where}
+            order by i.created_at desc
+            limit 500`,
+        args: cleanAssessmentId ? [cleanAssessmentId] : []
+    }]);
     return json({ incidents: rows(result) });
 }
 
@@ -952,9 +1043,10 @@ export async function onRequest({ request, env, params }) {
             if (request.method === 'GET' && path === '/admin/list') return adminList(env);
             if (request.method === 'GET' && path === '/admin/get') return adminGet(env, url.searchParams.get('id') || '');
             if (request.method === 'POST' && path === '/admin/save') return adminSave(request, env, auth.profile);
+            if (request.method === 'POST' && path === '/admin/duplicate') return adminDuplicate(request, env, auth.profile);
             if (request.method === 'POST' && path === '/admin/delete') return adminDelete(request, env);
             if (request.method === 'GET' && path === '/admin/attempts') return adminAttempts(env, url.searchParams.get('assessment_id') || '');
-            if (request.method === 'GET' && path === '/admin/incidents') return adminIncidents(env);
+            if (request.method === 'GET' && path === '/admin/incidents') return adminIncidents(env, url.searchParams.get('assessment_id') || '');
         }
 
         if (path.startsWith('/student')) {

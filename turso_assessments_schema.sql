@@ -1,4 +1,4 @@
-﻿-- Turso assessment schema for PLV Grades Portal
+-- Turso assessment schema for PLV Grades Portal
 -- Run this in Turso if you want to create the tables manually.
 
 create table if not exists assessments (
@@ -64,4 +64,6 @@ create table if not exists assessment_incidents (
 create index if not exists idx_assessments_status_section on assessments(status, section);
 create index if not exists idx_questions_assessment_order on assessment_questions(assessment_id, order_no);
 create index if not exists idx_attempts_student on assessment_attempts(student_no, assessment_id, status);
+create index if not exists idx_attempts_assessment on assessment_attempts(assessment_id, started_at);
 create index if not exists idx_incidents_attempt on assessment_incidents(attempt_id, created_at);
+create index if not exists idx_incidents_assessment on assessment_incidents(assessment_id, created_at);

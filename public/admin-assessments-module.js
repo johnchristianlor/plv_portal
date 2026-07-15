@@ -26,6 +26,13 @@ let inlinePasteUndo = null;
 let smartPasteLastFocus = null;
 let questionReviewLastFocus = null;
 let assessments = [];
+let assessmentListFilters = { search: '', status: 'all', section: 'all' };
+let duplicateSourceId = '';
+let incidentCache = [];
+let incidentAssessmentFilterId = null;
+let incidentTypeFilter = 'all';
+let incidentSearch = '';
+let incidentSearchTimer = null;
 let autosaveTimer = null;
 let draftPersistTimer = null;
 let lastAutosaveSignature = '';
@@ -1287,6 +1294,10 @@ function showWorkspace(name) {
             panel.classList.toggle('details-mode', name !== 'builder');
         }
     });
+    if ($('resultsPanelTitle')) {
+        $('resultsPanelTitle').hidden = name === 'security';
+        if (name === 'results') $('resultsPanelTitle').textContent = 'Student Submissions';
+    }
     if (name === 'results' && editing) attempts(editing);
     if (name === 'security') incidents();
     setBuilderLock();
@@ -1831,28 +1842,237 @@ async function loadAssessments() {
     }
 }
 
-function renderAssessments() {
-    $('list').innerHTML = assessments.length ? assessments.map(a => `
-        <article class="assessment-card">
-            <div class="row">
+function compactDate(value) {
+    if (!value) return 'Not scheduled';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Not scheduled';
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function assessmentStatusMeta(status = 'draft') {
+    const value = String(status || 'draft').toLowerCase();
+    return {
+        draft: { label: 'Draft', icon: 'ph-pencil-line', className: 'draft' },
+        published: { label: 'Published', icon: 'ph-broadcast', className: 'published' },
+        closed: { label: 'Closed', icon: 'ph-lock-key', className: 'closed' },
+        archived: { label: 'Archived', icon: 'ph-archive', className: 'archived' }
+    }[value] || { label: value, icon: 'ph-circle', className: 'draft' };
+}
+
+function filteredAssessments() {
+    const query = assessmentListFilters.search.trim().toLowerCase();
+    return assessments.filter(assessment => {
+        const matchesSearch = !query || [assessment.title, assessment.subject_code, assessment.section, assessment.instructions]
+            .some(value => String(value || '').toLowerCase().includes(query));
+        const matchesStatus = assessmentListFilters.status === 'all' || assessment.status === assessmentListFilters.status;
+        const matchesSection = assessmentListFilters.section === 'all' || assessment.section === assessmentListFilters.section;
+        return matchesSearch && matchesStatus && matchesSection;
+    });
+}
+
+function assessmentCardMarkup(assessment) {
+    const status = assessmentStatusMeta(assessment.status);
+    const instructions = String(assessment.instructions || '').trim();
+    return `
+        <article class="assessment-card assessment-library-card" data-assessment-card="${esc(assessment.id)}">
+            <div class="assessment-card-topline">
+                <span class="assessment-status ${status.className}"><i class="ph-fill ${status.icon}"></i>${esc(status.label)}</span>
+                <span class="assessment-updated"><i class="ph-bold ph-clock-counter-clockwise"></i>Updated ${esc(compactDate(assessment.updated_at || assessment.created_at))}</span>
+            </div>
+            <div class="assessment-card-heading">
+                <div class="assessment-card-icon"><i class="ph-fill ph-exam"></i></div>
                 <div>
-                    <b>${esc(a.title)}</b>
-                    <p class="mini">${esc(a.subject_code)} &bull; ${esc(a.section)} &bull; ${a.duration_minutes} min</p>
+                    <h3>${esc(assessment.title || 'Untitled assessment')}</h3>
+                    <p>${esc(instructions || 'No instructions were added for this test.')}</p>
                 </div>
-                <span class="badge">${esc(a.status)}</span>
             </div>
-            <p class="mini">${esc(a.instructions || 'No instructions')}</p>
-            <div class="actions">
-                <button class="btn secondary" data-edit="${esc(a.id)}"><i class="ph-bold ph-pencil-simple"></i>Edit</button>
-                <button class="btn secondary" data-builder="${esc(a.id)}"><i class="ph-bold ph-list-checks"></i>Questions</button>
-                <button class="btn secondary" data-attempts="${esc(a.id)}"><i class="ph-bold ph-chart-bar"></i>Results</button>
-                <button class="btn danger" data-delete="${esc(a.id)}"><i class="ph-bold ph-trash"></i>Delete</button>
+            <div class="assessment-card-meta-grid">
+                <div class="assessment-card-meta"><span>Subject</span><strong>${esc(assessment.subject_code || '—')}</strong></div>
+                <div class="assessment-card-meta"><span>Class section</span><strong>${esc(assessment.section || '—')}</strong></div>
+                <div class="assessment-card-meta"><span>Duration</span><strong>${Number(assessment.duration_minutes || 0)} min</strong></div>
+                <div class="assessment-card-meta"><span>Question bank</span><strong>${Number(assessment.question_count || 0)} questions</strong></div>
             </div>
-        </article>`).join('') : '<p class="mini">No assessments yet.</p>';
+            <div class="assessment-card-stats" aria-label="Assessment activity">
+                <span><i class="ph-bold ph-users"></i><b>${Number(assessment.attempt_count || 0)}</b> submissions</span>
+                <span class="${Number(assessment.violation_count || 0) ? 'has-alert' : ''}"><i class="ph-bold ph-shield-warning"></i><b>${Number(assessment.violation_count || 0)}</b> anomalies</span>
+                <span><i class="ph-bold ph-calendar-blank"></i>${esc(compactDate(assessment.opens_at))}</span>
+            </div>
+            <div class="assessment-card-footer">
+                <div class="assessment-card-primary-actions">
+                    <button class="btn primary" type="button" data-builder="${esc(assessment.id)}"><i class="ph-bold ph-list-checks"></i>Manage Questions</button>
+                    <button class="btn secondary" type="button" data-edit="${esc(assessment.id)}"><i class="ph-bold ph-sliders-horizontal"></i>Details</button>
+                </div>
+                <div class="assessment-card-secondary-actions">
+                    <button class="assessment-card-action" type="button" data-attempts="${esc(assessment.id)}" title="View student results"><i class="ph-bold ph-chart-bar"></i><span>Results</span></button>
+                    <button class="assessment-card-action" type="button" data-duplicate="${esc(assessment.id)}" title="Duplicate this test for another class section"><i class="ph-bold ph-copy"></i><span>Duplicate</span></button>
+                    <button class="assessment-card-action" type="button" data-audit="${esc(assessment.id)}" title="Open this test's anomaly log"><i class="ph-bold ph-shield-warning"></i><span>Audit</span></button>
+                    <button class="assessment-card-action danger" type="button" data-delete="${esc(assessment.id)}" title="Delete assessment"><i class="ph-bold ph-trash"></i><span>Delete</span></button>
+                </div>
+            </div>
+        </article>`;
+}
+
+function bindAssessmentCardActions() {
     document.querySelectorAll('[data-edit]').forEach(btn => btn.onclick = () => navigateAssessment('details', btn.dataset.edit));
     document.querySelectorAll('[data-builder]').forEach(btn => btn.onclick = () => navigateAssessment('builder', btn.dataset.builder));
     document.querySelectorAll('[data-attempts]').forEach(btn => btn.onclick = () => navigateAssessment('results', btn.dataset.attempts));
+    document.querySelectorAll('[data-duplicate]').forEach(btn => btn.onclick = () => openDuplicateAssessment(btn.dataset.duplicate));
+    document.querySelectorAll('[data-audit]').forEach(btn => btn.onclick = async () => {
+        incidentAssessmentFilterId = btn.dataset.audit;
+        await navigateAssessment('security', btn.dataset.audit);
+    });
     document.querySelectorAll('[data-delete]').forEach(btn => btn.onclick = () => del(btn.dataset.delete));
+}
+
+function renderAssessmentCards() {
+    const container = $('assessmentCards');
+    if (!container) return;
+    const filtered = filteredAssessments();
+    const count = $('assessmentListCount');
+    if (count) count.textContent = `${filtered.length} of ${assessments.length} test${assessments.length === 1 ? '' : 's'}`;
+    container.innerHTML = filtered.length
+        ? filtered.map(assessmentCardMarkup).join('')
+        : `<div class="assessment-library-empty"><div><i class="ph-fill ph-magnifying-glass"></i></div><h3>No matching tests</h3><p>Try changing the search text or filters.</p><button class="btn secondary" type="button" id="clearAssessmentFilters">Clear filters</button></div>`;
+    bindAssessmentCardActions();
+    if ($('clearAssessmentFilters')) $('clearAssessmentFilters').onclick = () => {
+        assessmentListFilters = { search: '', status: 'all', section: 'all' };
+        renderAssessments();
+    };
+}
+
+function renderAssessments() {
+    const list = $('list');
+    if (!assessments.length) {
+        list.innerHTML = `<div class="assessment-library-empty"><div><i class="ph-fill ph-exam"></i></div><h3>No tests created yet</h3><p>Create your first assessment, add questions, and assign it to a class section.</p><button class="btn primary" type="button" id="emptyCreateAssessment"><i class="ph-bold ph-plus"></i>Create Test</button></div>`;
+        if ($('emptyCreateAssessment')) $('emptyCreateAssessment').onclick = () => navigateAssessment('details', '', { isNew: true, focusTitle: true });
+        return;
+    }
+
+    const sectionOptions = [...new Set(assessments.map(item => item.section).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    list.innerHTML = `
+        <div class="assessment-library-toolbar">
+            <label class="assessment-search"><i class="ph-bold ph-magnifying-glass"></i><input id="assessmentSearch" type="search" placeholder="Search by title, subject, or section" value="${esc(assessmentListFilters.search)}"></label>
+            <select class="select assessment-filter" id="assessmentStatusFilter" aria-label="Filter tests by status">
+                <option value="all">All statuses</option>
+                <option value="draft" ${assessmentListFilters.status === 'draft' ? 'selected' : ''}>Draft</option>
+                <option value="published" ${assessmentListFilters.status === 'published' ? 'selected' : ''}>Published</option>
+                <option value="closed" ${assessmentListFilters.status === 'closed' ? 'selected' : ''}>Closed</option>
+                <option value="archived" ${assessmentListFilters.status === 'archived' ? 'selected' : ''}>Archived</option>
+            </select>
+            <select class="select assessment-filter" id="assessmentSectionFilter" aria-label="Filter tests by class section">
+                <option value="all">All sections</option>
+                ${sectionOptions.map(section => `<option value="${esc(section)}" ${assessmentListFilters.section === section ? 'selected' : ''}>${esc(section)}</option>`).join('')}
+            </select>
+            <span class="assessment-list-count" id="assessmentListCount"></span>
+        </div>
+        <div class="assessment-library-grid" id="assessmentCards"></div>`;
+
+    $('assessmentSearch').oninput = event => {
+        assessmentListFilters.search = event.target.value;
+        renderAssessmentCards();
+    };
+    $('assessmentStatusFilter').onchange = event => {
+        assessmentListFilters.status = event.target.value;
+        renderAssessmentCards();
+    };
+    $('assessmentSectionFilter').onchange = event => {
+        assessmentListFilters.section = event.target.value;
+        renderAssessmentCards();
+    };
+    renderAssessmentCards();
+}
+
+function duplicateSectionOptions(selectedValue = '') {
+    const sourceOptions = [...($('section')?.options || [])]
+        .filter(option => option.value)
+        .map(option => ({ value: option.value, label: option.textContent || option.value }));
+    if (selectedValue && !sourceOptions.some(option => option.value === selectedValue)) {
+        sourceOptions.unshift({ value: selectedValue, label: selectedValue });
+    }
+    return sourceOptions.map(option => `<option value="${esc(option.value)}" ${option.value === selectedValue ? 'selected' : ''}>${esc(option.label)}</option>`).join('');
+}
+
+function ensureDuplicateAssessmentModal() {
+    if ($('duplicateAssessmentModal')) return;
+    document.body.insertAdjacentHTML('beforeend', `
+        <div class="assessment-modal" id="duplicateAssessmentModal" role="dialog" aria-modal="true" aria-labelledby="duplicateAssessmentTitle" hidden>
+            <div class="assessment-modal-backdrop" data-close-duplicate></div>
+            <section class="assessment-modal-card">
+                <header class="assessment-modal-header">
+                    <div class="assessment-modal-icon"><i class="ph-fill ph-copy"></i></div>
+                    <div><span>Reuse an existing test</span><h2 id="duplicateAssessmentTitle">Duplicate Assessment</h2><p>Copy all sections, questions, answers, points, and security settings to another class section.</p></div>
+                    <button class="assessment-modal-close" type="button" data-close-duplicate aria-label="Close duplicate assessment dialog"><i class="ph-bold ph-x"></i></button>
+                </header>
+                <form id="duplicateAssessmentForm" class="assessment-modal-body">
+                    <div class="duplicate-source-summary" id="duplicateSourceSummary"></div>
+                    <div class="field"><label for="duplicateTitleInput">Name of duplicated test</label><input class="input" id="duplicateTitleInput" maxlength="140" required></div>
+                    <div class="field"><label for="duplicateSectionSelect">Assign to class section</label><select class="select" id="duplicateSectionSelect" required></select><small>The copied assessment is independent. Editing it will not change the original test.</small></div>
+                    <label class="duplicate-schedule-option"><input type="checkbox" id="duplicateKeepSchedule"><span><b>Keep original open and close dates</b><small>Leave this off when the new class follows a different schedule.</small></span></label>
+                    <div class="duplicate-draft-note"><i class="ph-fill ph-info"></i><span>The duplicate will be saved as <b>Draft</b> so students cannot access it until you review and publish it.</span></div>
+                    <footer class="assessment-modal-footer"><button class="btn secondary" type="button" data-close-duplicate>Cancel</button><button class="btn primary" type="submit" id="duplicateAssessmentSubmit"><i class="ph-bold ph-copy"></i>Duplicate Test</button></footer>
+                </form>
+            </section>
+        </div>`);
+    document.querySelectorAll('[data-close-duplicate]').forEach(button => button.addEventListener('click', closeDuplicateAssessment));
+    $('duplicateAssessmentForm').addEventListener('submit', submitDuplicateAssessment);
+}
+
+function openDuplicateAssessment(id) {
+    const source = assessments.find(item => item.id === id);
+    if (!source) return toast('The selected assessment could not be found.');
+    ensureDuplicateAssessmentModal();
+    duplicateSourceId = id;
+    $('duplicateTitleInput').value = `${source.title} (Copy)`;
+    $('duplicateSectionSelect').innerHTML = duplicateSectionOptions(source.section);
+    $('duplicateKeepSchedule').checked = false;
+    $('duplicateSourceSummary').innerHTML = `<div><i class="ph-fill ph-exam"></i></div><span><small>Copying from</small><strong>${esc(source.title)}</strong><em>${esc(source.subject_code || 'No subject')} · ${esc(source.section || 'No section')} · ${Number(source.question_count || 0)} questions</em></span>`;
+    const modal = $('duplicateAssessmentModal');
+    modal.hidden = false;
+    requestAnimationFrame(() => modal.classList.add('show'));
+    document.body.classList.add('assessment-modal-open');
+    setTimeout(() => $('duplicateTitleInput')?.focus(), 120);
+}
+
+function closeDuplicateAssessment() {
+    const modal = $('duplicateAssessmentModal');
+    if (!modal || modal.hidden) return;
+    modal.classList.remove('show');
+    document.body.classList.remove('assessment-modal-open');
+    setTimeout(() => { modal.hidden = true; duplicateSourceId = ''; }, 180);
+}
+
+async function submitDuplicateAssessment(event) {
+    event.preventDefault();
+    const button = $('duplicateAssessmentSubmit');
+    const title = $('duplicateTitleInput').value.trim();
+    const section = $('duplicateSectionSelect').value;
+    if (!duplicateSourceId || !title || !section) return toast('Enter a title and choose the target class section.');
+    button.disabled = true;
+    button.innerHTML = '<i class="ph-bold ph-spinner-gap duplicate-spinner"></i>Duplicating…';
+    try {
+        const data = await api('admin/duplicate', {
+            method: 'POST',
+            body: JSON.stringify({
+                source_id: duplicateSourceId,
+                title,
+                section,
+                keep_schedule: $('duplicateKeepSchedule').checked
+            })
+        });
+        closeDuplicateAssessment();
+        broadcastAssessmentChange('duplicated', data.id);
+        await loadAssessments();
+        toast(`Test duplicated for ${section}. It is saved as Draft.`);
+        const card = document.querySelector(`[data-assessment-card="${CSS.escape(data.id)}"]`);
+        card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card?.classList.add('assessment-card-highlight');
+        setTimeout(() => card?.classList.remove('assessment-card-highlight'), 1800);
+    } catch (error) {
+        toast(error.message);
+    } finally {
+        button.disabled = false;
+        button.innerHTML = '<i class="ph-bold ph-copy"></i>Duplicate Test';
+    }
 }
 
 async function edit(id, workspace = 'details') {
@@ -1916,17 +2136,114 @@ async function attempts(id) {
     }
 }
 
-async function incidents() {
+function incidentTypeLabel(type = '') {
+    const normalized = String(type || '').toLowerCase();
+    const labels = {
+        tab_hidden: 'Tab switched', visibility_hidden: 'Tab switched', window_blur: 'Window lost focus',
+        fullscreen_exit: 'Fullscreen exited', duplicate_tab: 'Duplicate exam tab', copy: 'Copy attempt',
+        paste: 'Paste attempt', cut: 'Cut attempt', context_menu: 'Right-click attempt', print: 'Print attempt',
+        restricted_shortcut: 'Restricted shortcut', offline: 'Internet disconnected', unload: 'Exam page closed',
+        back_navigation: 'Back navigation', anomaly_limit: 'Anomaly limit reached'
+    };
+    return labels[normalized] || String(type || 'Unknown event').replace(/[_-]+/g, ' ').replace(/\b\w/g, value => value.toUpperCase());
+}
+
+function incidentSeverity(type = '') {
+    const normalized = String(type || '').toLowerCase();
+    if (['duplicate_tab', 'anomaly_limit', 'print', 'fullscreen_exit'].includes(normalized)) return 'high';
+    if (['tab_hidden', 'visibility_hidden', 'window_blur', 'restricted_shortcut', 'copy', 'paste', 'cut', 'unload'].includes(normalized)) return 'medium';
+    return 'low';
+}
+
+function readableIncidentDetails(value = '') {
+    const raw = String(value || '').trim();
+    if (!raw) return 'No additional details';
     try {
-        const data = await api('admin/incidents');
-        const incidents = data.incidents || [];
-        $('attempts').innerHTML = incidents.length ? `
-            <div class="table-wrap"><table class="assessment-table">
-                <thead><tr><th>Time</th><th>Student</th><th>Type</th><th>Details</th></tr></thead>
-                <tbody>${incidents.map(i => `<tr><td>${esc(new Date(i.created_at).toLocaleString())}</td><td>${esc(i.student_no || '')}</td><td>${esc(i.type)}</td><td>${esc(i.details || '')}</td></tr>`).join('')}</tbody>
-            </table></div>` : '<p class="mini">No anomalies logged yet.</p>';
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+            return Object.entries(parsed).map(([key, item]) => `${key.replace(/[_-]+/g, ' ')}: ${typeof item === 'object' ? JSON.stringify(item) : item}`).join(' · ');
+        }
+    } catch (_) {}
+    return raw;
+}
+
+function renderIncidentManager() {
+    const query = incidentSearch.trim().toLowerCase();
+    const filtered = incidentCache.filter(incident => {
+        const matchesType = incidentTypeFilter === 'all' || incident.type === incidentTypeFilter;
+        const matchesSearch = !query || [incident.student_no, incident.type, incident.details, incident.assessment_title, incident.assessment_section]
+            .some(value => String(value || '').toLowerCase().includes(query));
+        return matchesType && matchesSearch;
+    });
+    const typeOptions = [...new Set(incidentCache.map(item => item.type).filter(Boolean))].sort();
+    const uniqueStudents = new Set(filtered.map(item => item.student_no).filter(Boolean)).size;
+    const highRiskCount = filtered.filter(item => incidentSeverity(item.type) === 'high').length;
+    const latest = filtered[0]?.created_at ? new Date(filtered[0].created_at).toLocaleString() : 'No events';
+    const selectedAssessment = incidentAssessmentFilterId ?? '';
+
+    $('attempts').innerHTML = `
+        <section class="audit-manager">
+            <div class="audit-manager-header">
+                <div><span class="audit-kicker"><i class="ph-fill ph-shield-check"></i>Security audit trail</span><h2>Anomaly Log</h2><p>Review security events by test, student, and incident type.</p></div>
+                <button class="btn secondary" type="button" id="refreshIncidents"><i class="ph-bold ph-arrow-clockwise"></i>Refresh Log</button>
+            </div>
+            <div class="audit-summary-grid">
+                <div class="audit-summary"><i class="ph-fill ph-warning-circle"></i><span><small>Visible events</small><strong>${filtered.length}</strong></span></div>
+                <div class="audit-summary"><i class="ph-fill ph-student"></i><span><small>Students involved</small><strong>${uniqueStudents}</strong></span></div>
+                <div class="audit-summary ${highRiskCount ? 'alert' : ''}"><i class="ph-fill ph-siren"></i><span><small>High-priority events</small><strong>${highRiskCount}</strong></span></div>
+                <div class="audit-summary"><i class="ph-fill ph-clock"></i><span><small>Latest event</small><strong>${esc(latest)}</strong></span></div>
+            </div>
+            <div class="audit-filters">
+                <label><span>Test or exam</span><select class="select" id="incidentAssessmentFilter"><option value="">All tests</option>${assessments.map(item => `<option value="${esc(item.id)}" ${selectedAssessment === item.id ? 'selected' : ''}>${esc(item.title)} — ${esc(item.section || 'No section')}</option>`).join('')}</select></label>
+                <label><span>Event type</span><select class="select" id="incidentTypeFilter"><option value="all">All event types</option>${typeOptions.map(type => `<option value="${esc(type)}" ${incidentTypeFilter === type ? 'selected' : ''}>${esc(incidentTypeLabel(type))}</option>`).join('')}</select></label>
+                <label class="audit-search"><span>Search audit trail</span><div><i class="ph-bold ph-magnifying-glass"></i><input class="input" id="incidentSearch" type="search" value="${esc(incidentSearch)}" placeholder="Student number, test, or details"></div></label>
+            </div>
+            <div class="audit-result-bar"><span><b>${filtered.length}</b> event${filtered.length === 1 ? '' : 's'} shown</span>${selectedAssessment ? `<button class="audit-clear-filter" type="button" id="showAllIncidents"><i class="ph-bold ph-x"></i>Show all tests</button>` : ''}</div>
+            ${filtered.length ? `<div class="table-wrap audit-table-wrap"><table class="assessment-table audit-table"><thead><tr><th>Date and time</th><th>Test</th><th>Student</th><th>Security event</th><th>Details</th></tr></thead><tbody>${filtered.map(item => {
+                const severity = incidentSeverity(item.type);
+                return `<tr><td><strong>${esc(new Date(item.created_at).toLocaleDateString())}</strong><small>${esc(new Date(item.created_at).toLocaleTimeString())}</small></td><td><strong>${esc(item.assessment_title || 'Deleted assessment')}</strong><small>${esc(item.subject_code || '')}${item.assessment_section ? ` · ${esc(item.assessment_section)}` : ''}</small></td><td><strong>${esc(item.student_no || 'Unknown student')}</strong><small>Student account</small></td><td><span class="incident-badge ${severity}"><i class="ph-fill ${severity === 'high' ? 'ph-siren' : severity === 'medium' ? 'ph-warning' : 'ph-info'}"></i>${esc(incidentTypeLabel(item.type))}</span></td><td><span class="audit-details">${esc(readableIncidentDetails(item.details))}</span></td></tr>`;
+            }).join('')}</tbody></table></div>` : `<div class="audit-empty"><i class="ph-fill ph-shield-check"></i><h3>No matching anomaly records</h3><p>There are no logged events for the selected filters.</p></div>`}
+        </section>`;
+
+    $('refreshIncidents').onclick = () => incidents(true);
+    $('incidentAssessmentFilter').onchange = event => {
+        incidentAssessmentFilterId = event.target.value;
+        incidentTypeFilter = 'all';
+        incidentSearch = '';
+        incidents(true);
+    };
+    $('incidentTypeFilter').onchange = event => {
+        incidentTypeFilter = event.target.value;
+        renderIncidentManager();
+    };
+    $('incidentSearch').oninput = event => {
+        incidentSearch = event.target.value;
+        clearTimeout(incidentSearchTimer);
+        incidentSearchTimer = setTimeout(() => {
+            renderIncidentManager();
+            const input = $('incidentSearch');
+            input?.focus();
+            input?.setSelectionRange(input.value.length, input.value.length);
+        }, 140);
+    };
+    if ($('showAllIncidents')) $('showAllIncidents').onclick = () => {
+        incidentAssessmentFilterId = '';
+        incidentTypeFilter = 'all';
+        incidentSearch = '';
+        incidents(true);
+    };
+}
+
+async function incidents(force = false) {
+    if (incidentAssessmentFilterId === null) incidentAssessmentFilterId = editing || '';
+    $('attempts').innerHTML = '<div class="audit-loading"><i class="ph-bold ph-spinner-gap duplicate-spinner"></i><span>Loading security audit trail…</span></div>';
+    try {
+        const suffix = incidentAssessmentFilterId ? `?assessment_id=${encodeURIComponent(incidentAssessmentFilterId)}` : '';
+        const data = await api('admin/incidents' + suffix);
+        incidentCache = data.incidents || [];
+        renderIncidentManager();
     } catch (error) {
-        $('attempts').innerHTML = `<p class="mini">${esc(error.message)}</p>`;
+        $('attempts').innerHTML = `<div class="audit-empty error"><i class="ph-fill ph-warning-circle"></i><h3>Could not load anomaly records</h3><p>${esc(error.message)}</p></div>`;
     }
 }
 
@@ -2002,6 +2319,9 @@ document.querySelectorAll('#form input, #form textarea, #form select, #qType, #q
 window.addEventListener('keydown', event => {
     if (event.key === 'Escape' && $('questionBankModal')?.classList.contains('show')) {
         $('questionBankClose')?.click();
+    }
+    if (event.key === 'Escape' && $('duplicateAssessmentModal')?.classList.contains('show')) {
+        closeDuplicateAssessment();
     }
 });
 window.addEventListener('beforeunload', persistDraft);
