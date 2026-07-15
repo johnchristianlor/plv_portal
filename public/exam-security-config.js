@@ -139,8 +139,8 @@ export function normalizeSecurityConfig(settings = {}) {
   const legacyMonitored = raw.fullscreen !== undefined || raw.maxViolations !== undefined || raw.autoSubmitOnViolation !== undefined;
   const mode = MODE_DEFAULTS[requestedMode] ? requestedMode : (legacyMonitored ? 'monitored' : 'standard');
   const defaults = deepClone(MODE_DEFAULTS[mode]);
-  const monitoring = { ...defaults.monitoring, ...(raw.monitoring || {}) };
-  const media = { ...defaults.media, ...(raw.media || {}) };
+  const monitoring = { ...defaults.monitoring, ...(raw.monitoring || {}), cameraState: false, microphoneState: false, screenSharing: false };
+  const media = { cameraRequired: false, microphoneRequired: false, screenShareRequired: false };
   const policies = deepClone(DEFAULT_POLICIES);
   const customPolicies = raw.eventPolicies && typeof raw.eventPolicies === 'object' ? raw.eventPolicies : {};
   for (const code of INCIDENT_CODES) {

@@ -86,33 +86,68 @@ function securitySummary(assessment) {
     const labels = { standard: 'Standard', monitored: 'Monitored', strict: 'Strict', secure_browser_ready: 'Secure Browser Ready' };
     const attempts = Math.max(1, Number(settings.maxAttempts || 1));
     const fullscreen = settings.requireFullscreen ?? settings.fullscreen;
-    return `${labels[mode] || 'Standard'} • ${attempts} attempt${attempts === 1 ? '' : 's'}${fullscreen ? ' • Fullscreen' : ''}`;
+    return `${labels[mode] || 'Standard'} | ${attempts} attempt${attempts === 1 ? '' : 's'}${fullscreen ? ' | Fullscreen' : ''}`;
+}
+
+function statusMeta(state) {
+    return {
+        active: { label: 'Open now', icon: 'ph-fill ph-play-circle', tone: 'active' },
+        upcoming: { label: 'Upcoming', icon: 'ph-fill ph-clock-countdown', tone: 'upcoming' },
+        completed: { label: 'Completed', icon: 'ph-fill ph-check-circle', tone: 'completed' },
+        closed: { label: 'Closed', icon: 'ph-fill ph-lock-key', tone: 'closed' }
+    }[state] || { label: state || 'Status', icon: 'ph-fill ph-info', tone: 'neutral' };
+}
+
+function shortDate(value, fallback) {
+    if (!value) return fallback;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return fallback;
+    return parsed.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function emptyCard(title, message, icon = 'ph-fill ph-folder-simple-dashed') {
+    return `<article class="glass assessment-empty"><div class="assessment-empty-icon"><i class="${icon}"></i></div><b>${esc(title)}</b><p>${esc(message)}</p></article>`;
 }
 
 function render() {
     const visible = assessments.filter(item => filter === 'all' || stateOf(item) === filter);
     $('list').innerHTML = visible.length ? visible.map(assessment => {
         const state = stateOf(assessment);
+        const status = statusMeta(state);
         const submitted = attempts.find(item => item.assessment_id === assessment.id && item.status === 'submitted');
         const started = attempts.find(item => item.assessment_id === assessment.id && item.status === 'started');
+        const scoreText = submitted ? `${Number(submitted.score || 0)} / ${Number(submitted.total_points || 0)}` : '';
+        const warningText = submitted ? Number(submitted.warning_count ?? submitted.violations ?? 0) : 0;
         const buttonLabel = submitted
-            ? 'Submitted'
+            ? '<i class="ph-bold ph-check"></i> Submitted'
             : started
-                ? '<i class="ph-bold ph-arrows-clockwise"></i> Resume Secure Exam'
-                : '<i class="ph-bold ph-shield-check"></i> Open Secure Exam';
-        return `<article class="glass assessment-card">
-            <div class="row"><div><h3>${esc(assessment.title)}</h3><p style="color:var(--text-muted);font-weight:700">${esc(assessment.instructions || 'No instructions provided.')}</p></div><span class="badge">${esc(state)}</span></div>
-            <div class="meta">
-                <span class="badge">${esc(assessment.subject_code)}</span>
-                <span class="badge">${esc(assessment.section)}</span>
-                <span class="badge">${Number(assessment.duration_minutes || 0)} min</span>
-                <span class="badge"><i class="ph-fill ph-shield-check"></i>${esc(securitySummary(assessment))}</span>
+                ? '<i class="ph-bold ph-arrows-clockwise"></i> Resume Exam'
+                : '<i class="ph-bold ph-arrow-square-out"></i> Start Exam';
+        const disabled = state !== 'active' || submitted;
+        return `<article class="glass assessment-card student-assessment-card ${esc(status.tone)}">
+            <div class="assessment-card-accent"></div>
+            <div class="student-assessment-head">
+                <div class="student-assessment-icon"><i class="ph-fill ph-exam"></i></div>
+                <div class="student-assessment-title">
+                    <span class="student-status ${esc(status.tone)}"><i class="${esc(status.icon)}"></i>${esc(status.label)}</span>
+                    <h3>${esc(assessment.title || 'Untitled assessment')}</h3>
+                    <p>${esc(assessment.instructions || 'Read the instructions carefully before starting.')}</p>
+                </div>
             </div>
-            <p style="color:var(--text-muted);font-weight:700;line-height:1.7">Open: ${esc(formatDate(assessment.opens_at, 'Anytime'))}<br>Close: ${esc(formatDate(assessment.closes_at, 'No close date'))}</p>
-            ${submitted ? `<p><b>Score:</b> ${Number(submitted.score || 0)} / ${Number(submitted.total_points || 0)} &bull; <b>Warning score:</b> ${Number(submitted.warning_count ?? submitted.violations ?? 0)}</p>` : ''}
-            <button class="btn" data-open-exam="${esc(assessment.id)}" ${state !== 'active' || submitted ? 'disabled' : ''}>${buttonLabel}</button>
+            <div class="student-assessment-meta">
+                <div><span>Subject</span><strong>${esc(assessment.subject_code || '-')}</strong></div>
+                <div><span>Section</span><strong>${esc(assessment.section || '-')}</strong></div>
+                <div><span>Duration</span><strong>${Number(assessment.duration_minutes || 0)} min</strong></div>
+                <div><span>Security</span><strong>${esc(securitySummary(assessment))}</strong></div>
+            </div>
+            <div class="student-assessment-window">
+                <div><i class="ph-bold ph-calendar-check"></i><span>Opens</span><strong>${esc(shortDate(assessment.opens_at, 'Anytime'))}</strong></div>
+                <div><i class="ph-bold ph-calendar-x"></i><span>Closes</span><strong>${esc(shortDate(assessment.closes_at, 'No close date'))}</strong></div>
+            </div>
+            ${submitted ? `<div class="student-score-strip"><span><i class="ph-fill ph-medal"></i> Score <strong>${esc(scoreText)}</strong></span><span>Warning score <strong>${warningText}</strong></span></div>` : ''}
+            <button class="btn student-assessment-action" data-open-exam="${esc(assessment.id)}" ${disabled ? 'disabled' : ''}>${buttonLabel}</button>
         </article>`;
-    }).join('') : '<article class="glass assessment-card"><b>No assessments here.</b><p style="color:var(--text-muted);font-weight:700">Nothing matches this tab.</p></article>';
+    }).join('') : emptyCard('No assessments here.', 'Nothing matches this tab.');
 
     document.querySelectorAll('[data-open-exam]').forEach(button => {
         button.onclick = () => openSecureExam(button.dataset.openExam);
@@ -139,7 +174,7 @@ async function load(force = false) {
         lastLoadedAt = Date.now();
         render();
     } catch (error) {
-        $('list').innerHTML = `<article class="glass assessment-card"><b>Assessments are not ready.</b><p style="color:var(--text-muted);font-weight:700">${esc(error.message)}</p></article>`;
+        $('list').innerHTML = emptyCard('Assessments are not ready.', error.message, 'ph-fill ph-warning-circle');
     } finally {
         loading = false;
     }

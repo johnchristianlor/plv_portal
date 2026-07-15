@@ -1073,14 +1073,14 @@ function ensureSecuritySettingsUi() {
     }
     grid.insertAdjacentHTML('beforeend', `
         <div class="field full" id="securitySettingsCard">
-            <label>Security and Monitoring</label>
+            <label>Exam Security</label>
             <section class="security-settings-shell">
                 <header class="security-settings-head">
-                    <div><span class="assessment-library-kicker">Assessment protection</span><h3>Security and Monitoring</h3><p>Choose a mode, then adjust only the controls your class needs. Settings affect real student and server behavior.</p></div>
-                    <div class="security-mode-field"><label for="securityMode">Security mode</label><select class="select" id="securityMode"><option value="standard">Standard</option><option value="monitored">Monitored</option><option value="strict">Strict</option><option value="secure_browser_ready">Secure Browser Ready</option></select></div>
+                    <div><span class="assessment-library-kicker">Assessment protection</span><h3>Exam Security</h3><p>Choose a simple protection level for the test. These settings keep the exam fair without asking students for camera, microphone, or screen-sharing access.</p></div>
+                    <div class="security-mode-field"><label for="securityMode">Security mode</label><select class="select" id="securityMode"><option value="standard">Standard</option><option value="monitored">Monitored</option><option value="strict">Strict</option></select></div>
                 </header>
                 <div class="security-mode-note" id="securityModeDescription"></div>
-                <details class="security-group" open><summary><i class="ph-fill ph-sliders-horizontal"></i>Basic exam controls</summary><div class="security-group-body"><div class="security-control-grid">
+                <details class="security-group" open><summary><i class="ph-fill ph-sliders-horizontal"></i>Exam rules</summary><div class="security-group-body"><div class="security-control-grid">
                     ${securityToggle('securityFullscreen','Require fullscreen','Pause the assessment when required fullscreen is exited.')}
                     ${securityToggle('securityBacktracking','Allow question backtracking','Students may return to earlier questions.')}
                     ${securityToggle('securityOneQuestionPage','One question per page','Show one focused question at a time.', true)}
@@ -1091,17 +1091,13 @@ function ensureSecuritySettingsUi() {
                     <div class="security-number-card"><label for="securityGraceSeconds">Connection grace period (seconds)</label><input class="input" id="securityGraceSeconds" type="number" min="5" max="600" value="60"><small>Brief interruptions are not automatically treated as cheating.</small></div>
                     <div class="security-number-card"><label for="securityMaxSessions">Maximum simultaneous sessions</label><input class="input" id="securityMaxSessions" type="number" min="1" max="5" value="1"><small>One session is recommended for normal exams.</small></div>
                 </div></div></details>
-                <details class="security-group" open><summary><i class="ph-fill ph-warning-circle"></i>Warnings and responses</summary><div class="security-group-body"><div class="security-control-grid">
+                <details class="security-group" open><summary><i class="ph-fill ph-warning-circle"></i>Warnings</summary><div class="security-group-body"><div class="security-control-grid">
                     <div class="security-number-card"><label for="securityMaxViolations">Warning limit</label><input class="input" id="securityMaxViolations" type="number" min="1" max="100" value="5"><small>Weighted warning score allowed before the configured final response.</small></div>
                     <div class="security-number-card"><label for="securityFinalWarning">Final-warning threshold</label><input class="input" id="securityFinalWarning" type="number" min="0" max="100" value="4"><small>Shows a stronger warning before the final limit.</small></div>
-                    <div class="security-number-card"><label for="securityPauseAfter">Pause after warning score</label><input class="input" id="securityPauseAfter" type="number" min="0" max="100" value="0"><small>Use 0 to pause only for selected high-risk events.</small></div>
-                    <div class="security-number-card"><label for="securityWarningCalculation">Warning calculation</label><select class="select" id="securityWarningCalculation"><option value="weighted">Weighted by severity</option><option value="count">Count each warning event</option></select><small>Weighted scoring treats low and critical events differently.</small></div>
                     ${securityToggle('securityAutoSubmit','Auto-submit at final limit','Server finalizes the latest saved answers when the configured rule is reached.')}
-                    ${securityToggle('securityHighRiskOnly','Auto-submit only for high-risk events','Low-severity events cannot trigger automatic submission by themselves.', true)}
                     ${securityToggle('securityAdminReview','Require administrator review instead','Pause and flag the attempt rather than auto-submitting.', true)}
-                    ${securityToggle('securityResetWarningOnRecovery','Reset warnings on approved recovery','When an administrator approves a recovery, the server may reset the attempt warning score.')}
                 </div></div></details>
-                <details class="security-group"><summary><i class="ph-fill ph-eye"></i>Monitoring controls</summary><div class="security-group-body"><div class="security-control-grid">
+                <details class="security-group"><summary><i class="ph-fill ph-eye"></i>Monitoring</summary><div class="security-group-body"><div class="security-control-grid">
                     ${securityToggle('monitorTabSwitch','Tab or app switching','Record grouped page-visibility changes.')}
                     ${securityToggle('monitorWindowFocus','Window focus changes','Record focus loss when it is not part of a grouped tab switch.')}
                     ${securityToggle('monitorFullscreen','Fullscreen exits','Record required fullscreen exits.')}
@@ -1114,21 +1110,10 @@ function ensureSecuritySettingsUi() {
                     ${securityToggle('monitorConnection','Connection state','Track offline duration and synchronization.', true)}
                     ${securityToggle('monitorDuplicateSession','Duplicate sessions','Prevent conflicting tabs, windows, or devices.', true)}
                 </div></div></details>
-                <details class="security-group"><summary><i class="ph-fill ph-list-checks"></i>Advanced event policies</summary><div class="security-group-body"><p class="security-policy-help">Fine-tune how each event is handled. Keep the defaults unless your assessment policy requires a different severity, warning weight, pause action, cooldown, or tolerated count.</p><div id="securityPolicyEditor"></div></div></details>
-                <details class="security-group"><summary><i class="ph-fill ph-video-camera"></i>Optional device checks</summary><div class="security-group-body"><div class="security-control-grid">
-                    ${securityToggle('securityCameraRequired','Require camera availability','Check that a camera stream remains available. No video is recorded or uploaded.')}
-                    ${securityToggle('securityMicrophoneRequired','Require microphone availability','Check that a microphone stream remains available. No audio is recorded or uploaded.')}
-                    ${securityToggle('securityScreenRequired','Require screen sharing','Require an active browser screen-share track. The portal does not record the stream.')}
-                </div><p class="mini" style="margin-top:10px">Enable these only with an appropriate privacy notice and institutional policy.</p></div></details>
-                <details class="security-group"><summary><i class="ph-fill ph-browser"></i>Secure browser integration</summary><div class="security-group-body">
-                    <div class="security-control-grid">${securityToggle('securitySecureBrowserRequired','Require verified secure browser','Block exam start unless the configured backend verifier succeeds.')}${securityToggle('securitySecureBrowserVerification','Enable verification hook','Use the protected Cloudflare verification service when configured.')}</div>
-                    <div class="security-provider-grid"><div class="security-number-card"><label for="securitySecureBrowserProvider">Provider</label><select class="select" id="securitySecureBrowserProvider"><option value="none">Not configured</option><option value="safe_exam_browser">Safe Exam Browser</option><option value="approved_provider">Other approved provider</option></select></div><div class="security-number-card"><label for="securitySecureBrowserConfigId">Public configuration ID</label><input class="input" id="securitySecureBrowserConfigId" maxlength="120" placeholder="Example: plv-midterm-2026"><small>Do not enter private Browser Exam Keys or signing secrets.</small></div></div>
-                    <div class="security-integration-note"><i class="ph-fill ph-info"></i> Secure-browser verification remains unavailable until a real backend verification endpoint and protected credentials are configured. The portal never relies only on the user-agent string.</div>
-                </div></details>
             </section>
         </div>`);
     const ids = [
-        'securityMode','securityFullscreen','securityBacktracking','securityOneQuestionPage','securityShowNavigator','securityResumeRefresh','securityResumeConnection','securityMaxAttempts','securityGraceSeconds','securityMaxSessions','securityMaxViolations','securityFinalWarning','securityPauseAfter','securityWarningCalculation','securityAutoSubmit','securityHighRiskOnly','securityAdminReview','securityResetWarningOnRecovery','monitorTabSwitch','monitorWindowFocus','monitorFullscreen','monitorClipboard','monitorContextMenu','monitorDragDrop','monitorPrint','monitorShortcuts','monitorNavigation','monitorConnection','monitorDuplicateSession','securityCameraRequired','securityMicrophoneRequired','securityScreenRequired','securitySecureBrowserRequired','securitySecureBrowserVerification','securitySecureBrowserProvider','securitySecureBrowserConfigId'
+        'securityMode','securityFullscreen','securityBacktracking','securityOneQuestionPage','securityShowNavigator','securityResumeRefresh','securityResumeConnection','securityMaxAttempts','securityGraceSeconds','securityMaxSessions','securityMaxViolations','securityFinalWarning','securityAutoSubmit','securityAdminReview','monitorTabSwitch','monitorWindowFocus','monitorFullscreen','monitorClipboard','monitorContextMenu','monitorDragDrop','monitorPrint','monitorShortcuts','monitorNavigation','monitorConnection','monitorDuplicateSession'
     ];
     ids.forEach(id => {
         $(id)?.addEventListener('input', scheduleAutosave);
@@ -1175,9 +1160,8 @@ function collectEventPolicies() {
 function securityModeDescription(mode) {
     return {
         standard: 'Server-controlled timing, one active attempt, autosaving, randomized questions, and server-side scoring without aggressive browser monitoring.',
-        monitored: 'Standard protections plus configurable tab, focus, clipboard, navigation, print, connection, and duplicate-session monitoring.',
-        strict: 'Monitored protections with required fullscreen, stronger warning responses, and optional automatic submission.',
-        secure_browser_ready: 'Strict protections plus a backend-ready boundary for an approved secure browser. Real verification credentials are required before students can start.'
+        monitored: 'Standard protections plus practical tab, focus, clipboard, navigation, print, connection, and duplicate-session monitoring.',
+        strict: 'Monitored protections with required fullscreen and stronger warning responses.'
     }[mode] || '';
 }
 
@@ -1198,22 +1182,13 @@ function applySecuritySettings(settings = {}, options = {}) {
     setValue('securityMaxSessions', config.maxSimultaneousSessions);
     setValue('securityMaxViolations', config.warningLimit);
     setValue('securityFinalWarning', config.finalWarningThreshold);
-    setValue('securityPauseAfter', config.pauseAfterWarningCount);
-    setValue('securityWarningCalculation', config.warningCalculation);
     setChecked('securityAutoSubmit', config.autoSubmitAfterFinalViolation);
-    setChecked('securityHighRiskOnly', config.autoSubmitHighRiskOnly);
     setChecked('securityAdminReview', config.adminReviewInsteadOfAutoSubmit);
-    setChecked('securityResetWarningOnRecovery', config.resetWarningOnApprovedResume);
     const m = config.monitoring || {};
     setChecked('monitorTabSwitch', m.tabSwitch); setChecked('monitorWindowFocus', m.windowFocus); setChecked('monitorFullscreen', m.fullscreenExit);
     setChecked('monitorClipboard', m.clipboard); setChecked('monitorContextMenu', m.contextMenu); setChecked('monitorDragDrop', m.dragDrop);
     setChecked('monitorPrint', m.print); setChecked('monitorShortcuts', m.restrictedShortcut); setChecked('monitorNavigation', m.browserNavigation);
     setChecked('monitorConnection', m.connection); setChecked('monitorDuplicateSession', m.duplicateSession);
-    const media = config.media || {};
-    setChecked('securityCameraRequired', media.cameraRequired); setChecked('securityMicrophoneRequired', media.microphoneRequired); setChecked('securityScreenRequired', media.screenShareRequired);
-    setChecked('securitySecureBrowserRequired', config.requireSecureBrowser); setChecked('securitySecureBrowserVerification', config.secureBrowserVerificationEnabled);
-    setValue('securitySecureBrowserProvider', config.secureBrowserProvider || 'none'); setValue('securitySecureBrowserConfigId', config.secureBrowserConfigId || '');
-    renderSecurityPolicyEditor(config.eventPolicies || {});
     if ($('securityModeDescription')) $('securityModeDescription').textContent = securityModeDescription(config.mode);
     if (options.preserveMode === false && $('securityMode')) $('securityMode').value = config.mode;
 }
@@ -1233,12 +1208,12 @@ function collectSecuritySettings() {
         maxSimultaneousSessions: Number($('securityMaxSessions')?.value || 1),
         warningLimit: Number($('securityMaxViolations')?.value || 5),
         finalWarningThreshold: Number($('securityFinalWarning')?.value || 4),
-        pauseAfterWarningCount: Number($('securityPauseAfter')?.value || 0),
-        warningCalculation: $('securityWarningCalculation')?.value || 'weighted',
+        pauseAfterWarningCount: 0,
+        warningCalculation: 'weighted',
         autoSubmitAfterFinalViolation: $('securityAutoSubmit')?.checked === true,
-        autoSubmitHighRiskOnly: $('securityHighRiskOnly')?.checked !== false,
+        autoSubmitHighRiskOnly: true,
         adminReviewInsteadOfAutoSubmit: $('securityAdminReview')?.checked === true,
-        resetWarningOnApprovedResume: $('securityResetWarningOnRecovery')?.checked === true,
+        resetWarningOnApprovedResume: false,
         monitoring: {
             tabSwitch: $('monitorTabSwitch')?.checked === true, windowFocus: $('monitorWindowFocus')?.checked === true,
             fullscreenExit: $('monitorFullscreen')?.checked === true, clipboard: $('monitorClipboard')?.checked === true,
@@ -1246,14 +1221,13 @@ function collectSecuritySettings() {
             print: $('monitorPrint')?.checked === true, restrictedShortcut: $('monitorShortcuts')?.checked === true,
             browserNavigation: $('monitorNavigation')?.checked === true, connection: $('monitorConnection')?.checked !== false,
             duplicateSession: $('monitorDuplicateSession')?.checked !== false,
-            cameraState: $('securityCameraRequired')?.checked === true, microphoneState: $('securityMicrophoneRequired')?.checked === true,
-            screenSharing: $('securityScreenRequired')?.checked === true, secureBrowserVerification: $('securitySecureBrowserVerification')?.checked === true
+            cameraState: false, microphoneState: false, screenSharing: false, secureBrowserVerification: false
         },
-        media: { cameraRequired: $('securityCameraRequired')?.checked === true, microphoneRequired: $('securityMicrophoneRequired')?.checked === true, screenShareRequired: $('securityScreenRequired')?.checked === true },
-        requireSecureBrowser: $('securitySecureBrowserRequired')?.checked === true,
-        secureBrowserProvider: $('securitySecureBrowserProvider')?.value || 'none',
-        secureBrowserConfigId: $('securitySecureBrowserConfigId')?.value || '',
-        secureBrowserVerificationEnabled: $('securitySecureBrowserVerification')?.checked === true,
+        media: { cameraRequired: false, microphoneRequired: false, screenShareRequired: false },
+        requireSecureBrowser: false,
+        secureBrowserProvider: 'none',
+        secureBrowserConfigId: '',
+        secureBrowserVerificationEnabled: false,
         eventPolicies: collectEventPolicies()
     });
 }

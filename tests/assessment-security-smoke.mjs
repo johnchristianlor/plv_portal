@@ -330,7 +330,7 @@ try {
   globalThis.fetch = originalFetch;
   dbProcess.stdin.end();
   dbProcess.kill();
-  rmSync(tempDir, { recursive: true, force: true });
+  try { rmSync(tempDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }); } catch {}
 }
 
 

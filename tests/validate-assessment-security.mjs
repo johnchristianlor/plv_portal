@@ -55,7 +55,7 @@ assert.match(backend, /Math\.min\(durationDeadlineMs, closesAtMs\)/);
 assert.match(backend, /finalizeAttempt\(env, attempt, 'student_submitted'/);
 assert.match(studentExam, /student\/incidents-batch/);
 assert.match(studentExam, /runRequiredDeviceChecks/);
-assert.match(headers, /\/student-exam\.html[\s\S]*Permissions-Policy: camera=\(self\), microphone=\(self\), display-capture=\(self\)/);
+assert.match(headers, /\/student-exam\.html[\s\S]*Permissions-Policy: camera=\(\), microphone=\(\), display-capture=\(\)/);
 
 for (const fragment of [
   'CREATE TABLE IF NOT EXISTS assessment_sessions',
