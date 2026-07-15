@@ -282,14 +282,14 @@ function renderPreflight() {
 function studentRulesSummary() {
     const monitored = [];
     const m = securityConfig.monitoring || {};
-    if (m.tabSwitch || m.windowFocus) monitored.push('leaving the assessment');
+    if (m.tabSwitch || m.windowFocus) monitored.push('leaving the assessment, app switching, or supported mobile system overlays');
     if (m.fullscreenExit && securityConfig.requireFullscreen) monitored.push('exiting fullscreen');
     if (m.clipboard) monitored.push('copying or pasting');
     if (m.print) monitored.push('printing');
     if (m.restrictedShortcut) monitored.push('restricted shortcuts');
     if (m.duplicateSession) monitored.push('duplicate exam sessions');
     if (!monitored.length) return 'This assessment uses server-controlled timing, randomized questions, autosaving, and server-side scoring.';
-    return `This assessment records ${monitored.join(', ')}. One browser event is treated as a review signal, not automatic proof of cheating.`;
+    return `This assessment records ${monitored.join(', ')}. One browser event is treated as a review signal, not automatic proof of cheating. Some phone screenshot and floating-panel actions can only be blocked by a secure exam browser or managed device.`;
 }
 
 function setupPreflightDuplicateCheck() {

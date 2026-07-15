@@ -5,6 +5,7 @@ const JSON_HEADERS = {
 
 const INCIDENT_ALIASES = Object.freeze({
     tab_hidden: 'tab_switch', visibility_hidden: 'tab_switch', window_blur: 'window_focus_lost',
+    app_switch: 'tab_switch', smart_panel: 'window_focus_lost', floating_window: 'window_focus_lost', split_screen: 'window_focus_lost',
     duplicate_tab: 'duplicate_exam_tab', duplicate_window: 'duplicate_exam_tab',
     copy: 'copy_attempt', cut: 'cut_attempt', paste: 'paste_attempt', context_menu: 'context_menu_attempt',
     offline: 'network_disconnected', network_offline: 'network_disconnected', online: 'network_reconnected',

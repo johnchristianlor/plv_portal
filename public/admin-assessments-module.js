@@ -1087,6 +1087,7 @@ function ensureSecuritySettingsUi() {
                     ${securityToggle('securityShowNavigator','Show question navigator','Display question numbers and answered status.', true)}
                     ${securityToggle('securityResumeRefresh','Allow resume after refresh','Restore the same attempt and stable questions after a permitted refresh.', true)}
                     ${securityToggle('securityResumeConnection','Allow resume after connection loss','Keep saved answers and reconnect within the grace period.', true)}
+                    ${securityToggle('securityRequireSafeBrowser','Require Safe Exam Browser','Only allow the attempt when approved Safe Exam Browser verification passes. Use for Windows, macOS, and iPad/iPhone controlled exams.')}
                     <div class="security-number-card"><label for="securityMaxAttempts">Maximum attempts</label><input class="input" id="securityMaxAttempts" type="number" min="1" max="20" value="1"><small>Additional attempts require an explicit value above 1.</small></div>
                     <div class="security-number-card"><label for="securityGraceSeconds">Connection grace period (seconds)</label><input class="input" id="securityGraceSeconds" type="number" min="5" max="600" value="60"><small>Brief interruptions are not automatically treated as cheating.</small></div>
                     <div class="security-number-card"><label for="securityMaxSessions">Maximum simultaneous sessions</label><input class="input" id="securityMaxSessions" type="number" min="1" max="5" value="1"><small>One session is recommended for normal exams.</small></div>
@@ -1113,7 +1114,7 @@ function ensureSecuritySettingsUi() {
             </section>
         </div>`);
     const ids = [
-        'securityMode','securityFullscreen','securityBacktracking','securityOneQuestionPage','securityShowNavigator','securityResumeRefresh','securityResumeConnection','securityMaxAttempts','securityGraceSeconds','securityMaxSessions','securityMaxViolations','securityFinalWarning','securityAutoSubmit','securityAdminReview','monitorTabSwitch','monitorWindowFocus','monitorFullscreen','monitorClipboard','monitorContextMenu','monitorDragDrop','monitorPrint','monitorShortcuts','monitorNavigation','monitorConnection','monitorDuplicateSession'
+        'securityMode','securityRequireSafeBrowser','securityFullscreen','securityBacktracking','securityOneQuestionPage','securityShowNavigator','securityResumeRefresh','securityResumeConnection','securityMaxAttempts','securityGraceSeconds','securityMaxSessions','securityMaxViolations','securityFinalWarning','securityAutoSubmit','securityAdminReview','monitorTabSwitch','monitorWindowFocus','monitorFullscreen','monitorClipboard','monitorContextMenu','monitorDragDrop','monitorPrint','monitorShortcuts','monitorNavigation','monitorConnection','monitorDuplicateSession'
     ];
     ids.forEach(id => {
         $(id)?.addEventListener('input', scheduleAutosave);
@@ -1122,10 +1123,10 @@ function ensureSecuritySettingsUi() {
     $('securityPolicyEditor')?.addEventListener('input', scheduleAutosave);
     $('securityPolicyEditor')?.addEventListener('change', scheduleAutosave);
     $('securityMode').addEventListener('change', event => {
-        applySecuritySettings({ security: MODE_DEFAULTS[event.target.value] || MODE_DEFAULTS.standard }, { preserveMode: false });
+        applySecuritySettings({ security: MODE_DEFAULTS[event.target.value] || MODE_DEFAULTS.monitored }, { preserveMode: false });
         scheduleAutosave();
     });
-    applySecuritySettings({ security: MODE_DEFAULTS.standard });
+    applySecuritySettings({ security: MODE_DEFAULTS.monitored });
 }
 
 function renderSecurityPolicyEditor(policies = {}) {
@@ -1160,8 +1161,9 @@ function collectEventPolicies() {
 function securityModeDescription(mode) {
     return {
         standard: 'Server-controlled timing, one active attempt, autosaving, randomized questions, and server-side scoring without aggressive browser monitoring.',
-        monitored: 'Standard protections plus practical tab, focus, clipboard, navigation, print, connection, and duplicate-session monitoring.',
-        strict: 'Monitored protections with required fullscreen and stronger warning responses.'
+        monitored: 'Recommended for most online exams: practical tab, app-switch, focus, clipboard, navigation, print, connection, and duplicate-session monitoring. Mobile detection depends on what the browser reports.',
+        strict: 'Monitored protections with required fullscreen and stronger warning responses.',
+        secure_browser_ready: 'Strict protections plus Safe Exam Browser verification. Use this for managed Windows, macOS, and iPad/iPhone exams after configuring the Cloudflare verifier secrets.'
     }[mode] || '';
 }
 
@@ -1170,13 +1172,14 @@ function applySecuritySettings(settings = {}, options = {}) {
     const config = normalizeSecurityConfig(settings?.security || settings || {});
     const setChecked = (id, value) => { if ($(id)) $(id).checked = !!value; };
     const setValue = (id, value) => { if ($(id)) $(id).value = value ?? ''; };
-    setValue('securityMode', config.mode);
+    setValue('securityMode', config.mode === 'secure_browser_ready' ? 'strict' : config.mode);
     setChecked('securityFullscreen', config.requireFullscreen);
     setChecked('securityBacktracking', config.allowBacktracking);
     setChecked('securityOneQuestionPage', config.oneQuestionPerPage);
     setChecked('securityShowNavigator', config.showNavigator);
     setChecked('securityResumeRefresh', config.allowResumeAfterRefresh);
     setChecked('securityResumeConnection', config.allowResumeAfterConnectionLoss);
+    setChecked('securityRequireSafeBrowser', config.requireSecureBrowser || config.mode === 'secure_browser_ready');
     setValue('securityMaxAttempts', config.maxAttempts);
     setValue('securityGraceSeconds', config.connectionGraceSeconds);
     setValue('securityMaxSessions', config.maxSimultaneousSessions);
@@ -1195,8 +1198,9 @@ function applySecuritySettings(settings = {}, options = {}) {
 
 function collectSecuritySettings() {
     ensureSecuritySettingsUi();
+    const requireSafeBrowser = $('securityRequireSafeBrowser')?.checked === true;
     return normalizeSecurityConfig({
-        mode: $('securityMode')?.value || 'standard',
+        mode: requireSafeBrowser ? 'secure_browser_ready' : ($('securityMode')?.value || 'monitored'),
         requireFullscreen: $('securityFullscreen')?.checked === true,
         maxAttempts: Number($('securityMaxAttempts')?.value || 1),
         allowBacktracking: $('securityBacktracking')?.checked !== false,
@@ -1221,13 +1225,13 @@ function collectSecuritySettings() {
             print: $('monitorPrint')?.checked === true, restrictedShortcut: $('monitorShortcuts')?.checked === true,
             browserNavigation: $('monitorNavigation')?.checked === true, connection: $('monitorConnection')?.checked !== false,
             duplicateSession: $('monitorDuplicateSession')?.checked !== false,
-            cameraState: false, microphoneState: false, screenSharing: false, secureBrowserVerification: false
+            cameraState: false, microphoneState: false, screenSharing: false, secureBrowserVerification: requireSafeBrowser
         },
         media: { cameraRequired: false, microphoneRequired: false, screenShareRequired: false },
-        requireSecureBrowser: false,
-        secureBrowserProvider: 'none',
+        requireSecureBrowser: requireSafeBrowser,
+        secureBrowserProvider: requireSafeBrowser ? 'safe_exam_browser' : 'none',
         secureBrowserConfigId: '',
-        secureBrowserVerificationEnabled: false,
+        secureBrowserVerificationEnabled: requireSafeBrowser,
         eventPolicies: collectEventPolicies()
     });
 }
@@ -1934,7 +1938,7 @@ function reset() {
     $('form').reset();
     $('duration').value = 30;
     ensureSecuritySettingsUi();
-    applySecuritySettings({ security: MODE_DEFAULTS.standard });
+    applySecuritySettings({ security: MODE_DEFAULTS.monitored });
     sections = [createSection()];
     activeSectionId = sections[0].id;
     questions = [];

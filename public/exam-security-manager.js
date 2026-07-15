@@ -17,6 +17,7 @@ export class ExamSecurityManager {
     this.timers = new Set();
     this.lastIncident = new Map();
     this.hiddenStartedAt = 0;
+    this.pageHideStartedAt = 0;
     this.offlineStartedAt = 0;
     this.pendingBlurTimer = null;
     this.mediaStreams = [];
@@ -36,6 +37,19 @@ export class ExamSecurityManager {
 
   monitoring(name) {
     return this.config?.monitoring?.[name] === true;
+  }
+
+  mobileMeta(extra = {}) {
+    const ua = navigator.userAgent || '';
+    const mobile = /android|iphone|ipad|ipod|mobile/i.test(ua);
+    return {
+      mobile,
+      visibility_state: document.visibilityState || '',
+      viewport_width: window.innerWidth || 0,
+      viewport_height: window.innerHeight || 0,
+      fullscreen: !!document.fullscreenElement,
+      ...extra
+    };
   }
 
   emit(rawCode, details, options = {}) {
@@ -81,6 +95,9 @@ export class ExamSecurityManager {
         if (document.hidden) {
           this.hiddenStartedAt = Date.now();
           if (this.pendingBlurTimer) clearTimeout(this.pendingBlurTimer);
+          if (this.monitoring('tabSwitch')) {
+            this.lastIncident.set('focus_transition', Date.now());
+          }
           return;
         }
         if (!this.hiddenStartedAt) return;
@@ -88,8 +105,14 @@ export class ExamSecurityManager {
         this.hiddenStartedAt = 0;
         const duration = Math.max(0, (Date.now() - started) / 1000);
         if (this.monitoring('tabSwitch')) {
-          this.emit('tab_switch', `The assessment was hidden for ${duration.toFixed(1)} seconds.`, {
-            group: 'focus_transition', firstDetectedAt: new Date(started).toISOString(), durationSeconds: duration
+          const mobile = /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent || '');
+          this.emit('tab_switch', mobile
+            ? `Possible mobile app switch or system overlay detected. The exam was hidden for ${duration.toFixed(1)} seconds.`
+            : `The assessment tab was hidden for ${duration.toFixed(1)} seconds.`, {
+            group: 'focus_transition',
+            firstDetectedAt: new Date(started).toISOString(),
+            durationSeconds: duration,
+            metadata: this.mobileMeta({ trigger: 'visibilitychange' })
           });
         }
       });
@@ -100,8 +123,60 @@ export class ExamSecurityManager {
           this.timers.delete(this.pendingBlurTimer);
           this.pendingBlurTimer = null;
           if (document.hidden) return; // visibilitychange will create the single grouped event.
-          this.emit('window_focus_lost', 'The browser window briefly lost focus.', { group: 'focus_transition', cooldownMs: 4000 });
+          this.emit('window_focus_lost', 'The browser window lost focus while the exam page remained visible. This can happen with floating windows, system panels, or another active app.', {
+            group: 'focus_transition',
+            cooldownMs: 4000,
+            metadata: this.mobileMeta({ trigger: 'blur' })
+          });
         }, 650));
+      });
+      this.listen(window, 'focus', () => {
+        if (this.pendingBlurTimer) {
+          clearTimeout(this.pendingBlurTimer);
+          this.timers.delete(this.pendingBlurTimer);
+          this.pendingBlurTimer = null;
+        }
+      });
+      this.listen(window, 'pagehide', event => {
+        if (this.shouldSuppress()) return;
+        this.pageHideStartedAt = Date.now();
+        if (this.monitoring('browserNavigation') || this.monitoring('tabSwitch')) {
+          this.emit('page_exit', event.persisted ? 'The exam page entered the browser back-forward cache.' : 'The exam page was hidden, refreshed, or closed.', {
+            group: 'page_lifecycle',
+            cooldownMs: 5000,
+            metadata: this.mobileMeta({ trigger: 'pagehide', persisted: !!event.persisted })
+          });
+        }
+      });
+      this.listen(window, 'pageshow', event => {
+        if (!this.pageHideStartedAt) return;
+        const started = this.pageHideStartedAt;
+        this.pageHideStartedAt = 0;
+        const duration = Math.max(0, (Date.now() - started) / 1000);
+        if (duration > 1 && (this.monitoring('tabSwitch') || this.monitoring('browserNavigation'))) {
+          this.emit('session_recovered', `The exam page resumed after ${duration.toFixed(1)} seconds.`, {
+            group: 'page_lifecycle_resume',
+            cooldownMs: 1000,
+            durationSeconds: duration,
+            metadata: this.mobileMeta({ trigger: 'pageshow', persisted: !!event.persisted })
+          });
+        }
+      });
+      this.listen(document, 'freeze', () => {
+        if (this.shouldSuppress()) return;
+        this.emit('tab_switch', 'The mobile browser froze or suspended the exam page.', {
+          group: 'focus_transition',
+          cooldownMs: 4000,
+          metadata: this.mobileMeta({ trigger: 'freeze' })
+        });
+      });
+      this.listen(document, 'resume', () => {
+        if (this.shouldSuppress()) return;
+        this.emit('session_recovered', 'The mobile browser resumed the exam page after suspension.', {
+          group: 'page_lifecycle_resume',
+          cooldownMs: 1500,
+          metadata: this.mobileMeta({ trigger: 'resume' })
+        });
       });
     }
 
