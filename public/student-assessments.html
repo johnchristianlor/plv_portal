@@ -72,27 +72,31 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 @media(max-width:560px){.exam-section-line{align-items:flex-start;flex-direction:column}.choice{padding:11px}.exam-choice-letter{width:28px;height:28px}}
 </style>
 
+
 <style id="assessmentFinalShellAlignment">
-/* Final shared assessment shell alignment: matches dashboard glass sidebar and header controls. */
+/* Final shared assessment shell alignment: matches the dashboard sidebar and keeps mouse scrolling without the ugly inner scrollbar track. */
 body:not(.exam-active) .sidebar{
-  width:280px!important;
-  padding:34px 18px!important;
-  background:rgba(255,255,255,.24)!important;
-  border-right:1px solid rgba(255,255,255,.62)!important;
-  box-shadow:inset -1px 0 0 rgba(255,255,255,.36)!important;
-  backdrop-filter:blur(28px)!important;
-  -webkit-backdrop-filter:blur(28px)!important;
+  width:300px!important;
+  height:100vh!important;
+  padding:40px 24px!important;
+  position:sticky!important;
+  top:0!important;
+  background:rgba(255,255,255,.30)!important;
+  border-right:1px solid var(--glass-border)!important;
+  box-shadow:none!important;
+  backdrop-filter:blur(24px)!important;
+  -webkit-backdrop-filter:blur(24px)!important;
   overflow-y:auto!important;
   overflow-x:hidden!important;
-  scrollbar-gutter:stable!important;
-  scrollbar-width:thin!important;
-  scrollbar-color:rgba(100,116,139,.34) transparent!important;
+  overscroll-behavior:contain!important;
+  scrollbar-width:none!important;
+  -ms-overflow-style:none!important;
 }
-body.dark-theme:not(.exam-active) .sidebar{background:rgba(6,12,24,.42)!important;border-right-color:rgba(255,255,255,.08)!important;box-shadow:inset -1px 0 0 rgba(255,255,255,.04)!important;}
-body:not(.exam-active) .sidebar::-webkit-scrollbar{width:6px!important}body:not(.exam-active) .sidebar::-webkit-scrollbar-track{background:transparent!important}body:not(.exam-active) .sidebar::-webkit-scrollbar-thumb{background:rgba(100,116,139,.34)!important;border-radius:999px!important}body:not(.exam-active) .sidebar::-webkit-scrollbar-thumb:hover{background:rgba(100,116,139,.56)!important}
-body:not(.exam-active) .logo-container{padding:0 8px!important;margin-bottom:42px!important}body:not(.exam-active) .nav-menu{gap:6px!important}body:not(.exam-active) .nav-item a{border-radius:15px!important;padding:13px 16px!important;font-size:14px!important}body:not(.exam-active) .nav-item a i{font-size:21px!important}
-body:not(.exam-active) .main-wrapper{max-width:1500px!important;margin:0 auto!important;width:100%!important;padding:38px 44px!important}body:not(.exam-active) .header{align-items:center!important;gap:18px!important}body:not(.exam-active) .header-actions,body:not(.exam-active) .admin-assessment-header-actions{display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:14px!important;flex:0 0 auto!important;margin-left:auto!important}body:not(.exam-active) .icon-btn{width:50px!important;height:50px!important;box-shadow:var(--glass-highlight),0 8px 20px rgba(15,23,42,.05)!important;backdrop-filter:blur(18px)!important;-webkit-backdrop-filter:blur(18px)!important;transition:transform .22s ease,border-color .22s ease,color .22s ease,background .22s ease!important}body:not(.exam-active) .icon-btn:hover{transform:translateY(-2px)!important;border-color:var(--accent-primary)!important;color:var(--accent-primary)!important}.plv-notification-trigger{display:flex!important;align-items:center!important;justify-content:center!important}.plv-notification-panel{top:104px!important;right:42px!important}
-@media(max-width:1024px){body:not(.exam-active) .sidebar{width:100%!important;padding:18px 24px!important;border-right:none!important;border-bottom:1px solid var(--glass-border)!important;overflow:visible!important}body:not(.exam-active) .main-wrapper{padding:28px 22px 96px!important}body:not(.exam-active) .header{align-items:flex-start!important}.plv-notification-panel{top:88px!important;right:14px!important;left:14px!important;width:auto!important}}
+body.dark-theme:not(.exam-active) .sidebar{background:rgba(4,9,20,.56)!important;border-right-color:rgba(255,255,255,.07)!important;}
+body:not(.exam-active) .sidebar::-webkit-scrollbar{width:0!important;height:0!important}body:not(.exam-active) .sidebar::-webkit-scrollbar-track{background:transparent!important}body:not(.exam-active) .sidebar::-webkit-scrollbar-thumb{background:transparent!important}
+body:not(.exam-active) .logo-container{padding:0 12px!important;margin-bottom:48px!important}body:not(.exam-active) .nav-menu{gap:8px!important}body:not(.exam-active) .nav-item a{border-radius:18px!important;padding:14px 18px!important;font-size:15px!important}body:not(.exam-active) .nav-item a i{font-size:22px!important}
+body:not(.exam-active) .main-wrapper{max-width:1600px!important;margin:0 auto!important;width:100%!important;padding:40px 48px!important}body:not(.exam-active) .header{align-items:center!important;gap:18px!important}body:not(.exam-active) .header-actions,body:not(.exam-active) .admin-assessment-header-actions{display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:16px!important;flex:0 0 auto!important;margin-left:auto!important}body:not(.exam-active) .icon-btn{width:50px!important;height:50px!important;box-shadow:var(--glass-highlight),0 8px 20px rgba(15,23,42,.05)!important;backdrop-filter:blur(18px)!important;-webkit-backdrop-filter:blur(18px)!important;transition:transform .22s ease,border-color .22s ease,color .22s ease,background .22s ease!important}body:not(.exam-active) .icon-btn:hover{transform:translateY(-2px)!important;border-color:var(--accent-primary)!important;color:var(--accent-primary)!important}.plv-notification-trigger{display:flex!important;align-items:center!important;justify-content:center!important}.plv-notification-panel{top:104px!important;right:42px!important}
+@media(max-width:1024px){body:not(.exam-active) .sidebar{width:100%!important;height:auto!important;position:static!important;flex-direction:row!important;padding:20px 32px!important;justify-content:space-between!important;align-items:center!important;border-right:none!important;border-bottom:1px solid var(--glass-border)!important;overflow:visible!important}body:not(.exam-active) .main-wrapper{padding:28px 22px 96px!important}body:not(.exam-active) .header{align-items:flex-start!important}.plv-notification-panel{top:88px!important;right:14px!important;left:14px!important;width:auto!important}}
 @media(max-width:640px){body:not(.exam-active) .main-wrapper{padding:22px 14px 92px!important}body:not(.exam-active) .header{flex-direction:row!important;align-items:flex-start!important}body:not(.exam-active) .header h1{font-size:24px!important}body:not(.exam-active) .header-actions,body:not(.exam-active) .admin-assessment-header-actions{gap:10px!important}body:not(.exam-active) .icon-btn{width:46px!important;height:46px!important}.plv-notification-panel{top:76px!important}.tabs{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}.tab{justify-content:center!important}}
 </style>
 </head>
