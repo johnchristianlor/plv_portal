@@ -25,6 +25,7 @@ const INCIDENT_CODES = new Set([
 
 const SEVERITIES = new Set(['info', 'low', 'medium', 'high', 'critical']);
 let schemaReadyPromise = null;
+const ASSESSMENT_SCHEMA_VERSION = 4;
 
 const BASE_MONITORING = Object.freeze({
     tabSwitch: false, windowFocus: false, fullscreenExit: false, clipboard: false,
@@ -212,16 +213,16 @@ async function findProfile(env, accessToken, authUser, role) {
     if (!url || !anonKey) return null;
     const apiKey = serviceKey || anonKey, dbBearer = serviceKey || accessToken;
     const checks = [['uid', authUser.id], ['id', authUser.id], ['email', authUser.email]].filter(([, value]) => !!value);
-    for (const [field, value] of checks) {
-        const requestUrl = new URL(url + '/rest/v1/users');
-        requestUrl.searchParams.set('select', '*'); requestUrl.searchParams.set(field, 'eq.' + value); requestUrl.searchParams.set('limit', '1');
-        const response = await fetch(requestUrl.toString(), { headers: { apikey: apiKey, authorization: 'Bearer ' + dbBearer } });
-        if (!response.ok) continue;
-        const data = await response.json();
-        const profile = (data || []).find(row => String(row.role || '').toLowerCase() === role);
-        if (profile) return profile;
-    }
-    return null;
+    if (!checks.length) return null;
+    const requestUrl = new URL(url + '/rest/v1/users');
+    requestUrl.searchParams.set('select', 'id,uid,email,studentNo,username,role,status,fullName,name,section');
+    requestUrl.searchParams.set('role', 'eq.' + role);
+    requestUrl.searchParams.set('or', '(' + checks.map(([field, value]) => `${field}.eq.${value}`).join(',') + ')');
+    requestUrl.searchParams.set('limit', '1');
+    const response = await fetch(requestUrl.toString(), { headers: { apikey: apiKey, authorization: 'Bearer ' + dbBearer } });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return (data || [])[0] || null;
 }
 async function supabaseRpc(env, name, payload, accessToken = '') {
     const url = supabaseUrl(env), anonKey = supabaseAnonKey(env);
@@ -310,8 +311,11 @@ async function deduplicateIncidentEventIds(env) {
     }
 }
 async function ensureIndexes(env, statements) {
-    for (const statement of statements) {
-        try { await turso(env, [statement]); } catch (error) { console.error('Assessment index migration failed:', statement.sql, error?.message || error); }
+    try { await turso(env, statements); }
+    catch (error) {
+        for (const statement of statements) {
+            try { await turso(env, [statement]); } catch (indexError) { console.error('Assessment index migration failed:', statement.sql, indexError?.message || indexError); }
+        }
     }
 }
 async function ensureSchema(env) {
@@ -361,7 +365,13 @@ async function ensureSchema(env) {
 
 async function ensureSchemaOnce(env) {
     if (!schemaReadyPromise) {
-        schemaReadyPromise = ensureSchema(env).catch(error => { schemaReadyPromise = null; throw error; });
+        schemaReadyPromise = (async () => {
+            const [versionResult] = await turso(env, [{ sql: `pragma user_version` }]);
+            const currentVersion = Number(rows(versionResult)[0]?.user_version || 0);
+            if (currentVersion >= ASSESSMENT_SCHEMA_VERSION) return;
+            await ensureSchema(env);
+            await turso(env, [{ sql: `pragma user_version = ${ASSESSMENT_SCHEMA_VERSION}` }]);
+        })().catch(error => { schemaReadyPromise = null; throw error; });
     }
     return schemaReadyPromise;
 }
@@ -794,7 +804,7 @@ async function logAdminAudit(env, admin, action, fields = {}) {
 }
 
 async function adminList(env) {
-    const [list] = await turso(env, [{ sql: `select a.*, (select count(*) from assessment_questions q where q.assessment_id = a.id) as question_count, (select count(*) from assessment_attempts t where t.assessment_id = a.id) as attempt_count, (select coalesce(sum(t.violations), 0) from assessment_attempts t where t.assessment_id = a.id) as violation_count from assessments a order by a.updated_at desc, a.created_at desc` }]);
+    const [list] = await turso(env, [{ sql: `with question_totals as (select assessment_id,count(*) as question_count from assessment_questions group by assessment_id), attempt_totals as (select assessment_id,count(*) as attempt_count,coalesce(sum(violations),0) as violation_count from assessment_attempts group by assessment_id) select a.id,a.title,a.instructions,a.subject_code,a.section,a.status,a.duration_minutes,a.opens_at,a.closes_at,a.created_at,a.updated_at,coalesce(q.question_count,0) as question_count,coalesce(t.attempt_count,0) as attempt_count,coalesce(t.violation_count,0) as violation_count from assessments a left join question_totals q on q.assessment_id=a.id left join attempt_totals t on t.assessment_id=a.id order by a.updated_at desc,a.created_at desc` }]);
     return json({ assessments: rows(list).map(assessmentFromRow) });
 }
 async function adminGet(env, assessmentId) {

@@ -154,6 +154,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_incident_client_event_attempt
     WHERE client_event_id IS NOT NULL AND client_event_id <> '';
 CREATE INDEX IF NOT EXISTS idx_admin_audit_attempt ON assessment_admin_audit(attempt_id, created_at);
 
+-- Allows Cloudflare Functions to skip repeat schema scans after migrations are applied.
+PRAGMA user_version = 4;
+
 -- Existing production tables are intentionally not altered here because
 -- SQLite/libSQL does not support ADD COLUMN IF NOT EXISTS consistently.
 -- Deploying the Pages Function runs the guarded migration logic automatically.

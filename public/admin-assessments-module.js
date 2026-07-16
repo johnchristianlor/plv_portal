@@ -42,8 +42,13 @@ let auditReviewIncidentId = '';
 let auditReviewAttemptId = '';
 let autosaveTimer = null;
 let draftPersistTimer = null;
+let assessmentSearchTimer = null;
+let assessmentsLoadPromise = null;
+let externalAssessmentRefreshTimer = null;
 let lastAutosaveSignature = '';
 let currentWorkspace = 'tests';
+let cachedAccessToken = '';
+let cachedAccessTokenUntil = 0;
 const DRAFT_KEY = 'plv-admin-assessment-draft-v2';
 
 const pageParams = new URLSearchParams(location.search);
@@ -1406,9 +1411,13 @@ function updateAssessmentContext(workspace = currentWorkspace) {
 }
 
 async function getToken() {
+    if (cachedAccessToken && cachedAccessTokenUntil > Date.now()) return cachedAccessToken;
     const { data } = await supabase.auth.getSession();
     if (!data.session || !data.session.access_token) throw new Error('Please login again.');
-    return data.session.access_token;
+    cachedAccessToken = data.session.access_token;
+    const sessionExpiry = Number(data.session.expires_at || 0) * 1000;
+    cachedAccessTokenUntil = Math.max(Date.now() + 1000, Math.min(Date.now() + 30000, sessionExpiry ? sessionExpiry - 30000 : Date.now() + 30000));
+    return cachedAccessToken;
 }
 
 async function api(path, options = {}) {
@@ -1444,7 +1453,7 @@ function theme() {
 }
 
 function showWorkspace(name) {
-    persistDraft();
+    queueDraftPersist(30);
     if ((name === 'builder' || name === 'results') && !editing) {
         toast(name === 'builder' ? 'Create or select a test first, then open Questions Manager.' : 'Select an assessment first to view results.');
         name = 'details';
@@ -1472,8 +1481,8 @@ function showWorkspace(name) {
 
 async function loadSelects() {
     const [subs, secs] = await Promise.all([
-        supabase.from('subjects').select('*').order('subjectCode'),
-        supabase.from('sections').select('*').order('sectionName')
+        supabase.from('subjects').select('subjectCode,subjectName').order('subjectCode'),
+        supabase.from('sections').select('sectionName').order('sectionName')
     ]);
     $('subject').innerHTML = '<option value="">Select subject</option>' + (subs.data || []).map(s => `<option value="${esc(s.subjectCode)}">${esc(s.subjectCode)} - ${esc(s.subjectName || '')}</option>`).join('');
     $('section').innerHTML = '<option value="">Select section</option><option value="ALL">All Sections</option>' + (secs.data || []).map(s => `<option value="${esc(s.sectionName)}">${esc(s.sectionName)}</option>`).join('');
@@ -1994,13 +2003,18 @@ async function save(event) {
 }
 
 async function loadAssessments() {
-    try {
-        const data = await api('admin/list');
-        assessments = data.assessments || [];
-        renderAssessments();
-    } catch (error) {
-        $('list').innerHTML = `<p class="mini">Turso assessment service is not ready: ${esc(error.message)}</p>`;
-    }
+    if (assessmentsLoadPromise) return assessmentsLoadPromise;
+    assessmentsLoadPromise = (async () => {
+        try {
+            const data = await api('admin/list');
+            assessments = data.assessments || [];
+            renderAssessments();
+        } catch (error) {
+            $('list').innerHTML = `<p class="mini">Turso assessment service is not ready: ${esc(error.message)}</p>`;
+        }
+    })();
+    try { return await assessmentsLoadPromise; }
+    finally { assessmentsLoadPromise = null; }
 }
 
 function compactDate(value) {
@@ -2074,15 +2088,22 @@ function assessmentCardMarkup(assessment) {
 }
 
 function bindAssessmentCardActions() {
-    document.querySelectorAll('[data-edit]').forEach(btn => btn.onclick = () => navigateAssessment('details', btn.dataset.edit));
-    document.querySelectorAll('[data-builder]').forEach(btn => btn.onclick = () => navigateAssessment('builder', btn.dataset.builder));
-    document.querySelectorAll('[data-attempts]').forEach(btn => btn.onclick = () => navigateAssessment('results', btn.dataset.attempts));
-    document.querySelectorAll('[data-duplicate]').forEach(btn => btn.onclick = () => openDuplicateAssessment(btn.dataset.duplicate));
-    document.querySelectorAll('[data-audit]').forEach(btn => btn.onclick = async () => {
-        incidentAssessmentFilterId = btn.dataset.audit;
-        await navigateAssessment('security', btn.dataset.audit);
+    const container = $('assessmentCards');
+    if (!container || container.dataset.actionsReady === '1') return;
+    container.dataset.actionsReady = '1';
+    container.addEventListener('click', async event => {
+        const button = event.target.closest('[data-edit],[data-builder],[data-attempts],[data-duplicate],[data-audit],[data-delete]');
+        if (!button || !container.contains(button)) return;
+        if (button.dataset.edit) return navigateAssessment('details', button.dataset.edit);
+        if (button.dataset.builder) return navigateAssessment('builder', button.dataset.builder);
+        if (button.dataset.attempts) return navigateAssessment('results', button.dataset.attempts);
+        if (button.dataset.duplicate) return openDuplicateAssessment(button.dataset.duplicate);
+        if (button.dataset.delete) return del(button.dataset.delete);
+        if (button.dataset.audit) {
+            incidentAssessmentFilterId = button.dataset.audit;
+            await navigateAssessment('security', button.dataset.audit);
+        }
     });
-    document.querySelectorAll('[data-delete]').forEach(btn => btn.onclick = () => del(btn.dataset.delete));
 }
 
 function renderAssessmentCards() {
@@ -2130,7 +2151,8 @@ function renderAssessments() {
 
     $('assessmentSearch').oninput = event => {
         assessmentListFilters.search = event.target.value;
-        renderAssessmentCards();
+        clearTimeout(assessmentSearchTimer);
+        assessmentSearchTimer = setTimeout(renderAssessmentCards, 120);
     };
     $('assessmentStatusFilter').onchange = event => {
         assessmentListFilters.status = event.target.value;
@@ -2572,10 +2594,9 @@ window.addEventListener('popstate', async () => {
 theme();
 setupStandaloneShell();
 ensureBuilderUi();
-await loadSelects();
-await loadAssessments();
+await Promise.all([loadSelects(), loadAssessments()]);
 const restoredDraft = restoreDraft();
-if (!restoredDraft) renderQ();
+if (!restoredDraft && requestedWorkspace !== 'tests') renderQ();
 setBuilderLock();
 
 if (requestedNew) {
@@ -2587,7 +2608,11 @@ if (requestedNew) {
     syncAssessmentHistory(currentWorkspace, currentWorkspace === 'tests' ? '' : (editing || ''), false, true);
 }
 
-adminChannel && (adminChannel.onmessage = loadAssessments);
+function scheduleExternalAssessmentRefresh() {
+    clearTimeout(externalAssessmentRefreshTimer);
+    externalAssessmentRefreshTimer = setTimeout(loadAssessments, 120);
+}
+adminChannel && (adminChannel.onmessage = scheduleExternalAssessmentRefresh);
 window.addEventListener('storage', event => {
-    if (event.key === 'plvAdminAssessmentChange') loadAssessments();
+    if (event.key === 'plvAdminAssessmentChange') scheduleExternalAssessmentRefresh();
 });

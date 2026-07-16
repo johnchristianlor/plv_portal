@@ -82,7 +82,8 @@ export async function resolveAvatarElement(img, value, options = {}) {
         return fallback;
     };
 
-    img.loading = img.loading || 'lazy';
+    img.loading = img.loading || (options.eager === false ? 'lazy' : 'eager');
+    if (img.loading === 'eager') img.fetchPriority = 'high';
     img.decoding = 'async';
     img.dataset.avatarFallback = '0';
     img.onerror = () => {
