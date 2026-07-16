@@ -108,10 +108,67 @@ async function isAdminRequest(request, env) {
     const admin = rows && rows.find(row => row.role === 'admin');
     return !!admin && String(admin.status || '').toLowerCase() !== 'inactive';
 }
+
+async function getStudentProfileFromBearer(request, env) {
+    const token = getBearerToken(request);
+    const authUser = await getSupabaseUser(env, token);
+    if (!authUser || !authUser.id) return null;
+    const url = new URL('https://local/rest/v1/users');
+    url.searchParams.set('select', 'id,uid,email,studentNo,username,role,status,avatarUrl,avatar_url,avatarPath');
+    url.searchParams.set('role', 'eq.student');
+    url.searchParams.set('limit', '1');
+    const orFilter = 'uid.eq.' + authUser.id + ',id.eq.' + authUser.id + ',email.eq.' + (authUser.email || '');
+    const response = await supabaseFetch(env, url.pathname + url.search + '&or=(' + encodeURIComponent(orFilter) + ')');
+    if (!response.ok) return null;
+    const rows = await response.json();
+    const profile = rows && rows.find(row => row.role === 'student');
+    return profile && String(profile.status || '').toLowerCase() !== 'inactive' ? profile : null;
+}
+
+function sameStudent(profile, studentNo) {
+    const requested = String(studentNo || '').trim().toLowerCase();
+    if (!requested) return true;
+    return [profile.studentNo, profile.username, profile.id, profile.uid]
+        .map(value => String(value || '').trim().toLowerCase())
+        .filter(Boolean)
+        .includes(requested);
+}
+
+function ownsAvatar(profile, avatarUrl) {
+    const requested = String(avatarUrl || '').trim();
+    if (!requested) return false;
+    return [profile.avatarUrl, profile.avatar_url, profile.avatarPath]
+        .map(value => String(value || '').trim())
+        .filter(Boolean)
+        .includes(requested);
+}
+
+async function isStudentBearerAvatarRequest(request, env, studentNo, avatarUrl) {
+    const profile = await getStudentProfileFromBearer(request, env);
+    return !!profile && sameStudent(profile, studentNo) && ownsAvatar(profile, avatarUrl);
+}
+
+async function validateStudentAvatarSession(env, studentNo, sessionToken, avatarUrl) {
+    if (!studentNo || !sessionToken || !avatarUrl) return false;
+    const url = new URL('https://local/rest/v1/users');
+    url.searchParams.set('select', 'id,studentNo,username,role,status,activeSessionToken,avatarUrl,avatar_url,avatarPath');
+    url.searchParams.set('studentNo', 'eq.' + studentNo);
+    url.searchParams.set('role', 'eq.student');
+    url.searchParams.set('limit', '1');
+    const response = await supabaseFetch(env, url.pathname + url.search);
+    if (!response.ok) return false;
+    const rows = await response.json();
+    const user = rows && rows[0];
+    return !!user &&
+        String(user.status || '').toLowerCase() !== 'inactive' &&
+        user.activeSessionToken === sessionToken &&
+        ownsAvatar(user, avatarUrl);
+}
 function avatarKeyFromValue(value) {
     const raw = String(value || '').trim();
-    if (!raw.startsWith('b2:')) throw new Error('Avatar is not stored in Backblaze.');
-    return raw.slice(3);
+    if (raw.startsWith('b2:')) return raw.slice(3);
+    if (raw.startsWith('uploads/') || raw.startsWith('avatars/') || raw.startsWith('student-avatars/')) return raw;
+    throw new Error('Avatar is not stored in Backblaze.');
 }
 function assertB2Allowed(auth, bucketId, objectName) {
     const allowed = getB2Allowed(auth);
@@ -148,9 +205,10 @@ export async function onRequestPost(context) {
     try {
         const body = await context.request.json();
         const key = avatarKeyFromValue(body.avatarUrl);
-        const admin = await isAdminRequest(context.request, context.env);
-        const student = await validateStudentSession(context.env, body.studentNo, body.sessionToken);
-        if (!admin && !student) return json({ error: 'Avatar access is not allowed.' }, 403);
+                const admin = await isAdminRequest(context.request, context.env);
+        const bearerStudent = await isStudentBearerAvatarRequest(context.request, context.env, body.studentNo, body.avatarUrl);
+        const sessionStudent = await validateStudentAvatarSession(context.env, body.studentNo, body.sessionToken, body.avatarUrl);
+        if (!admin && !bearerStudent && !sessionStudent) return json({ error: 'Avatar access is not allowed.' }, 403);
         const url = await createDownloadUrl(context.env, key);
         return json({ url, expiresInSeconds: Number(envValue(context.env, 'B2_AVATAR_URL_SECONDS')) || 900 });
     } catch (error) {

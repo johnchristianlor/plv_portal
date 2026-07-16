@@ -12,6 +12,8 @@ table{max-width:100%;border-collapse:separate}
 .btn,button{min-height:42px;touch-action:manipulation}
 .btn:not(.btn-icon),button:not(.icon-btn):not(.btn-icon){white-space:normal}
 .header,.topbar,.toolbar,.filters,.actions,.modal-actions,.form-actions,.admin-assessment-header-actions,.header-actions{flex-wrap:wrap}
+.header-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex:0 0 auto;margin-left:auto;flex-wrap:nowrap!important}
+.header-actions>.icon-btn{margin:0!important;flex:0 0 auto}
 .header h1,.page-title h1,.main-wrapper h1{font-size:clamp(24px,5vw,38px);line-height:1.12}
 .header p,.page-title p{font-size:clamp(13px,2.8vw,16px);line-height:1.55}
 
@@ -54,6 +56,9 @@ table{max-width:100%;border-collapse:separate}
   .mobile-nav-bar ul{gap:4px!important;padding:6px 8px!important}
   .mobile-nav-bar a{min-width:58px!important;border-radius:16px!important}
   .header h1,.page-title h1{font-size:clamp(23px,7vw,30px)!important}
+  .header{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:start!important;column-gap:12px!important;row-gap:10px!important;width:100%!important}
+  .header-actions{align-self:start!important;gap:8px!important;margin-left:0!important}
+  .header-actions>.icon-btn{width:44px!important;height:44px!important}
   .panel,.card,.glass{border-radius:18px!important}
   .panel,.card{padding:18px!important}
   .table-wrap,.table-container,.records-table-wrap{margin-inline:-6px;padding-inline:6px}
@@ -68,6 +73,9 @@ table{max-width:100%;border-collapse:separate}
   input,select,textarea{font-size:16px!important}
   .modal-actions{display:grid!important;grid-template-columns:1fr!important}
   .modal-actions .btn,.modal-actions button{width:100%!important;justify-content:center!important}
+  .header{column-gap:9px!important}
+  .header-actions{gap:7px!important}
+  .header-actions>.icon-btn{width:42px!important;height:42px!important}
 }
 
 /* Login page */

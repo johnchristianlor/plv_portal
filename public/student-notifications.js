@@ -229,8 +229,16 @@ if (user && user.role === 'student' && !document.documentElement.dataset.plvNoti
 
     function mountUi() {
         injectStyles();
-        const actions = document.querySelector('.header-actions') || document.querySelector('.header');
-        if (!actions) return null;
+        const header = document.querySelector('.header');
+        if (!header) return null;
+        let actions = header.querySelector('.header-actions');
+        if (!actions) {
+            actions = document.createElement('div');
+            actions.className = 'header-actions';
+            const themeButton = header.querySelector(':scope > .theme-toggle');
+            if (themeButton) actions.appendChild(themeButton);
+            header.appendChild(actions);
+        }
 
         let trigger = document.querySelector('.plv-notification-trigger');
         if (!trigger) {
