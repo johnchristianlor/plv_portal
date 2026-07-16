@@ -114,7 +114,7 @@ async function getStudentProfileFromBearer(request, env) {
     const authUser = await getSupabaseUser(env, token);
     if (!authUser || !authUser.id) return null;
     const url = new URL('https://local/rest/v1/users');
-    url.searchParams.set('select', 'id,uid,email,studentNo,username,role,status,avatarUrl,avatar_url,avatarPath');
+    url.searchParams.set('select', 'id,uid,email,studentNo,username,role,status,avatarUrl');
     url.searchParams.set('role', 'eq.student');
     url.searchParams.set('limit', '1');
     const orFilter = 'uid.eq.' + authUser.id + ',id.eq.' + authUser.id + ',email.eq.' + (authUser.email || '');
@@ -137,7 +137,7 @@ function sameStudent(profile, studentNo) {
 function ownsAvatar(profile, avatarUrl) {
     const requested = String(avatarUrl || '').trim();
     if (!requested) return false;
-    return [profile.avatarUrl, profile.avatar_url, profile.avatarPath]
+    return [profile.avatarUrl]
         .map(value => String(value || '').trim())
         .filter(Boolean)
         .includes(requested);
@@ -151,7 +151,7 @@ async function isStudentBearerAvatarRequest(request, env, studentNo, avatarUrl) 
 async function validateStudentAvatarSession(env, studentNo, sessionToken, avatarUrl) {
     if (!studentNo || !sessionToken || !avatarUrl) return false;
     const url = new URL('https://local/rest/v1/users');
-    url.searchParams.set('select', 'id,studentNo,username,role,status,activeSessionToken,avatarUrl,avatar_url,avatarPath');
+    url.searchParams.set('select', 'id,studentNo,username,role,status,activeSessionToken,avatarUrl');
     url.searchParams.set('studentNo', 'eq.' + studentNo);
     url.searchParams.set('role', 'eq.student');
     url.searchParams.set('limit', '1');
@@ -205,7 +205,7 @@ export async function onRequestPost(context) {
     try {
         const body = await context.request.json();
         const key = avatarKeyFromValue(body.avatarUrl);
-                const admin = await isAdminRequest(context.request, context.env);
+        const admin = await isAdminRequest(context.request, context.env);
         const bearerStudent = await isStudentBearerAvatarRequest(context.request, context.env, body.studentNo, body.avatarUrl);
         const sessionStudent = await validateStudentAvatarSession(context.env, body.studentNo, body.sessionToken, body.avatarUrl);
         if (!admin && !bearerStudent && !sessionStudent) return json({ error: 'Avatar access is not allowed.' }, 403);

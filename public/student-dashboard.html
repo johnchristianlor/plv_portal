@@ -355,11 +355,15 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
     const defaultAvatar = defaultAvatarFor(user);
     resolveAvatarElement(document.getElementById('avatarImg'), user.avatarUrl, { user, supabase, fallbackUrl: defaultAvatar });
 
-    function setStoredAvatar(url) {
-        resolveAvatarElement(document.getElementById('avatarImg'), url, { user, supabase, fallbackUrl: defaultAvatar });
+    async function setStoredAvatar(url, previewUrl = '') {
         user.avatarUrl = url;
         try { localStorage.setItem('loggedInUser', JSON.stringify(user)); }
         catch (error) { console.warn('Avatar saved to database but was too large for local cache.', error); }
+        return resolveAvatarElement(document.getElementById('avatarImg'), url, {
+            user,
+            supabase,
+            fallbackUrl: previewUrl || defaultAvatar
+        });
     }
 
     function readImageFile(file) {
@@ -447,7 +451,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         });
     }
 
-    async function saveAvatarUrl(url, successMessage = 'Avatar Updated!') {
+    async function saveAvatarUrl(url, successMessage = 'Avatar Updated!', previewUrl = '') {
         const sessionToken = user.activeSessionToken || user.sessionToken || '';
         try {
             const { data, error } = await supabase.rpc('update_student_avatar', {
@@ -457,7 +461,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             });
             if (!error) {
                 const savedUrl = (data && (data.avatarUrl || data.avatar_url)) || url;
-                setStoredAvatar(savedUrl);
+                await setStoredAvatar(savedUrl, previewUrl);
                 window.showToast(successMessage);
                 window.closeAvatarModal();
                 return;
@@ -474,7 +478,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             .select('avatarUrl')
             .maybeSingle();
         if (error) throw error;
-        setStoredAvatar(data?.avatarUrl || url);
+        await setStoredAvatar(data?.avatarUrl || url, previewUrl);
         window.showToast(successMessage);
         window.closeAvatarModal();
     }
@@ -497,12 +501,19 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         const original = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<i class="ph-bold ph-circle-notch" style="animation:spin .8s linear infinite;display:inline-block;"></i> Saving';
+        let previewUrl = '';
         try {
-            const compactAvatarUrl = await uploadStudentAvatarBlob(await buildCroppedAvatarBlob(), user);
-            await saveAvatarUrl(compactAvatarUrl, 'Photo avatar saved!');
+            const croppedAvatar = await buildCroppedAvatarBlob();
+            previewUrl = URL.createObjectURL(croppedAvatar);
+            const avatarImg = document.getElementById('avatarImg');
+            avatarImg.src = previewUrl;
+            const compactAvatarUrl = await uploadStudentAvatarBlob(croppedAvatar, user);
+            await saveAvatarUrl(compactAvatarUrl, 'Photo avatar saved!', previewUrl);
             window.cancelAvatarCrop();
         } catch (error) {
             console.error(error);
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+            resolveAvatarElement(document.getElementById('avatarImg'), user.avatarUrl, { user, supabase, fallbackUrl: defaultAvatar });
             window.showToast(error.message || 'Failed to save cropped avatar.', 'error');
         } finally {
             btn.disabled = false;
