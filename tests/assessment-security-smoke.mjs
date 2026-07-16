@@ -180,6 +180,11 @@ try {
   let result = await call('admin/save', { token: 'admin-token', method: 'POST', body: assessmentPayload('asm-strict', 'strict', { closes_at: strictClosesAt }) });
   assert.equal(result.status, 200); passed('admin saves Strict assessment and settings');
 
+  result = await call('admin/list', { token: 'admin-token' });
+  assert.equal(result.status, 200);
+  assert.ok(result.data.assessments.some(item => item.id === 'asm-strict'));
+  passed('administrator assessment library returns saved tests');
+
   result = await call('student/start', { token: 'student-b-token', method: 'POST', body: { assessment_id: 'asm-strict', accept_rules: true, client_session_id: 'wrong', tab_instance_id: 'wrong-tab', device_id: 'wrong-device' } });
   assert.equal(result.status, 403); passed('server rejects direct start for another section');
 

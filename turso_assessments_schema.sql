@@ -132,6 +132,12 @@ CREATE TABLE IF NOT EXISTS assessment_admin_audit (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS assessment_schema_meta (
+    schema_key TEXT PRIMARY KEY,
+    version INTEGER NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_assessments_status_section ON assessments(status, section);
 CREATE INDEX IF NOT EXISTS idx_questions_assessment_order ON assessment_questions(assessment_id, order_no);
 CREATE INDEX IF NOT EXISTS idx_attempts_student ON assessment_attempts(student_no, assessment_id, status);
@@ -154,8 +160,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_incident_client_event_attempt
     WHERE client_event_id IS NOT NULL AND client_event_id <> '';
 CREATE INDEX IF NOT EXISTS idx_admin_audit_attempt ON assessment_admin_audit(attempt_id, created_at);
 
--- Allows Cloudflare Functions to skip repeat schema scans after migrations are applied.
-PRAGMA user_version = 4;
+INSERT INTO assessment_schema_meta(schema_key, version, updated_at)
+VALUES ('assessment', 4, CURRENT_TIMESTAMP)
+ON CONFLICT(schema_key) DO UPDATE SET
+    version = excluded.version,
+    updated_at = excluded.updated_at;
 
 -- Existing production tables are intentionally not altered here because
 -- SQLite/libSQL does not support ADD COLUMN IF NOT EXISTS consistently.

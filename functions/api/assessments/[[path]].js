@@ -215,14 +215,29 @@ async function findProfile(env, accessToken, authUser, role) {
     const checks = [['uid', authUser.id], ['id', authUser.id], ['email', authUser.email]].filter(([, value]) => !!value);
     if (!checks.length) return null;
     const requestUrl = new URL(url + '/rest/v1/users');
-    requestUrl.searchParams.set('select', 'id,uid,email,studentNo,username,role,status,fullName,name,section');
+    requestUrl.searchParams.set('select', '*');
     requestUrl.searchParams.set('role', 'eq.' + role);
     requestUrl.searchParams.set('or', '(' + checks.map(([field, value]) => `${field}.eq.${value}`).join(',') + ')');
     requestUrl.searchParams.set('limit', '1');
     const response = await fetch(requestUrl.toString(), { headers: { apikey: apiKey, authorization: 'Bearer ' + dbBearer } });
-    if (!response.ok) return null;
-    const data = await response.json();
-    return (data || [])[0] || null;
+    if (response.ok) {
+        const data = await response.json();
+        const profile = (data || []).find(row => String(row.role || '').toLowerCase() === role);
+        if (profile) return profile;
+    }
+    // Compatibility fallback for older PostgREST schemas or column types that reject a combined OR filter.
+    for (const [field, value] of checks) {
+        const fallbackUrl = new URL(url + '/rest/v1/users');
+        fallbackUrl.searchParams.set('select', '*');
+        fallbackUrl.searchParams.set(field, 'eq.' + value);
+        fallbackUrl.searchParams.set('limit', '1');
+        const fallbackResponse = await fetch(fallbackUrl.toString(), { headers: { apikey: apiKey, authorization: 'Bearer ' + dbBearer } });
+        if (!fallbackResponse.ok) continue;
+        const data = await fallbackResponse.json();
+        const profile = (data || []).find(row => String(row.role || '').toLowerCase() === role);
+        if (profile) return profile;
+    }
+    return null;
 }
 async function supabaseRpc(env, name, payload, accessToken = '') {
     const url = supabaseUrl(env), anonKey = supabaseAnonKey(env);
@@ -325,7 +340,8 @@ async function ensureSchema(env) {
         { sql: `create table if not exists assessment_attempts (id text primary key, assessment_id text not null, student_no text not null, student_name text, student_uid text, status text not null, answers_json text, score real not null default 0, total_points real not null default 0, violations integer not null default 0, started_at text not null, submitted_at text, deadline_at text, created_at text not null, foreign key (assessment_id) references assessments(id) on delete cascade)` },
         { sql: `create table if not exists assessment_incidents (id text primary key, attempt_id text, assessment_id text, student_no text, type text not null, details text, created_at text not null)` },
         { sql: `create table if not exists assessment_sessions (id text primary key, attempt_id text not null, assessment_id text not null, student_no text not null, client_session_id text not null, session_token_hash text not null, tab_instance_id text, device_id text, device_type text, browser_name text, operating_system text, user_agent_summary text, ip_hash text, status text not null default 'active', started_at text not null, last_heartbeat_at text not null, ended_at text, termination_reason text, created_at text not null, foreign key (attempt_id) references assessment_attempts(id) on delete cascade)` },
-        { sql: `create table if not exists assessment_admin_audit (id text primary key, assessment_id text, attempt_id text, incident_id text, admin_id text not null, action text not null, details text, created_at text not null)` }
+        { sql: `create table if not exists assessment_admin_audit (id text primary key, assessment_id text, attempt_id text, incident_id text, admin_id text not null, action text not null, details text, created_at text not null)` },
+        { sql: `create table if not exists assessment_schema_meta (schema_key text primary key, version integer not null, updated_at text not null)` }
     ]);
     await ensureColumns(env, 'assessment_attempts', {
         attempt_no: 'integer', warning_count: 'real not null default 0', security_score: 'real not null default 0',
@@ -366,11 +382,14 @@ async function ensureSchema(env) {
 async function ensureSchemaOnce(env) {
     if (!schemaReadyPromise) {
         schemaReadyPromise = (async () => {
-            const [versionResult] = await turso(env, [{ sql: `pragma user_version` }]);
-            const currentVersion = Number(rows(versionResult)[0]?.user_version || 0);
+            let currentVersion = 0;
+            try {
+                const [versionResult] = await turso(env, [{ sql: `select version from assessment_schema_meta where schema_key='assessment' limit 1` }]);
+                currentVersion = Number(rows(versionResult)[0]?.version || 0);
+            } catch { /* The marker table is created by the migration below. */ }
             if (currentVersion >= ASSESSMENT_SCHEMA_VERSION) return;
             await ensureSchema(env);
-            await turso(env, [{ sql: `pragma user_version = ${ASSESSMENT_SCHEMA_VERSION}` }]);
+            await turso(env, [{ sql: `insert into assessment_schema_meta(schema_key,version,updated_at) values('assessment',?,?) on conflict(schema_key) do update set version=excluded.version,updated_at=excluded.updated_at`, args: [ASSESSMENT_SCHEMA_VERSION, nowIso()] }]);
         })().catch(error => { schemaReadyPromise = null; throw error; });
     }
     return schemaReadyPromise;
@@ -804,8 +823,13 @@ async function logAdminAudit(env, admin, action, fields = {}) {
 }
 
 async function adminList(env) {
-    const [list] = await turso(env, [{ sql: `with question_totals as (select assessment_id,count(*) as question_count from assessment_questions group by assessment_id), attempt_totals as (select assessment_id,count(*) as attempt_count,coalesce(sum(violations),0) as violation_count from assessment_attempts group by assessment_id) select a.id,a.title,a.instructions,a.subject_code,a.section,a.status,a.duration_minutes,a.opens_at,a.closes_at,a.created_at,a.updated_at,coalesce(q.question_count,0) as question_count,coalesce(t.attempt_count,0) as attempt_count,coalesce(t.violation_count,0) as violation_count from assessments a left join question_totals q on q.assessment_id=a.id left join attempt_totals t on t.assessment_id=a.id order by a.updated_at desc,a.created_at desc` }]);
-    return json({ assessments: rows(list).map(assessmentFromRow) });
+    try {
+        const [list] = await turso(env, [{ sql: `with question_totals as (select assessment_id,count(*) as question_count from assessment_questions group by assessment_id), attempt_totals as (select assessment_id,count(*) as attempt_count,coalesce(sum(violations),0) as violation_count from assessment_attempts group by assessment_id) select a.id,a.title,a.instructions,a.subject_code,a.section,a.status,a.duration_minutes,a.opens_at,a.closes_at,a.created_at,a.updated_at,coalesce(q.question_count,0) as question_count,coalesce(t.attempt_count,0) as attempt_count,coalesce(t.violation_count,0) as violation_count from assessments a left join question_totals q on q.assessment_id=a.id left join attempt_totals t on t.assessment_id=a.id order by a.updated_at desc,a.created_at desc` }]);
+        return json({ assessments: rows(list).map(assessmentFromRow) });
+    } catch {
+        const [list] = await turso(env, [{ sql: `select a.*, (select count(*) from assessment_questions q where q.assessment_id=a.id) as question_count, (select count(*) from assessment_attempts t where t.assessment_id=a.id) as attempt_count, (select coalesce(sum(t.violations),0) from assessment_attempts t where t.assessment_id=a.id) as violation_count from assessments a order by a.updated_at desc,a.created_at desc` }]);
+        return json({ assessments: rows(list).map(assessmentFromRow) });
+    }
 }
 async function adminGet(env, assessmentId) {
     const { assessment, questions } = await getAssessmentAndQuestions(env, assessmentId);
