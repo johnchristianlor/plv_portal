@@ -22,12 +22,12 @@ window.logout = async () => {
     location.replace('index.html');
 };
 
-function toast(message) {
+function toast(message, duration = 2800) {
     const element = $('toast');
     if (!element) return;
     element.textContent = message;
     element.classList.add('show');
-    setTimeout(() => element.classList.remove('show'), 2800);
+    setTimeout(() => element.classList.remove('show'), duration);
 }
 
 async function getHeaders() {
@@ -129,10 +129,13 @@ function render() {
         const scoreText = submitted ? `${Number(submitted.score || 0)} / ${Number(submitted.total_points || 0)}` : '';
         const warningText = submitted ? Number(submitted.warning_count ?? submitted.violations ?? 0) : 0;
         const secureBrowser = secureBrowserInfo(assessment);
+        const androidSebBlocked = secureBrowser.required && secureBrowser.android && !secureBrowser.active;
         const buttonLabel = submitted
             ? '<i class="ph-bold ph-check"></i> Submitted'
             : started
                 ? '<i class="ph-bold ph-arrows-clockwise"></i> Resume Exam'
+                : androidSebBlocked
+                    ? '<i class="ph-bold ph-warning-circle"></i> Android device options'
                 : secureBrowser.required && !secureBrowser.active
                     ? '<i class="ph-bold ph-shield-check"></i> Open in Safe Exam Browser'
                     : '<i class="ph-bold ph-play"></i> Start Exam';
@@ -158,6 +161,7 @@ function render() {
                 <div><i class="ph-bold ph-calendar-x"></i><span>Closes</span><strong>${esc(shortDate(assessment.closes_at, 'No close date'))}</strong></div>
             </div>
             ${submitted ? `<div class="student-score-strip"><span><i class="ph-fill ph-medal"></i> Score <strong>${esc(scoreText)}</strong></span><span>Warning score <strong>${warningText}</strong></span></div>` : ''}
+            ${androidSebBlocked ? `<div class="android-seb-notice"><i class="ph-fill ph-info"></i><span>This test requires Safe Exam Browser, which is not available on Android. Use an iPhone/iPad or computer, or ask the administrator to use Strict browser mode.</span></div>` : ''}
             <button class="btn student-assessment-action" data-open-exam="${esc(assessment.id)}" ${disabled ? 'disabled' : ''}>${buttonLabel}</button>
         </article>`;
     }).join('') : emptyCard('No assessments here.', 'Nothing matches this tab.');
@@ -172,13 +176,12 @@ function openSecureExam(id) {
     if (!assessment || stateOf(assessment) !== 'active') return toast('This assessment is not active.');
     const url = `student-exam.html?assessment_id=${encodeURIComponent(id)}`;
     const secureBrowser = secureBrowserInfo(assessment);
-    if (secureBrowser.required && !secureBrowser.active && secureBrowser.launchUrl) {
-        location.assign(secureBrowser.launchUrl);
+    if (secureBrowser.required && !secureBrowser.active && secureBrowser.android) {
+        toast('Safe Exam Browser has no official Android app. Ask the administrator to disable the SEB requirement and use Strict mode, or take the test on an iPhone, iPad, Windows PC, or Mac.', 6500);
         return;
     }
-    if (secureBrowser.required && !secureBrowser.active && secureBrowser.android) {
-        toast('Official Safe Exam Browser is not available on Android. Use an iPhone/iPad or supported computer for this assessment.');
-        setTimeout(() => location.assign(url), 1800);
+    if (secureBrowser.required && !secureBrowser.active && secureBrowser.launchUrl) {
+        location.assign(secureBrowser.launchUrl);
         return;
     }
     location.assign(url);
