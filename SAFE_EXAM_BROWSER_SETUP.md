@@ -1,71 +1,58 @@
 # Safe Exam Browser Setup for PLV Portal
 
-This portal now supports a Safe Exam Browser verification path for assessments that require stronger exam control.
+PLV Portal supports two practical assessment paths:
 
-Important limitation: normal mobile browsers cannot reliably detect every screenshot, floating app, Smart Panel, split-screen, or second-app action. The portal records browser events that the phone exposes, but Android system overlays and screenshots are often not exposed to webpages. Use Safe Exam Browser or a managed/kiosk device when the exam needs stronger control.
+- **Monitored / Strict** works in ordinary browsers and records events the browser exposes, including tab hiding, focus loss, fullscreen exit, clipboard actions, printing, navigation, network loss, duplicate tabs, and duplicate sessions.
+- **Require Safe Exam Browser** only starts after the Cloudflare Function validates the approved SEB Config Key for the exact assessment URL.
 
-## Supported secure-browser path
+The portal does not request camera, microphone, or screen-sharing access.
 
-Safe Exam Browser officially provides downloads for Windows, macOS, and iOS/iPadOS. Android/Infinix phones do not have the same official SEB lockdown path, so use one of these options for high-stakes mobile exams:
+## Platform support
 
-- Use school-managed Windows/macOS computers with Safe Exam Browser.
-- Use iPads/iPhones with Safe Exam Browser for iOS.
-- For Android phones, use a dedicated Android kiosk/exam browser or managed-device policy from your school IT provider.
-- For bring-your-own Android devices, keep the portal in Monitored or Strict mode and treat incidents as review signals, not proof.
+Official Safe Exam Browser supports Windows, macOS, and iOS/iPadOS. It does not currently provide the equivalent official Android exam client. For Android, use Monitored or Strict mode for ordinary quizzes, or a school-managed Android kiosk solution for high-stakes exams.
 
-## Cloudflare secrets
+A normal webpage cannot reliably detect Android screenshots, Smart Panel, split-screen, floating apps, or a second device. Do not treat the absence of an incident as proof that none occurred.
 
-Keep all verifier secrets in Cloudflare Pages encrypted secrets. Do not put them in HTML or browser JavaScript.
+## Create the SEB configuration
 
-Required when secure-browser verification is enabled:
+1. Install the official Safe Exam Browser Config Tool on an administrator computer.
+2. Set the Start URL to `https://YOUR_DOMAIN/student-assessments.html`.
+3. Save the configuration for **starting an exam**, not for configuring a client permanently.
+4. Set a strong quit password. iOS Assessment Mode requires a quit password to activate its protected mode.
+5. Enable **Use Browser & Config Keys** so SEB provides the Config Key through its HTTP header or JavaScript API.
+6. Disable unrelated applications, unrestricted navigation, printing, screenshots, clipboard access, downloads, and new windows according to school policy.
+7. Allow the PLV Portal domain and the Supabase endpoints required for login. Test the final allowlist before an actual exam.
+8. Save the final encrypted `.seb` file.
+9. Copy the final 64-character **Config Key** only after saving. Changing and re-saving the SEB configuration changes this key.
+10. Host the encrypted `.seb` file at a stable HTTPS address or use an approved `seb://` / `sebs://` launch link.
 
-- `SECURE_BROWSER_VERIFIER_URL` = your server-side verifier endpoint
-- `SECURE_BROWSER_VERIFIER_SECRET` = shared secret used only between Cloudflare and the verifier
-- `SECURE_BROWSER_PUBLIC_INSTRUCTIONS` = optional student instructions URL
-- `SECURE_BROWSER_PUBLIC_LAUNCH_URL` = optional SEB launch/config URL
+## Cloudflare configuration
 
-Your existing secrets are still required:
+Add these under **Cloudflare Pages > Settings > Variables and secrets > Production**:
 
-- `SUPABASE_URL`
-- `SUPABASE_PUBLISHABLE_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `TURSO_DATABASE_URL`
-- `TURSO_AUTH_TOKEN`
-- `B2_KEY_ID`
-- `B2_APPLICATION_KEY`
-- `B2_BUCKET_ID`
+- `SEB_CONFIG_KEY` as **Secret**: the 64-character Config Key copied from the final SEB configuration.
+- `SEB_LAUNCH_URL` as **Text**: the stable HTTPS, `seb://`, or `sebs://` link that opens the approved `.seb` configuration.
+- `SEB_STUDENT_INSTRUCTIONS` as **Text**: optional short instructions shown before launch.
 
-## Safe Exam Browser configuration
+For key rotation, `SEB_CONFIG_KEYS` may be stored as a Secret containing comma-separated current and previous Config Keys. Remove the previous key after the transition period. When both names exist, `SEB_CONFIG_KEYS` takes precedence.
 
-1. Install Safe Exam Browser Config Tool on a teacher/admin computer.
-2. Set the start URL to your PLV exam page, for example:
-   - `https://YOUR_DOMAIN/student-exam.html`
-3. Allow only the PLV Portal domain and any required Supabase/CDN domains.
-4. Disable new windows, external applications, and unrestricted navigation according to your school policy.
-5. Enable Browser Exam Key / Config Key transmission to the server. In SEB configuration this is the setting that sends browser and config keys in HTTP headers.
-6. Save the `.seb` configuration file.
-7. Distribute the `.seb` file only through your official school channel.
-8. In PLV Portal admin assessment settings, check **Require Safe Exam Browser** before publishing the test.
+Do not put the Config Key, quit password, admin password, service-role key, Turso token, or Backblaze key in HTML or browser JavaScript.
 
-## Verification model
+Redeploy after changing the Cloudflare values. Then open an assessment in Admin, enable **Require Safe Exam Browser**, save it, and test with a non-production student account.
 
-The browser sends SEB proof to Cloudflare Pages Functions. Cloudflare then calls your private verifier using `SECURE_BROWSER_VERIFIER_URL` and `SECURE_BROWSER_VERIFIER_SECRET`.
+## Student flow
 
-The verifier should check at least:
+1. The student selects a protected assessment.
+2. PLV Portal shows **Open in Safe Exam Browser**.
+3. The approved SEB configuration opens the portal. The student may need to sign in again because SEB uses its own browser session.
+4. The student selects the assessment inside SEB.
+5. The Cloudflare Function validates the Config Key for that exact assessment URL before it creates or resumes an attempt.
+6. During the attempt, the existing server timer, autosave, heartbeat, one-session rule, and incident logging remain active.
 
-- The request came from Cloudflare using the shared secret.
-- The SEB Config Key / Browser Exam Key matches the approved exam configuration.
-- The exam URL matches the configured PLV Portal URL.
-- The assessment ID is valid for that configuration.
+## Android policy
 
-Never verify based only on the browser user-agent string.
+Do not enable **Require Safe Exam Browser** for a class that must use Android phones. Official SEB cannot open that assessment on Android. Use Monitored or Strict mode instead, keep one active session, randomize questions, use short time windows, and review anomalies as signals rather than automatic proof of cheating.
 
-## Recommended exam modes
+## Security limits
 
-- **Monitored**: best default for regular quizzes and bring-your-own devices.
-- **Strict**: use for higher-stakes exams in normal browsers. Requires fullscreen and stronger warning rules.
-- **Require Safe Exam Browser**: use for controlled Windows, macOS, or iPad/iPhone devices after the verifier is configured.
-
-## What this cannot guarantee
-
-No browser-based exam system is perfectly cheat-proof. Safe Exam Browser and monitoring reduce common cheating paths, but they should be paired with clear school rules, assessment design, time limits, randomized questions, and administrator review.
+SEB and browser monitoring reduce common cheating opportunities but do not make an exam perfectly cheat-proof. Pair technical controls with good question design, randomization, clear rules, reasonable time limits, and instructor review.

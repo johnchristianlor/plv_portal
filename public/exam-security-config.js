@@ -21,9 +21,6 @@ const BASE_MONITORING = Object.freeze({
   browserNavigation: false,
   connection: true,
   duplicateSession: true,
-  cameraState: false,
-  microphoneState: false,
-  screenSharing: false,
   secureBrowserVerification: false
 });
 
@@ -47,12 +44,6 @@ const DEFAULT_POLICIES = Object.freeze({
   network_disconnected: { enabled: true, severity: 'low', countsWarning: false, warningWeight: 0, pausesExam: false, requireFullscreenRestore: false, mayAutoSubmit: false, cooldownMs: 10000, maxToleratedCount: 20 },
   network_reconnected: { enabled: true, severity: 'info', countsWarning: false, warningWeight: 0, pausesExam: false, requireFullscreenRestore: false, mayAutoSubmit: false, cooldownMs: 1000, maxToleratedCount: 50 },
   heartbeat_timeout: { enabled: true, severity: 'medium', countsWarning: false, warningWeight: 0, pausesExam: false, requireFullscreenRestore: false, mayAutoSubmit: false, cooldownMs: 30000, maxToleratedCount: 10 },
-  camera_unavailable: { enabled: true, severity: 'high', countsWarning: true, warningWeight: 2, pausesExam: true, requireFullscreenRestore: false, mayAutoSubmit: true, cooldownMs: 30000, maxToleratedCount: 1 },
-  camera_stopped: { enabled: true, severity: 'critical', countsWarning: true, warningWeight: 3, pausesExam: true, requireFullscreenRestore: false, mayAutoSubmit: true, cooldownMs: 30000, maxToleratedCount: 1 },
-  microphone_unavailable: { enabled: true, severity: 'high', countsWarning: true, warningWeight: 2, pausesExam: true, requireFullscreenRestore: false, mayAutoSubmit: true, cooldownMs: 30000, maxToleratedCount: 1 },
-  microphone_stopped: { enabled: true, severity: 'critical', countsWarning: true, warningWeight: 3, pausesExam: true, requireFullscreenRestore: false, mayAutoSubmit: true, cooldownMs: 30000, maxToleratedCount: 1 },
-  screen_share_unavailable: { enabled: true, severity: 'critical', countsWarning: true, warningWeight: 3, pausesExam: true, requireFullscreenRestore: false, mayAutoSubmit: true, cooldownMs: 30000, maxToleratedCount: 1 },
-  screen_share_stopped: { enabled: true, severity: 'critical', countsWarning: true, warningWeight: 4, pausesExam: true, requireFullscreenRestore: false, mayAutoSubmit: true, cooldownMs: 30000, maxToleratedCount: 1 },
   secure_browser_failed: { enabled: true, severity: 'critical', countsWarning: false, warningWeight: 0, pausesExam: true, requireFullscreenRestore: false, mayAutoSubmit: false, cooldownMs: 60000, maxToleratedCount: 1 },
   page_exit: { enabled: true, severity: 'medium', countsWarning: false, warningWeight: 0, pausesExam: false, requireFullscreenRestore: false, mayAutoSubmit: false, cooldownMs: 10000, maxToleratedCount: 10 },
   session_recovered: { enabled: true, severity: 'info', countsWarning: false, warningWeight: 0, pausesExam: false, requireFullscreenRestore: false, mayAutoSubmit: false, cooldownMs: 10000, maxToleratedCount: 20 },
@@ -69,7 +60,6 @@ export const MODE_DEFAULTS = Object.freeze({
     autoSubmitAfterFinalViolation: false, autoSubmitHighRiskOnly: true,
     adminReviewInsteadOfAutoSubmit: true, resetWarningOnApprovedResume: false, warningCalculation: 'weighted',
     monitoring: { ...BASE_MONITORING },
-    media: { cameraRequired: false, microphoneRequired: false, screenShareRequired: false },
     requireSecureBrowser: false, secureBrowserProvider: 'none', secureBrowserConfigId: '',
     secureBrowserVerificationEnabled: false
   },
@@ -85,7 +75,6 @@ export const MODE_DEFAULTS = Object.freeze({
       clipboard: true, contextMenu: true, dragDrop: true, print: true,
       restrictedShortcut: true, browserNavigation: true, connection: true, duplicateSession: true
     },
-    media: { cameraRequired: false, microphoneRequired: false, screenShareRequired: false },
     requireSecureBrowser: false, secureBrowserProvider: 'none', secureBrowserConfigId: '',
     secureBrowserVerificationEnabled: false
   },
@@ -101,7 +90,6 @@ export const MODE_DEFAULTS = Object.freeze({
       clipboard: true, contextMenu: true, dragDrop: true, print: true,
       restrictedShortcut: true, browserNavigation: true, connection: true, duplicateSession: true
     },
-    media: { cameraRequired: false, microphoneRequired: false, screenShareRequired: false },
     requireSecureBrowser: false, secureBrowserProvider: 'none', secureBrowserConfigId: '',
     secureBrowserVerificationEnabled: false
   },
@@ -118,7 +106,6 @@ export const MODE_DEFAULTS = Object.freeze({
       restrictedShortcut: true, browserNavigation: true, connection: true,
       duplicateSession: true, secureBrowserVerification: true
     },
-    media: { cameraRequired: false, microphoneRequired: false, screenShareRequired: false },
     requireSecureBrowser: true, secureBrowserProvider: 'safe_exam_browser', secureBrowserConfigId: '',
     secureBrowserVerificationEnabled: true
   }
@@ -139,8 +126,7 @@ export function normalizeSecurityConfig(settings = {}) {
   const legacyMonitored = raw.fullscreen !== undefined || raw.maxViolations !== undefined || raw.autoSubmitOnViolation !== undefined;
   const mode = MODE_DEFAULTS[requestedMode] ? requestedMode : (legacyMonitored ? 'monitored' : 'standard');
   const defaults = deepClone(MODE_DEFAULTS[mode]);
-  const monitoring = { ...defaults.monitoring, ...(raw.monitoring || {}), cameraState: false, microphoneState: false, screenSharing: false };
-  const media = { cameraRequired: false, microphoneRequired: false, screenShareRequired: false };
+  const monitoring = { ...defaults.monitoring, ...(raw.monitoring || {}) };
   const policies = deepClone(DEFAULT_POLICIES);
   const customPolicies = raw.eventPolicies && typeof raw.eventPolicies === 'object' ? raw.eventPolicies : {};
   for (const code of INCIDENT_CODES) {
@@ -171,7 +157,6 @@ export function normalizeSecurityConfig(settings = {}) {
     resetWarningOnApprovedResume: bool(raw.resetWarningOnApprovedResume, defaults.resetWarningOnApprovedResume),
     warningCalculation: ['weighted', 'count'].includes(raw.warningCalculation) ? raw.warningCalculation : defaults.warningCalculation,
     monitoring,
-    media,
     requireSecureBrowser: bool(raw.requireSecureBrowser, defaults.requireSecureBrowser),
     secureBrowserProvider: String(raw.secureBrowserProvider || defaults.secureBrowserProvider || 'none').slice(0, 80),
     secureBrowserConfigId: String(raw.secureBrowserConfigId || '').slice(0, 120),
@@ -209,7 +194,6 @@ export function publicSecurityConfig(settings = {}) {
     resetWarningOnApprovedResume: config.resetWarningOnApprovedResume,
     warningCalculation: config.warningCalculation,
     monitoring: { ...config.monitoring },
-    media: { ...config.media },
     requireSecureBrowser: config.requireSecureBrowser,
     secureBrowserProvider: config.secureBrowserProvider,
     secureBrowserVerificationEnabled: config.secureBrowserVerificationEnabled,

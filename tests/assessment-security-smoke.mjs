@@ -1,5 +1,6 @@
 ﻿import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { createInterface } from 'node:readline';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -111,7 +112,9 @@ const env = {
   TURSO_AUTH_TOKEN: 'test-turso-token',
   SUPABASE_URL: 'https://mock.supabase.local',
   SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test_only',
-  ASSESSMENT_PRIVACY_SALT: 'test-salt'
+  ASSESSMENT_PRIVACY_SALT: 'test-salt',
+  SEB_CONFIG_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+  SEB_LAUNCH_URL: 'https://portal.test/plv-exam.seb?assessment_id={assessment_id}'
 };
 
 async function call(path, { token = 'student-a-token', method = 'GET', body, query } = {}) {
@@ -315,10 +318,22 @@ try {
   result = await call('student/preflight', { token: 'student-c-token', method: 'POST', body: { assessment_id: 'asm-secure-browser' } });
   assert.equal(result.status, 200);
   assert.equal(result.data.eligible, false);
-  assert.equal(result.data.secure_browser.status, 'unavailable');
+  assert.equal(result.data.secure_browser.status, 'failed');
   result = await call('student/start', { token: 'student-c-token', method: 'POST', body: { assessment_id: 'asm-secure-browser', accept_rules: true } });
   assert.equal(result.status, 403);
-  assert.equal(result.data.code, 'SECURE_BROWSER_REQUIRED'); passed('secure-browser-required exam blocks start when verification is unavailable');
+  assert.equal(result.data.code, 'SECURE_BROWSER_REQUIRED');
+  const sebExamUrl = 'https://portal.test/student-exam.html?assessment_id=asm-secure-browser';
+  const configKeyHash = createHash('sha256').update(sebExamUrl + env.SEB_CONFIG_KEY).digest('hex');
+  const secureBrowserProof = JSON.stringify({
+    provider: 'safe_exam_browser', configKeyHash, browserExamKeyHash: '', examUrl: sebExamUrl,
+    assessmentId: 'asm-secure-browser'
+  });
+  result = await call('student/preflight', { token: 'student-c-token', method: 'POST', body: { assessment_id: 'asm-secure-browser', secure_browser_proof: secureBrowserProof } });
+  assert.equal(result.status, 200);
+  assert.equal(result.data.eligible, true);
+  assert.equal(result.data.secure_browser.status, 'verified');
+  assert.match(result.data.assessment.settings.secureBrowserLaunchUrl, /assessment_id=asm-secure-browser/);
+  passed('SEB exam rejects normal browsers and accepts the approved Config Key for the exact assessment URL');
 
   const legacy = assessmentPayload('asm-legacy', 'standard');
   legacy.assessment.settings = { ...legacy.assessment.settings, security: undefined, fullscreen: true, maxViolations: 3, autoSubmitOnViolation: true };

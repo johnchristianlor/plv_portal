@@ -54,7 +54,10 @@ assert.match(backend, /SAVE_VERSION_CONFLICT/);
 assert.match(backend, /Math\.min\(durationDeadlineMs, closesAtMs\)/);
 assert.match(backend, /finalizeAttempt\(env, attempt, 'student_submitted'/);
 assert.match(studentExam, /student\/incidents-batch/);
-assert.match(studentExam, /runRequiredDeviceChecks/);
+assert.ok(!/getUserMedia|getDisplayMedia|runRequiredDeviceChecks|runDeviceChecks/.test(studentExam), 'Student exam still requests camera, microphone, or screen sharing.');
+assert.match(studentExam, /Safe Exam Browser is not available for Android/);
+assert.match(backend, /x-safeexambrowser-configkeyhash/i);
+assert.match(backend, /SEB_CONFIG_KEYS/);
 assert.match(headers, /\/student-exam\.html[\s\S]*Permissions-Policy: camera=\(\), microphone=\(\), display-capture=\(\)/);
 
 for (const fragment of [
@@ -66,7 +69,7 @@ for (const fragment of [
   'CREATE UNIQUE INDEX IF NOT EXISTS uq_incident_client_event_attempt'
 ]) assert.ok(schema.includes(fragment), `Schema is missing: ${fragment}`);
 
-const forbiddenSecretNames = /(SUPABASE_SERVICE_ROLE_KEY|TURSO_AUTH_TOKEN|LIBSQL_AUTH_TOKEN|B2_APPLICATION_KEY|SECURE_BROWSER_VERIFIER_SECRET)/;
+const forbiddenSecretNames = /(SUPABASE_SERVICE_ROLE_KEY|TURSO_AUTH_TOKEN|LIBSQL_AUTH_TOKEN|B2_APPLICATION_KEY|SECURE_BROWSER_VERIFIER_SECRET|SEB_CONFIG_KEY|SEB_CONFIG_KEYS)/;
 function scanPublicFiles(dir) {
   const matches = [];
   for (const entry of readdirSync(dir)) {
@@ -95,7 +98,5 @@ console.log(JSON.stringify({
   required_files: requiredFiles.length,
   schema_tables: schemaCheck.stdout.trim().split(',').length
 }, null, 2));
-
-
 
 

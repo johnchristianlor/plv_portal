@@ -53,8 +53,6 @@ let heartbeatInterval = null;
 let leaseInterval = null;
 let offlineGraceTimer = null;
 let requestQueue = Promise.resolve();
-let mediaStreams = { camera: null, microphone: null, screen: null };
-let mediaCheckGeneration = 0;
 let preflightChecks = new Map();
 let preflightPassed = false;
 let duplicateTabBeforeStart = false;
@@ -155,7 +153,7 @@ function statusIcon(status) {
 function renderPreflightChecks() {
     const container = $('preflightChecks');
     if (!container) return;
-    const order = ['identity', 'assignment', 'availability', 'attempt', 'server_time', 'internet', 'fullscreen', 'camera', 'microphone', 'screen_share', 'active_session', 'secure_browser'];
+    const order = ['identity', 'assignment', 'availability', 'attempt', 'server_time', 'internet', 'fullscreen', 'active_session', 'secure_browser'];
     const items = order.map(key => preflightChecks.get(key)).filter(Boolean);
     container.innerHTML = items.map(item => `
         <div class="preflight-check ${esc(item.status)}">
@@ -165,20 +163,9 @@ function renderPreflightChecks() {
         </div>`).join('');
     const requiredFailure = items.some(item => item.status === 'failed');
     const stillChecking = items.some(item => item.status === 'checking');
-    const requiredMediaKeys = [
-        securityConfig.media?.cameraRequired ? 'camera' : '',
-        securityConfig.media?.microphoneRequired ? 'microphone' : '',
-        securityConfig.media?.screenShareRequired ? 'screen_share' : ''
-    ].filter(Boolean);
-    const requiredMediaIncomplete = requiredMediaKeys.some(key => preflightChecks.get(key)?.status !== 'passed');
     const secureBrowserFailure = securityConfig.requireSecureBrowser && preflight?.secure_browser?.passed !== true;
     const serverEligibilityFailure = preflight?.eligible === false;
-    preflightPassed = !requiredFailure && !stillChecking && !requiredMediaIncomplete && !secureBrowserFailure && !serverEligibilityFailure && navigator.onLine && !duplicateTabBeforeStart;
-    const checkButton = $('runDeviceChecks');
-    if (checkButton) {
-        checkButton.classList.toggle('hidden', requiredMediaKeys.length === 0);
-        checkButton.disabled = requiredMediaKeys.length === 0 || requiredMediaKeys.every(key => preflightChecks.get(key)?.status === 'passed');
-    }
+    preflightPassed = !requiredFailure && !stillChecking && !secureBrowserFailure && !serverEligibilityFailure && navigator.onLine && !duplicateTabBeforeStart;
     updateStartButton();
 }
 
@@ -188,10 +175,7 @@ function updateStartButton() {
     $('startExam').disabled = !preflightPassed || !accepted;
     if (duplicateTabBeforeStart) $('preflightIssue').textContent = 'Close the other exam tab before continuing.';
     else if (!navigator.onLine) $('preflightIssue').textContent = 'Reconnect to the internet before starting.';
-    else if (!preflightPassed) {
-        const mediaRequired = securityConfig.media?.cameraRequired || securityConfig.media?.microphoneRequired || securityConfig.media?.screenShareRequired;
-        $('preflightIssue').textContent = mediaRequired ? 'Run the required device checks, then review and accept the rules.' : 'Complete all required checks before starting.';
-    }
+    else if (!preflightPassed) $('preflightIssue').textContent = securityConfig.requireSecureBrowser ? 'Open this test with the approved Safe Exam Browser configuration.' : 'Complete all required checks before starting.';
     else if (!accepted) $('preflightIssue').textContent = 'Read and accept the assessment rules.';
     else $('preflightIssue').textContent = 'All required checks passed. You may start the assessment.';
 }
@@ -257,9 +241,16 @@ function renderPreflight() {
     const setup = assessment?.settings?.secureBrowserInstructions || '';
     const launch = assessment?.settings?.secureBrowserLaunchUrl || '';
     if ($('secureBrowserSetup')) {
-        $('secureBrowserSetup').classList.toggle('hidden', !securityConfig.requireSecureBrowser);
-        $('secureBrowserSetupText').textContent = setup || 'Use the secure-browser setup instructions supplied by your instructor.';
-        $('secureBrowserLaunch').classList.toggle('hidden', !launch);
+        const sebActive = !!globalThis.SafeExamBrowser?.security;
+        const android = /Android/i.test(navigator.userAgent || '');
+        $('secureBrowserSetup').classList.toggle('hidden', !securityConfig.requireSecureBrowser || preflight?.secure_browser?.passed === true);
+        $('secureBrowserSetup').classList.toggle('unsupported', android && !sebActive);
+        $('secureBrowserSetupText').textContent = sebActive
+            ? 'Safe Exam Browser is open. The portal is validating the approved exam configuration.'
+            : android
+                ? 'Official Safe Exam Browser is not available for Android. Use an iPhone, iPad, Windows PC, or Mac for an assessment that requires SEB.'
+                : setup || 'Install Safe Exam Browser, then use the button to open the approved PLV exam configuration.';
+        $('secureBrowserLaunch').classList.toggle('hidden', !launch || sebActive || android);
         if (launch) $('secureBrowserLaunch').href = launch;
     }
     preflightChecks.clear();
@@ -267,10 +258,6 @@ function renderPreflight() {
     setCheck('internet', 'Internet connection', navigator.onLine ? 'passed' : 'failed', navigator.onLine ? 'Online' : 'Offline');
     const fullscreenSupported = !!document.documentElement.requestFullscreen;
     setCheck('fullscreen', 'Fullscreen availability', !securityConfig.requireFullscreen ? 'not_required' : fullscreenSupported ? 'passed' : 'failed', !securityConfig.requireFullscreen ? 'Not required' : fullscreenSupported ? 'Supported' : 'Not supported by this browser');
-    const media = securityConfig.media || {};
-    setCheck('camera', 'Camera availability', media.cameraRequired ? (navigator.mediaDevices?.getUserMedia ? 'warning' : 'failed') : 'not_required', media.cameraRequired ? 'Select Run Device Checks to request permission' : 'Not required');
-    setCheck('microphone', 'Microphone availability', media.microphoneRequired ? (navigator.mediaDevices?.getUserMedia ? 'warning' : 'failed') : 'not_required', media.microphoneRequired ? 'Select Run Device Checks to request permission' : 'Not required');
-    setCheck('screen_share', 'Screen-sharing availability', media.screenShareRequired ? (navigator.mediaDevices?.getDisplayMedia ? 'warning' : 'failed') : 'not_required', media.screenShareRequired ? 'Select Run Device Checks to choose a screen' : 'Not required');
     if (!preflightChecks.has('active_session')) {
         setCheck('active_session', 'Active exam session', preflight?.resume_available ? 'warning' : 'passed', preflight?.resume_available ? 'An interrupted attempt can be resumed' : 'No conflicting active session');
     }
@@ -305,61 +292,6 @@ function setupPreflightDuplicateCheck() {
     };
     probe.postMessage({ type: 'probe', tabId: tabInstanceId });
     setTimeout(closeProbe, 1800);
-}
-
-async function requestPreflightMedia() {
-    const media = securityConfig.media || {};
-    const generation = ++mediaCheckGeneration;
-    stopMediaStreams();
-    if (media.cameraRequired || media.microphoneRequired) {
-        if (!navigator.mediaDevices?.getUserMedia) throw new Error('This browser cannot provide the required camera or microphone check.');
-        const stream = await navigator.mediaDevices.getUserMedia({ video: !!media.cameraRequired, audio: !!media.microphoneRequired });
-        if (media.cameraRequired) {
-            mediaStreams.camera = stream;
-            setCheck('camera', 'Camera availability', 'passed', 'Permission granted; no video is recorded or uploaded');
-            stream.getVideoTracks().forEach(track => track.addEventListener('ended', () => {
-                if (!active && generation === mediaCheckGeneration) setCheck('camera', 'Camera availability', 'failed', 'The camera stream stopped before the assessment started');
-            }, { once: true }));
-        }
-        if (media.microphoneRequired) {
-            mediaStreams.microphone = stream;
-            setCheck('microphone', 'Microphone availability', 'passed', 'Permission granted; no audio is recorded or uploaded');
-            stream.getAudioTracks().forEach(track => track.addEventListener('ended', () => {
-                if (!active && generation === mediaCheckGeneration) setCheck('microphone', 'Microphone availability', 'failed', 'The microphone stream stopped before the assessment started');
-            }, { once: true }));
-        }
-    }
-    if (media.screenShareRequired) {
-        if (!navigator.mediaDevices?.getDisplayMedia) throw new Error('This browser does not support the required screen-sharing check.');
-        mediaStreams.screen = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-        setCheck('screen_share', 'Screen-sharing availability', 'passed', 'Screen sharing active; content is not recorded by this portal');
-        mediaStreams.screen.getVideoTracks().forEach(track => track.addEventListener('ended', () => {
-            if (!active && generation === mediaCheckGeneration) setCheck('screen_share', 'Screen-sharing availability', 'failed', 'Screen sharing stopped before the assessment started');
-        }, { once: true }));
-    }
-}
-
-async function runRequiredDeviceChecks() {
-    const button = $('runDeviceChecks');
-    if (!button) return;
-    button.disabled = true;
-    button.innerHTML = '<i class="ph-bold ph-spinner-gap spin"></i> Checking…';
-    securityManager.suppress(5000);
-    try {
-        await requestPreflightMedia();
-        button.innerHTML = '<i class="ph-bold ph-check-circle"></i> Device Checks Passed';
-    } catch (error) {
-        stopMediaStreams();
-        const message = error?.name === 'NotAllowedError'
-            ? 'Permission was denied. Allow the required device access and run the checks again.'
-            : String(error?.message || 'The required device check failed.');
-        if (securityConfig.media?.cameraRequired) setCheck('camera', 'Camera availability', 'failed', message);
-        if (securityConfig.media?.microphoneRequired) setCheck('microphone', 'Microphone availability', 'failed', message);
-        if (securityConfig.media?.screenShareRequired) setCheck('screen_share', 'Screen-sharing availability', 'failed', message);
-        button.disabled = false;
-        button.innerHTML = '<i class="ph-bold ph-webcam"></i> Retry Device Checks';
-    }
-    renderPreflightChecks();
 }
 
 async function requestFullscreen() {
@@ -397,10 +329,6 @@ async function startExam() {
         });
         initializeAttempt(data);
     } catch (error) {
-        stopMediaStreams();
-        if (securityConfig.media?.cameraRequired) setCheck('camera', 'Camera availability', 'warning', 'Run the device checks again before retrying');
-        if (securityConfig.media?.microphoneRequired) setCheck('microphone', 'Microphone availability', 'warning', 'Run the device checks again before retrying');
-        if (securityConfig.media?.screenShareRequired) setCheck('screen_share', 'Screen-sharing availability', 'warning', 'Run the device checks again before retrying');
         if (document.fullscreenElement) await document.exitFullscreen().catch(() => {});
         $('startExam').disabled = false;
         $('startExam').innerHTML = '<i class="ph-bold ph-shield-check"></i> Start Assessment';
@@ -408,9 +336,6 @@ async function startExam() {
             block('Assessment already active', error.message, true);
         } else {
             $('preflightIssue').textContent = error.message;
-            if (/camera/i.test(error.message)) setCheck('camera', 'Camera availability', 'failed', error.message);
-            if (/microphone/i.test(error.message)) setCheck('microphone', 'Microphone availability', 'failed', error.message);
-            if (/screen/i.test(error.message)) setCheck('screen_share', 'Screen-sharing availability', 'failed', error.message);
             updateStartButton();
         }
     }
@@ -455,7 +380,6 @@ function initializeAttempt(data) {
     securityManager.bind({ assessmentId, tabId: tabInstanceId });
     const channel = securityManager.attachDuplicateChannel(assessmentId, tabInstanceId);
     channel?.postMessage({ type: 'active', tabId: tabInstanceId });
-    attachMediaMonitoring();
     if (navigationWasReload() && data.recovered) setTimeout(() => emitSimpleIncident('refresh_attempt', 'The assessment page was refreshed and the active attempt was restored.'), 2600);
     if (data.recovered) setSaveState('Previous answers restored', 'saved');
     syncOffline().finally(() => autosave(false));
@@ -463,18 +387,6 @@ function initializeAttempt(data) {
 
 function navigationWasReload() {
     return performance.getEntriesByType?.('navigation')?.[0]?.type === 'reload';
-}
-
-function attachMediaMonitoring() {
-    if (mediaStreams.camera) securityManager.trackMediaStream(mediaStreams.camera, 'camera', !!securityConfig.media?.cameraRequired);
-    if (mediaStreams.microphone) securityManager.trackMediaStream(mediaStreams.microphone, 'microphone', !!securityConfig.media?.microphoneRequired);
-    if (mediaStreams.screen) securityManager.trackMediaStream(mediaStreams.screen, 'screen_share', !!securityConfig.media?.screenShareRequired);
-}
-
-function stopMediaStreams() {
-    const unique = new Set(Object.values(mediaStreams).filter(Boolean));
-    unique.forEach(stream => stream.getTracks().forEach(track => track.stop()));
-    mediaStreams = { camera: null, microphone: null, screen: null };
 }
 
 function currentQuestion() { return questions[currentIndex] || null; }
@@ -908,7 +820,6 @@ function handleServerFinalized(data, reason = '') {
     clearLease();
     securityManager.setSubmitting(true);
     securityManager.cleanup();
-    stopMediaStreams();
     clearSavedSession();
     localStorage.removeItem(deviceIdKey);
     offlineStore.clearState().catch(() => {});
@@ -958,12 +869,9 @@ function leaveExamPage() {
     } else location.replace('student-assessments.html');
 }
 
-function cleanup() {
-    clearIntervals(); clearLease(); securityManager.cleanup(); stopMediaStreams();
-}
+function cleanup() { clearIntervals(); clearLease(); securityManager.cleanup(); }
 
 $('startExam').onclick = startExam;
-$('runDeviceChecks').onclick = runRequiredDeviceChecks;
 $('confirmReady').onchange = updateStartButton;
 $('cancelExam').onclick = leaveExamPage;
 $('blockedBack').onclick = leaveExamPage;

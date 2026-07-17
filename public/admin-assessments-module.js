@@ -1168,7 +1168,7 @@ function securityModeDescription(mode) {
         standard: 'Server-controlled timing, one active attempt, autosaving, randomized questions, and server-side scoring without aggressive browser monitoring.',
         monitored: 'Recommended for most online exams: practical tab, app-switch, focus, clipboard, navigation, print, connection, and duplicate-session monitoring. Mobile detection depends on what the browser reports.',
         strict: 'Monitored protections with required fullscreen and stronger warning responses.',
-        secure_browser_ready: 'Strict protections plus Safe Exam Browser verification. Use this for managed Windows, macOS, and iPad/iPhone exams after configuring the Cloudflare verifier secrets.'
+        secure_browser_ready: 'Strict protections plus server-verified Safe Exam Browser Config Key validation. Supported on Windows, macOS, and iPad/iPhone after the Cloudflare SEB settings are configured.'
     }[mode] || '';
 }
 
@@ -1230,9 +1230,8 @@ function collectSecuritySettings() {
             print: $('monitorPrint')?.checked === true, restrictedShortcut: $('monitorShortcuts')?.checked === true,
             browserNavigation: $('monitorNavigation')?.checked === true, connection: $('monitorConnection')?.checked !== false,
             duplicateSession: $('monitorDuplicateSession')?.checked !== false,
-            cameraState: false, microphoneState: false, screenSharing: false, secureBrowserVerification: requireSafeBrowser
+            secureBrowserVerification: requireSafeBrowser
         },
-        media: { cameraRequired: false, microphoneRequired: false, screenShareRequired: false },
         requireSecureBrowser: requireSafeBrowser,
         secureBrowserProvider: requireSafeBrowser ? 'safe_exam_browser' : 'none',
         secureBrowserConfigId: '',
@@ -2324,8 +2323,8 @@ function incidentTypeLabel(type = '') {
 function incidentSeverity(itemOrType = '') {
     if (itemOrType && typeof itemOrType === 'object' && itemOrType.severity) return String(itemOrType.severity).toLowerCase();
     const normalized = canonicalIncidentCode(itemOrType);
-    if (['duplicate_device_session','session_replaced','anomaly_limit_reached','screen_share_stopped','secure_browser_failed'].includes(normalized)) return 'critical';
-    if (['duplicate_exam_tab','print_attempt','fullscreen_exit','camera_stopped','microphone_stopped'].includes(normalized)) return 'high';
+    if (['duplicate_device_session','session_replaced','anomaly_limit_reached','secure_browser_failed'].includes(normalized)) return 'critical';
+    if (['duplicate_exam_tab','print_attempt','fullscreen_exit'].includes(normalized)) return 'high';
     if (['tab_switch','window_focus_lost','restricted_shortcut','copy_attempt','paste_attempt','cut_attempt','page_exit'].includes(normalized)) return 'medium';
     if (normalized === 'network_reconnected' || normalized === 'session_recovered' || normalized === 'time_expired') return 'info';
     return 'low';

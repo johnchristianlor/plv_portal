@@ -20,7 +20,6 @@ export class ExamSecurityManager {
     this.pageHideStartedAt = 0;
     this.offlineStartedAt = 0;
     this.pendingBlurTimer = null;
-    this.mediaStreams = [];
     this.channel = null;
     this.tabId = '';
     this.assessmentId = '';
@@ -258,19 +257,6 @@ export class ExamSecurityManager {
     return this.channel;
   }
 
-  trackMediaStream(stream, kind, required = false) {
-    if (!stream) return;
-    if (!this.mediaStreams.includes(stream)) this.mediaStreams.push(stream);
-    const expectedTrackKind = kind === 'microphone' ? 'audio' : 'video';
-    for (const track of stream.getTracks().filter(item => item.kind === expectedTrackKind)) {
-      track.addEventListener('ended', () => {
-        if (!this.active || this.submitting || !required) return;
-        const code = kind === 'camera' ? 'camera_stopped' : kind === 'microphone' ? 'microphone_stopped' : 'screen_share_stopped';
-        this.emit(code, `The required ${kind.replace('_', ' ')} stream stopped.`, { pause: true, cooldownMs: 30000 });
-      }, { once: true });
-    }
-  }
-
   cleanup() {
     this.active = false;
     this.removers.splice(0).forEach(remove => { try { remove(); } catch {} });
@@ -280,6 +266,5 @@ export class ExamSecurityManager {
     this.pendingBlurTimer = null;
     this.channel?.close();
     this.channel = null;
-    this.mediaStreams.splice(0).forEach(stream => stream.getTracks().forEach(track => track.stop()));
   }
 }

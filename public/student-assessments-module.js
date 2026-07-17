@@ -89,6 +89,16 @@ function securitySummary(assessment) {
     return `${labels[mode] || 'Standard'} | ${attempts} attempt${attempts === 1 ? '' : 's'}${fullscreen ? ' | Fullscreen' : ''}`;
 }
 
+function secureBrowserInfo(assessment) {
+    const settings = assessment?.settings?.security || assessment?.settings || {};
+    return {
+        required: settings.requireSecureBrowser === true,
+        launchUrl: String(settings.secureBrowserLaunchUrl || assessment?.settings?.secureBrowserLaunchUrl || '').trim(),
+        active: !!globalThis.SafeExamBrowser?.security,
+        android: /Android/i.test(navigator.userAgent || '')
+    };
+}
+
 function statusMeta(state) {
     return {
         active: { label: 'Open now', icon: 'ph-fill ph-play-circle', tone: 'active' },
@@ -118,11 +128,14 @@ function render() {
         const started = attempts.find(item => item.assessment_id === assessment.id && item.status === 'started');
         const scoreText = submitted ? `${Number(submitted.score || 0)} / ${Number(submitted.total_points || 0)}` : '';
         const warningText = submitted ? Number(submitted.warning_count ?? submitted.violations ?? 0) : 0;
+        const secureBrowser = secureBrowserInfo(assessment);
         const buttonLabel = submitted
             ? '<i class="ph-bold ph-check"></i> Submitted'
             : started
                 ? '<i class="ph-bold ph-arrows-clockwise"></i> Resume Exam'
-                : '<i class="ph-bold ph-arrow-square-out"></i> Start Exam';
+                : secureBrowser.required && !secureBrowser.active
+                    ? '<i class="ph-bold ph-shield-check"></i> Open in Safe Exam Browser'
+                    : '<i class="ph-bold ph-play"></i> Start Exam';
         const disabled = state !== 'active' || submitted;
         return `<article class="glass assessment-card student-assessment-card ${esc(status.tone)}">
             <div class="assessment-card-accent"></div>
@@ -158,10 +171,17 @@ function openSecureExam(id) {
     const assessment = assessments.find(item => String(item.id) === String(id));
     if (!assessment || stateOf(assessment) !== 'active') return toast('This assessment is not active.');
     const url = `student-exam.html?assessment_id=${encodeURIComponent(id)}`;
-    const name = `plv_secure_exam_${String(id).replace(/[^a-zA-Z0-9_-]/g, '')}`;
-    const examWindow = window.open(url, name);
-    if (!examWindow) return toast('Allow pop-ups for this site to open the secure exam tab.');
-    examWindow.focus();
+    const secureBrowser = secureBrowserInfo(assessment);
+    if (secureBrowser.required && !secureBrowser.active && secureBrowser.launchUrl) {
+        location.assign(secureBrowser.launchUrl);
+        return;
+    }
+    if (secureBrowser.required && !secureBrowser.active && secureBrowser.android) {
+        toast('Official Safe Exam Browser is not available on Android. Use an iPhone/iPad or supported computer for this assessment.');
+        setTimeout(() => location.assign(url), 1800);
+        return;
+    }
+    location.assign(url);
 }
 
 async function load(force = false) {

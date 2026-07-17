@@ -13,16 +13,17 @@
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/style.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/fill/style.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/bold/style.css">
+<link rel="stylesheet" href="./plv-responsive.css">
 
 <style>
 :root { --plv-navy: #001a4d; --plv-blue: #003DA5; --plv-gold: #FFD700; --plv-gold-hover: #e6c200; --plv-input-bg: #001233; --text-main: #ffffff; --text-muted: #a0b4d6; --glass-border: rgba(255, 255, 255, 0.15); --success: #10b981; --danger: #e11d48; }
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
 body { min-height: 100vh; display: flex; flex-direction: column; position: relative; color: var(--text-main); overflow-x: hidden; }
 body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--plv-blue); background-image: url('https://res.cloudinary.com/dfdlqf6ng/image/upload/v1772078771/Whisk_e856493a76a77f5965d4dd22c5caee18dr_uiw2g3.png'); background-size: cover; background-position: center center; background-repeat: no-repeat; z-index: -1; }
-.header { display: flex; justify-content: space-between; align-items: center; padding: 32px 48px; width: 100%; z-index: 10; position: relative; }
-.school-brand { display: flex; align-items: center; gap: 16px; }
-.school-brand img { width:50px; height:50px; border-radius:50%; box-shadow:0 4px 12px rgba(0,0,0,0.5); border:2px solid var(--plv-gold); }
-.school-brand h1 { font-size:18px; font-weight:800; letter-spacing:0.5px; text-transform:uppercase; text-shadow:0 2px 4px rgba(0,0,0,0.5); }
+.login-header { display: flex; justify-content: space-between; align-items: center; gap: clamp(16px, 3vw, 40px); padding: clamp(18px, 2.2vw, 30px) clamp(18px, 3.2vw, 48px); width: 100%; z-index: 10; position: relative; }
+.school-brand { display: flex; align-items: center; gap: clamp(10px, 1.2vw, 15px); min-width: 0; }
+.school-brand img { width:clamp(40px,3.2vw,48px); height:clamp(40px,3.2vw,48px); flex:0 0 auto; border-radius:50%; box-shadow:0 4px 12px rgba(0,0,0,0.5); border:2px solid var(--plv-gold); }
+.school-brand h1 { max-width:min(46vw,520px); min-width:0; font-size:clamp(12px,1.08vw,16px); line-height:1.25; font-weight:800; letter-spacing:0; text-transform:uppercase; text-wrap:balance; text-shadow:0 2px 4px rgba(0,0,0,0.5); }
 .datetime-widget { background: rgba(0,26,77,0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border:1px solid var(--glass-border); padding: 10px 24px; border-radius:100px; font-size:14px; font-weight:700; display:flex; align-items:center; gap:12px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); border-bottom:2px solid var(--plv-gold); }
 .datetime-widget i { color: var(--plv-gold); font-size:20px; } .time-text { color:#fff; } .date-text { color: var(--text-muted); font-weight:600; }
 .main-container { position: relative; z-index: 10; display: flex; flex: 1; width: 100%; max-width: 1600px; margin: 0 auto; padding: 24px 48px; }
@@ -56,12 +57,14 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @media (hover: hover) { .btn-login:hover { background: var(--plv-gold-hover); transform:translateY(-2px); box-shadow:0 12px 24px rgba(255,215,0,0.3);} .input-wrapper i.toggle-password:hover { color: var(--plv-gold); } }
-@media(max-width: 1024px) { .header { padding: 24px 32px; } .main-container { padding: 24px 32px; } .left-column { justify-content: center; } .right-column { display: none; } }
-@media(max-width: 768px) { .header { flex-direction: column; gap: 20px; text-align: center; padding: 24px 20px; } .school-brand { flex-direction: column; text-align: center; gap: 12px; } .school-brand h1 { font-size: 16px; } .main-container { padding: 20px; } }
+@media(max-width: 1024px) { .login-header { padding: 22px 28px; } .school-brand h1{max-width:58vw}.main-container { padding: 24px 32px; } .left-column { justify-content: center; } .right-column { display: none; } }
+@media(max-width: 768px) { .login-header { flex-direction: column; gap: 14px; text-align: center; padding: 18px 20px; } .school-brand { width:100%; justify-content:center; text-align:left; } .school-brand h1 { max-width:calc(100vw - 92px); font-size:clamp(11px,3vw,13px); white-space:nowrap; } .main-container { padding: 20px; } }
 
         @media (max-width: 480px) {
-            .header { padding: 20px 16px; gap: 16px; }
-            .school-brand h1 { font-size: 14px; }
+            .login-header { padding: 16px 14px; gap: 12px; }
+            .school-brand { gap:10px; }
+            .school-brand img { width:38px; height:38px; }
+            .school-brand h1 { max-width:calc(100vw - 72px); font-size:clamp(10px,3.35vw,12px); line-height:1.3; }
             .datetime-widget { padding: 8px 16px; font-size: 12px; }
             .main-container { padding: 16px; }
             .login-card { padding: 32px 24px; }
@@ -69,11 +72,10 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
         }
 
         </style>
-<link rel="stylesheet" href="./plv-responsive.css">
 </head>
 <body>
 
-<header class="header">
+<header class="login-header">
     <div class="school-brand">
         <img src="https://res.cloudinary.com/dfdlqf6ng/image/upload/v1772078917/PamantasanNgLungsodNgValenzuelaLogo_t53djy.png" alt="PLV Logo">
         <h1>Pamantasan ng Lungsod ng Valenzuela</h1>

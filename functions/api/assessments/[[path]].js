@@ -18,8 +18,7 @@ const INCIDENT_CODES = new Set([
     'duplicate_device_session', 'session_replaced', 'copy_attempt', 'cut_attempt', 'paste_attempt',
     'context_menu_attempt', 'drop_attempt', 'print_attempt', 'screenshot_shortcut', 'restricted_shortcut',
     'back_navigation', 'refresh_attempt', 'network_disconnected', 'network_reconnected', 'heartbeat_timeout',
-    'camera_unavailable', 'camera_stopped', 'microphone_unavailable', 'microphone_stopped',
-    'screen_share_unavailable', 'screen_share_stopped', 'secure_browser_failed', 'page_exit',
+    'secure_browser_failed', 'page_exit',
     'session_recovered', 'time_expired', 'anomaly_limit_reached'
 ]);
 
@@ -31,7 +30,6 @@ const BASE_MONITORING = Object.freeze({
     tabSwitch: false, windowFocus: false, fullscreenExit: false, clipboard: false,
     contextMenu: false, dragDrop: false, print: false, restrictedShortcut: false,
     browserNavigation: false, connection: true, duplicateSession: true,
-    cameraState: false, microphoneState: false, screenSharing: false,
     secureBrowserVerification: false
 });
 
@@ -55,12 +53,6 @@ const DEFAULT_EVENT_POLICIES = Object.freeze({
     network_disconnected: { enabled: true, severity: 'low', countsWarning: false, warningWeight: 0, pausesExam: false, requireFullscreenRestore: false, mayAutoSubmit: false, cooldownMs: 10000, maxToleratedCount: 20 },
     network_reconnected: { enabled: true, severity: 'info', countsWarning: false, warningWeight: 0, pausesExam: false, requireFullscreenRestore: false, mayAutoSubmit: false, cooldownMs: 1000, maxToleratedCount: 50 },
     heartbeat_timeout: { enabled: true, severity: 'medium', countsWarning: false, warningWeight: 0, pausesExam: false, requireFullscreenRestore: false, mayAutoSubmit: false, cooldownMs: 30000, maxToleratedCount: 10 },
-    camera_unavailable: { enabled: true, severity: 'high', countsWarning: true, warningWeight: 2, pausesExam: true, requireFullscreenRestore: false, mayAutoSubmit: true, cooldownMs: 30000, maxToleratedCount: 1 },
-    camera_stopped: { enabled: true, severity: 'critical', countsWarning: true, warningWeight: 3, pausesExam: true, requireFullscreenRestore: false, mayAutoSubmit: true, cooldownMs: 30000, maxToleratedCount: 1 },
-    microphone_unavailable: { enabled: true, severity: 'high', countsWarning: true, warningWeight: 2, pausesExam: true, requireFullscreenRestore: false, mayAutoSubmit: true, cooldownMs: 30000, maxToleratedCount: 1 },
-    microphone_stopped: { enabled: true, severity: 'critical', countsWarning: true, warningWeight: 3, pausesExam: true, requireFullscreenRestore: false, mayAutoSubmit: true, cooldownMs: 30000, maxToleratedCount: 1 },
-    screen_share_unavailable: { enabled: true, severity: 'critical', countsWarning: true, warningWeight: 3, pausesExam: true, requireFullscreenRestore: false, mayAutoSubmit: true, cooldownMs: 30000, maxToleratedCount: 1 },
-    screen_share_stopped: { enabled: true, severity: 'critical', countsWarning: true, warningWeight: 4, pausesExam: true, requireFullscreenRestore: false, mayAutoSubmit: true, cooldownMs: 30000, maxToleratedCount: 1 },
     secure_browser_failed: { enabled: true, severity: 'critical', countsWarning: false, warningWeight: 0, pausesExam: true, requireFullscreenRestore: false, mayAutoSubmit: false, cooldownMs: 60000, maxToleratedCount: 1 },
     page_exit: { enabled: true, severity: 'medium', countsWarning: false, warningWeight: 0, pausesExam: false, requireFullscreenRestore: false, mayAutoSubmit: false, cooldownMs: 10000, maxToleratedCount: 10 },
     session_recovered: { enabled: true, severity: 'info', countsWarning: false, warningWeight: 0, pausesExam: false, requireFullscreenRestore: false, mayAutoSubmit: false, cooldownMs: 10000, maxToleratedCount: 20 },
@@ -77,7 +69,6 @@ const MODE_DEFAULTS = Object.freeze({
         autoSubmitAfterFinalViolation: false, autoSubmitHighRiskOnly: true,
         adminReviewInsteadOfAutoSubmit: true, resetWarningOnApprovedResume: false, warningCalculation: 'weighted',
         monitoring: { ...BASE_MONITORING },
-        media: { cameraRequired: false, microphoneRequired: false, screenShareRequired: false },
         requireSecureBrowser: false, secureBrowserProvider: 'none', secureBrowserConfigId: '',
         secureBrowserVerificationEnabled: false
     },
@@ -89,7 +80,6 @@ const MODE_DEFAULTS = Object.freeze({
         autoSubmitAfterFinalViolation: false, autoSubmitHighRiskOnly: true,
         adminReviewInsteadOfAutoSubmit: true, resetWarningOnApprovedResume: false, warningCalculation: 'weighted',
         monitoring: { ...BASE_MONITORING, tabSwitch: true, windowFocus: true, fullscreenExit: true, clipboard: true, contextMenu: true, dragDrop: true, print: true, restrictedShortcut: true, browserNavigation: true },
-        media: { cameraRequired: false, microphoneRequired: false, screenShareRequired: false },
         requireSecureBrowser: false, secureBrowserProvider: 'none', secureBrowserConfigId: '',
         secureBrowserVerificationEnabled: false
     },
@@ -101,7 +91,6 @@ const MODE_DEFAULTS = Object.freeze({
         autoSubmitAfterFinalViolation: true, autoSubmitHighRiskOnly: false,
         adminReviewInsteadOfAutoSubmit: false, resetWarningOnApprovedResume: false, warningCalculation: 'weighted',
         monitoring: { ...BASE_MONITORING, tabSwitch: true, windowFocus: true, fullscreenExit: true, clipboard: true, contextMenu: true, dragDrop: true, print: true, restrictedShortcut: true, browserNavigation: true },
-        media: { cameraRequired: false, microphoneRequired: false, screenShareRequired: false },
         requireSecureBrowser: false, secureBrowserProvider: 'none', secureBrowserConfigId: '',
         secureBrowserVerificationEnabled: false
     },
@@ -113,7 +102,6 @@ const MODE_DEFAULTS = Object.freeze({
         autoSubmitAfterFinalViolation: true, autoSubmitHighRiskOnly: false,
         adminReviewInsteadOfAutoSubmit: false, resetWarningOnApprovedResume: false, warningCalculation: 'weighted',
         monitoring: { ...BASE_MONITORING, tabSwitch: true, windowFocus: true, fullscreenExit: true, clipboard: true, contextMenu: true, dragDrop: true, print: true, restrictedShortcut: true, browserNavigation: true, secureBrowserVerification: true },
-        media: { cameraRequired: false, microphoneRequired: false, screenShareRequired: false },
         requireSecureBrowser: true, secureBrowserProvider: 'safe_exam_browser', secureBrowserConfigId: '',
         secureBrowserVerificationEnabled: true
     }
@@ -129,6 +117,12 @@ function envValue(env, ...names) {
 function safeHttpsUrl(value) {
     try { const url = new URL(String(value || '')); return url.protocol === 'https:' ? url.toString() : ''; }
     catch { return ''; }
+}
+function safeSebLaunchUrl(value) {
+    try {
+        const url = new URL(String(value || ''));
+        return ['https:', 'seb:', 'sebs:'].includes(url.protocol) ? url.toString() : '';
+    } catch { return ''; }
 }
 function bearer(request) {
     const auth = request.headers.get('authorization') || '';
@@ -195,6 +189,13 @@ async function sha256(value) {
     const data = new TextEncoder().encode(String(value || ''));
     const digest = await crypto.subtle.digest('SHA-256', data);
     return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+function constantTimeEqual(left, right) {
+    const a = String(left || ''), b = String(right || '');
+    if (a.length !== b.length) return false;
+    let difference = 0;
+    for (let index = 0; index < a.length; index += 1) difference |= a.charCodeAt(index) ^ b.charCodeAt(index);
+    return difference === 0;
 }
 function randomToken(bytes = 32) {
     const array = new Uint8Array(bytes);
@@ -434,7 +435,6 @@ function normalizeSecurityConfig(settings = {}) {
         resetWarningOnApprovedResume: bool(raw.resetWarningOnApprovedResume, defaults.resetWarningOnApprovedResume),
         warningCalculation: ['weighted', 'count'].includes(raw.warningCalculation) ? raw.warningCalculation : defaults.warningCalculation,
         monitoring: { ...defaults.monitoring, ...(raw.monitoring || {}) },
-        media: { ...defaults.media, ...(raw.media || {}) },
         requireSecureBrowser: bool(raw.requireSecureBrowser, defaults.requireSecureBrowser),
         secureBrowserProvider: clampText(raw.secureBrowserProvider || defaults.secureBrowserProvider || 'none', 80),
         secureBrowserConfigId: clampText(raw.secureBrowserConfigId, 120),
@@ -446,7 +446,12 @@ function normalizeSecurityConfig(settings = {}) {
     config.autoSubmitOnViolation = config.autoSubmitAfterFinalViolation;
     return config;
 }
-function publicSecurityConfig(settings, env) {
+function secureBrowserLaunchUrl(env, assessmentId = '') {
+    const raw = envValue(env, 'SEB_LAUNCH_URL', 'SECURE_BROWSER_PUBLIC_LAUNCH_URL');
+    const value = String(raw || '').replaceAll('{assessment_id}', encodeURIComponent(String(assessmentId || '')));
+    return safeSebLaunchUrl(value).slice(0, 700);
+}
+function publicSecurityConfig(settings, env, assessmentId = '') {
     const c = normalizeSecurityConfig(settings);
     return {
         mode: c.mode, requireFullscreen: c.requireFullscreen, maxAttempts: c.maxAttempts,
@@ -457,11 +462,12 @@ function publicSecurityConfig(settings, env) {
         warningLimit: c.warningLimit, finalWarningThreshold: c.finalWarningThreshold,
         pauseAfterWarningCount: c.pauseAfterWarningCount, autoSubmitAfterFinalViolation: c.autoSubmitAfterFinalViolation,
         autoSubmitHighRiskOnly: c.autoSubmitHighRiskOnly, adminReviewInsteadOfAutoSubmit: c.adminReviewInsteadOfAutoSubmit,
-        resetWarningOnApprovedResume: c.resetWarningOnApprovedResume, warningCalculation: c.warningCalculation, monitoring: { ...c.monitoring }, media: { ...c.media },
+        resetWarningOnApprovedResume: c.resetWarningOnApprovedResume, warningCalculation: c.warningCalculation, monitoring: { ...c.monitoring },
         requireSecureBrowser: c.requireSecureBrowser, secureBrowserProvider: c.secureBrowserProvider,
         secureBrowserVerificationEnabled: c.secureBrowserVerificationEnabled,
-        secureBrowserInstructions: clampText(envValue(env, 'SECURE_BROWSER_PUBLIC_INSTRUCTIONS'), 2000),
-        secureBrowserLaunchUrl: safeHttpsUrl(envValue(env, 'SECURE_BROWSER_PUBLIC_LAUNCH_URL')).slice(0, 500),
+        secureBrowserInstructions: clampText(envValue(env, 'SEB_STUDENT_INSTRUCTIONS', 'SECURE_BROWSER_PUBLIC_INSTRUCTIONS'), 2000),
+        secureBrowserLaunchUrl: secureBrowserLaunchUrl(env, assessmentId),
+        secureBrowserSupportedPlatforms: ['ios', 'ipados', 'windows', 'macos'],
         fullscreen: c.requireFullscreen, maxViolations: c.warningLimit, autoSubmitOnViolation: c.autoSubmitAfterFinalViolation,
         eventPolicies: Object.fromEntries(Object.entries(c.eventPolicies).map(([code, policy]) => [code, {
             enabled: policy.enabled !== false, severity: policy.severity, countsWarning: !!policy.countsWarning,
@@ -475,7 +481,7 @@ function assessmentFromRow(row) {
 }
 function studentAssessmentFromRow(row, env) {
     const assessment = assessmentFromRow(row);
-    const security = publicSecurityConfig(assessment.settings, env);
+    const security = publicSecurityConfig(assessment.settings, env, assessment.id);
     return { id: assessment.id, title: assessment.title, instructions: assessment.instructions, subject_code: assessment.subject_code, section: assessment.section, status: assessment.status, duration_minutes: assessment.duration_minutes, opens_at: assessment.opens_at, closes_at: assessment.closes_at, created_at: assessment.created_at, updated_at: assessment.updated_at, settings: { security, ...security } };
 }
 function questionFromRow(row, includeKey = false) {
@@ -632,10 +638,37 @@ async function enforceDeadline(env, attempt) {
 async function verifySecureBrowser(env, request, assessment, security, body = {}) {
     if (!security.requireSecureBrowser) return { status: 'not_required', passed: true, provider: security.secureBrowserProvider || 'none' };
     if (!security.secureBrowserVerificationEnabled) return { status: 'unavailable', passed: false, provider: security.secureBrowserProvider, message: 'Secure-browser verification is required but is not enabled for this deployment.' };
+    const expectedKeys = envValue(env, 'SEB_CONFIG_KEYS', 'SEB_CONFIG_KEY')
+        .split(',').map(value => value.trim().toLowerCase()).filter(value => /^[a-f0-9]{64}$/.test(value));
+    const headerHash = clampText(request.headers.get('x-safeexambrowser-configkeyhash'), 128).trim().toLowerCase();
+    const proof = clampText(request.headers.get('x-secure-browser-proof') || body.secure_browser_proof, 4000);
+    if (expectedKeys.length) {
+        const candidates = [];
+        if (/^[a-f0-9]{64}$/.test(headerHash)) candidates.push({ hash: headerHash, url: request.url });
+        if (proof) {
+            try {
+                const parsed = JSON.parse(proof);
+                const examUrl = new URL(String(parsed.examUrl || ''));
+                const requestUrl = new URL(request.url);
+                const proofAssessmentId = String(parsed.assessmentId || '');
+                const proofHash = String(parsed.configKeyHash || '').trim().toLowerCase();
+                const proofUrlAssessmentId = examUrl.searchParams.get('assessment_id') || '';
+                const validPage = examUrl.origin === requestUrl.origin && examUrl.pathname.endsWith('/student-exam.html');
+                const validAssessment = proofAssessmentId === String(assessment.id) && proofUrlAssessmentId === String(assessment.id);
+                if (validPage && validAssessment && /^[a-f0-9]{64}$/.test(proofHash)) candidates.push({ hash: proofHash, url: examUrl.toString() });
+            } catch { /* Invalid client proof is handled as a generic verification failure. */ }
+        }
+        for (const candidate of candidates) {
+            for (const key of expectedKeys) {
+                const expectedHash = await sha256(candidate.url + key);
+                if (constantTimeEqual(candidate.hash, expectedHash)) return { status: 'verified', passed: true, provider: 'safe_exam_browser' };
+            }
+        }
+        return { status: 'failed', passed: false, provider: 'safe_exam_browser', message: 'Open this assessment using the approved Safe Exam Browser configuration.' };
+    }
     const endpoint = safeHttpsUrl(envValue(env, 'SECURE_BROWSER_VERIFIER_URL'));
     const secret = envValue(env, 'SECURE_BROWSER_VERIFIER_SECRET');
-    if (!endpoint || !secret) return { status: 'unavailable', passed: false, provider: security.secureBrowserProvider, message: 'The secure-browser verification service is not configured.' };
-    const proof = clampText(request.headers.get('x-secure-browser-proof') || body.secure_browser_proof, 4000);
+    if (!endpoint || !secret) return { status: 'unavailable', passed: false, provider: security.secureBrowserProvider, message: 'Safe Exam Browser is not configured for this portal yet.' };
     if (!proof) return { status: 'failed', passed: false, provider: security.secureBrowserProvider, message: 'Secure-browser verification proof was not provided.' };
     try {
         const response = await fetch(endpoint, { method: 'POST', headers: { ...JSON_HEADERS, authorization: `Bearer ${secret}` }, body: JSON.stringify({ provider: security.secureBrowserProvider, config_id: security.secureBrowserConfigId, assessment_id: assessment.id, proof }) });
