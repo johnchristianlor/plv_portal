@@ -11,7 +11,7 @@ textarea{line-height:1.5}
 table{max-width:100%;border-collapse:separate}
 .btn,button{min-height:42px;touch-action:manipulation}
 .btn:not(.btn-icon),button:not(.icon-btn):not(.btn-icon){white-space:normal}
-.header,.topbar,.toolbar,.filters,.actions,.modal-actions,.form-actions,.admin-assessment-header-actions,.header-actions{flex-wrap:wrap}
+.header,.topbar,.toolbar,.filters,.actions,.modal-actions,.form-actions,.header-actions{flex-wrap:wrap}
 .header-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex:0 0 auto;margin-left:auto;flex-wrap:nowrap!important}
 .header-actions>.icon-btn{margin:0!important;flex:0 0 auto}
 .header h1,.page-title h1,.main-wrapper h1{font-size:clamp(24px,5vw,38px);line-height:1.12}
@@ -20,12 +20,10 @@ table{max-width:100%;border-collapse:separate}
 /* Shared performance layer: retain the glass look without continuously repainting the page. */
 .ambient-mesh .blob{animation:none!important;filter:blur(96px)!important;will-change:auto!important;transform:translate3d(0,0,0)}
 .glass,.sidebar,.mobile-nav-bar{backdrop-filter:blur(18px)!important;-webkit-backdrop-filter:blur(18px)!important}
-body:not(.exam-active) .assessment-library-card{content-visibility:auto;contain-intrinsic-size:auto 360px}
-body:not(.exam-active) .section-card{content-visibility:auto;contain-intrinsic-size:auto 420px}
-body:not(.exam-active) .question-card{content-visibility:auto;contain-intrinsic-size:auto 220px}
-body:not(.exam-active) .student-card{content-visibility:auto;contain-intrinsic-size:auto 110px}
-body:not(.exam-active) .activity-item,
-body:not(.exam-active) .announce-item{content-visibility:auto;contain-intrinsic-size:auto 86px}
+.section-card{content-visibility:auto;contain-intrinsic-size:auto 420px}
+.student-card{content-visibility:auto;contain-intrinsic-size:auto 110px}
+.activity-item,
+.announce-item{content-visibility:auto;contain-intrinsic-size:auto 86px}
 
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
@@ -33,7 +31,7 @@ body:not(.exam-active) .announce-item{content-visibility:auto;contain-intrinsic-
 
 @media (max-width:1180px){
   .main-wrapper,.main-content,.content,.dashboard-content,.page-content{padding:30px 24px!important}
-  .dashboard-grid,.cards-grid,.stats-grid,.content-grid,.assessment-grid,.records-grid,.settings-grid,.form-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))!important}
+  .dashboard-grid,.cards-grid,.stats-grid,.content-grid,.records-grid,.settings-grid,.form-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))!important}
   .panel,.card,.glass{border-radius:20px}
 }
 
@@ -56,7 +54,7 @@ body:not(.exam-active) .announce-item{content-visibility:auto;contain-intrinsic-
   .main-wrapper,.main-content,.content,.dashboard-content,.page-content{width:100%!important;max-width:100%!important;margin:0!important;padding:22px 16px 92px!important}
   .header,.topbar,.page-header{align-items:flex-start!important;gap:12px!important}
   .icon-btn,.theme-toggle{width:46px!important;height:46px!important;flex:0 0 auto!important}
-  .form-grid,.grid-2,.grid-3,.profile-grid,.settings-grid,.assessment-grid{grid-template-columns:1fr!important}
+  .form-grid,.grid-2,.grid-3,.profile-grid,.settings-grid{grid-template-columns:1fr!important}
   .filters,.toolbar,.actions{gap:9px!important}
   .filters>* ,.toolbar>*{flex:1 1 min(100%,220px)!important}
   .modal-overlay,.modal,.security-lock{padding:14px!important}
@@ -97,64 +95,4 @@ body:not(.exam-active) .announce-item{content-visibility:auto;contain-intrinsic-
 @media (max-width:760px){
   .login-card,.auth-card,.login-box{width:min(100%,420px)!important;margin-inline:auto!important;border-radius:24px!important}
   .school-header,.brand-header{padding-inline:16px!important}
-}
-
-/* Secure assessment mobile experience */
-body:has(#examShell){overscroll-behavior:none}
-@media (max-width:900px){
-  #loadingScreen,#preflightScreen,#completedScreen,#blockedScreen{min-height:100svh!important;padding:14px!important;align-items:flex-start!important}
-  #preflightScreen .center-card,#loadingScreen .center-card,#completedScreen .center-card,#blockedScreen .center-card{margin-top:8px!important;width:100%!important;padding:20px!important;border-radius:24px!important}
-  .brand{gap:10px!important;margin-bottom:18px!important}
-  .brand img{width:46px!important;height:46px!important}
-  .brand h1{font-size:18px!important}
-  .brand p{font-size:11px!important}
-  .preflight-grid{display:grid!important;grid-template-columns:1fr!important;gap:14px!important}
-  .preflight-main,.preflight-side{padding:18px!important;border-radius:22px!important}
-  .preflight-title{font-size:clamp(25px,8vw,34px)!important}
-  .rules{gap:10px!important}
-  .rules li{font-size:12.5px!important;line-height:1.5!important}
-  .preflight-check{grid-template-columns:26px minmax(0,1fr)!important;align-items:start!important}
-  .preflight-check em{grid-column:2!important;justify-self:start!important}
-  .preflight-actions{display:grid!important;grid-template-columns:1fr!important;gap:9px!important}
-  .preflight-actions .btn{width:100%!important;justify-content:center!important}
-  .exam-topbar{min-height:74px!important;height:auto!important;padding:10px 12px!important;padding-top:max(10px,env(safe-area-inset-top))!important;gap:9px!important}
-  .exam-title h1{font-size:14px!important}
-  .exam-title p{display:none!important}
-  .exam-status{gap:6px!important}
-  .status-pill{display:none!important}
-  .violations{height:42px!important;min-width:42px!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:8px!important;border-radius:14px!important}
-  .violations i{margin-right:4px}
-  .timer{min-width:88px!important;height:42px!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:8px 10px!important;border-radius:14px!important;font-size:14px!important}
-  .exam-layout{display:block!important;padding:88px 12px calc(92px + env(safe-area-inset-bottom))!important;max-width:100%!important}
-  .navigator{display:none!important}
-  .exam-main{width:100%!important}
-  .question-card{min-height:calc(100svh - 188px)!important;padding:18px!important;border-radius:24px!important}
-  .question-prompt{font-size:clamp(19px,5.6vw,24px)!important;line-height:1.45!important}
-  .question-meta,.exam-section-line{gap:7px!important}
-  .choice,.answer-card,.all-question-card{border-radius:16px!important}
-  .choice{min-height:54px!important;padding:13px!important}
-  .question-tools{display:grid!important;grid-template-columns:1fr!important;gap:10px!important}
-  .question-tools .btn,.question-tools button{width:100%!important;justify-content:center!important}
-  .save-state{text-align:center!important}
-  .exam-footer{padding:8px 10px max(8px,env(safe-area-inset-bottom))!important}
-  .footer-inner{display:grid!important;grid-template-columns:auto 1fr!important;gap:8px!important;align-items:end!important}
-  .footer-inner>div:first-child{display:grid!important;gap:4px!important}
-  .mobile-progress{display:block!important;font-size:10px!important;text-align:center!important}
-  .footer-group{display:grid!important;grid-template-columns:repeat(3,minmax(44px,1fr))!important;gap:7px!important}
-  .exam-footer .btn{min-height:46px!important;border-radius:15px!important;padding:10px 12px!important}
-  .exam-footer .btn span{display:none!important}
-  .modal,.security-lock{align-items:flex-end!important;padding:10px!important}
-  .modal-card,.lock-card{width:100%!important;max-height:88svh!important;border-radius:24px 24px 18px 18px!important;padding:22px!important}
-  .warning-grid,.review-stats{grid-template-columns:1fr!important}
-}
-
-@media (max-width:520px){
-  .exam-topbar{grid-template-columns:minmax(0,1fr) auto!important}
-  .exam-title{min-width:0!important}
-  .violations{font-size:0!important}
-  .violations span{font-size:12px!important}
-  .question-card{padding:16px!important}
-  .choice{font-size:14px!important}
-  .all-question-card{padding:14px!important}
-  #submitExam{background:var(--blue)!important;color:#fff!important}
 }

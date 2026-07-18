@@ -104,37 +104,6 @@ if (user && user.role === 'student' && !document.documentElement.dataset.plvNoti
         }
     }
 
-    async function fetchAssessments() {
-        try {
-            const response = await fetch('/api/assessments/student/list', {
-                headers: { 'content-type': 'application/json', ...(await authHeaders()) },
-                cache: 'no-store'
-            });
-            const payload = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(payload.error || 'Assessment notifications unavailable.');
-            return (payload.assessments || [])
-                .filter(assessment => assessment.status === 'published')
-                .map(assessment => {
-                    const openDate = assessment.opens_at ? asDate(assessment.opens_at) : null;
-                    const schedule = openDate && openDate.getTime() > Date.now()
-                        ? `Opens ${openDate.toLocaleString()}`
-                        : 'Available now in Assessments.';
-                    return {
-                        id: `assessment:${assessment.id}`,
-                        type: 'assessment',
-                        icon: 'ph-fill ph-clipboard-text',
-                        title: assessment.title || 'Assessment published',
-                        message: `${assessment.subject_code || 'Assessment'} • ${schedule}`,
-                        date: asDate(assessment.updated_at || assessment.created_at || assessment.opens_at).toISOString(),
-                        href: 'student-assessments.html'
-                    };
-                });
-        } catch (error) {
-            console.warn('Notifications: assessments unavailable.', error);
-            return [];
-        }
-    }
-
     async function fetchGrades() {
         if (!studentNo) return [];
         try {
@@ -274,7 +243,7 @@ if (user && user.role === 'student' && !document.documentElement.dataset.plvNoti
         panel.setAttribute('aria-label', 'Notifications');
         panel.innerHTML = `
             <div class="plv-notification-head">
-                <div><h2>Notifications</h2><p>Assessments, grades, and announcements</p></div>
+                <div><h2>Notifications</h2><p>Grades and announcements</p></div>
                 <div class="plv-notification-tools">
                     <button type="button" class="plv-notification-tool" data-notification-refresh aria-label="Refresh notifications" title="Refresh"><i class="ph-bold ph-arrow-clockwise"></i></button>
                     <button type="button" class="plv-notification-tool" data-notification-close aria-label="Close notifications" title="Close"><i class="ph-bold ph-x"></i></button>
@@ -343,7 +312,7 @@ if (user && user.role === 'student' && !document.documentElement.dataset.plvNoti
         const list = ui.panel.querySelector('[data-notification-list]');
 
         if (!items.length) {
-            list.innerHTML = '<div class="plv-notification-empty"><i class="ph-fill ph-bell-ringing"></i><strong>You are all caught up</strong><span>Published assessments, posted grades, and announcements will appear here.</span></div>';
+            list.innerHTML = '<div class="plv-notification-empty"><i class="ph-fill ph-bell-ringing"></i><strong>You are all caught up</strong><span>Posted grades and announcements will appear here.</span></div>';
             return;
         }
 
@@ -376,7 +345,7 @@ if (user && user.role === 'student' && !document.documentElement.dataset.plvNoti
         const list = ui.panel.querySelector('[data-notification-list]');
         if (!items.length && isOpen) list.innerHTML = '<div class="plv-notification-loading">Checking for new updates...</div>';
         try {
-            const results = await Promise.allSettled([fetchAnnouncements(), fetchAssessments(), fetchGrades()]);
+            const results = await Promise.allSettled([fetchAnnouncements(), fetchGrades()]);
             const merged = results.flatMap(result => result.status === 'fulfilled' ? result.value : []);
             const deduped = new Map();
             merged.forEach(item => deduped.set(String(item.id), item));
@@ -398,9 +367,7 @@ if (user && user.role === 'student' && !document.documentElement.dataset.plvNoti
             if (document.visibilityState === 'visible') load();
         });
         window.addEventListener('storage', event => {
-            if (event.key === readKey || event.key === 'plvAssessmentSubmittedAt') {
-                if (event.key === 'plvAssessmentSubmittedAt') load(true); else render();
-            }
+            if (event.key === readKey) render();
         });
         window.addEventListener('beforeunload', () => clearInterval(pollTimer), { once: true });
     }

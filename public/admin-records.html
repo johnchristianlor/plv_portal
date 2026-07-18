@@ -348,9 +348,9 @@
         .sheet-meta{display:flex;flex-direction:column;gap:2px;min-width:96px;}
         .sheet-meta-main{font-size:12px;font-weight:800;color:var(--text-main);}
         .sheet-meta-sub{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.35px;}
-        .assessment-head{display:flex;flex-direction:column;align-items:center;gap:3px;max-width:116px;margin:0 auto;}
-        .assessment-title{font-size:11px;font-weight:800;color:var(--text-main);line-height:1.25;white-space:normal;text-align:center;}
-        .assessment-meta{font-size:9px;font-weight:700;color:var(--text-muted);}
+        .activity-head{display:flex;flex-direction:column;align-items:center;gap:3px;max-width:116px;margin:0 auto;}
+        .activity-title{font-size:11px;font-weight:800;color:var(--text-main);line-height:1.25;white-space:normal;text-align:center;}
+        .activity-meta{font-size:9px;font-weight:700;color:var(--text-muted);}
         .score-pill{display:inline-flex;align-items:baseline;justify-content:center;gap:2px;min-width:58px;padding:5px 8px;border-radius:999px;background:#eef2ff;color:#1e3a8a;border:1px solid rgba(30,58,138,.12);}
         .dark-theme .score-pill{background:rgba(59,130,246,.16);color:#bfdbfe;}
         .score-pill.empty{background:transparent;border:1px dashed rgba(100,116,139,.32);color:var(--text-muted);}
@@ -925,7 +925,7 @@ body.dark-theme .records-card.freeze-pane-on .grid-table .col-name::after{backgr
             <li class="nav-item"><a href="admin-schedule.html"><i class="ph-fill ph-clock"></i> Manage Schedules</a></li>
             <li class="nav-item"><a href="admin-accounts.html"><i class="ph-fill ph-users"></i> Student Accounts</a></li>
             <li class="nav-item"><a href="admin-activities.html"><i class="ph-fill ph-list-checks"></i> Activities Setup</a></li>
-            <li class="nav-item"><a href="admin-assessments.html"><i class="ph-fill ph-clipboard-text"></i> Create Assessments</a></li>
+
             <li class="nav-item"><a href="admin-grades.html"><i class="ph-fill ph-exam"></i> Input Grades</a></li>
             <li class="nav-item"><a href="admin-attendance.html"><i class="ph-fill ph-calendar-check"></i> Attendance</a></li>
             <li class="nav-item"><a href="admin-settings.html"><i class="ph-fill ph-gear"></i> System Settings</a></li>
@@ -1112,7 +1112,7 @@ body.dark-theme .records-card.freeze-pane-on .grid-table .col-name::after{backgr
             <li><a href="admin-schedule.html" id="mnav-sch"><i class="ph-fill ph-clock"></i>Schedules</a></li>
             <li><a href="admin-accounts.html" id="mnav-acc"><i class="ph-fill ph-users"></i>Accounts</a></li>
             <li><a href="admin-activities.html" id="mnav-act"><i class="ph-fill ph-list-checks"></i>Activities</a></li>
-            <li><a href="admin-assessments.html" id="mnav-ass"><i class="ph-fill ph-clipboard-text"></i>Assessments</a></li>
+
             <li><a href="admin-grades.html" id="mnav-grd"><i class="ph-fill ph-exam"></i>Grades</a></li>
             <li><a href="admin-attendance.html" id="mnav-att"><i class="ph-fill ph-calendar-check"></i>Attendance</a></li>
             <li><a href="admin-settings.html" id="mnav-set"><i class="ph-fill ph-gear"></i>Settings</a></li>
@@ -1437,10 +1437,10 @@ function renderGrid(rows,acts){
     allActs.forEach(a=>{
         const s=sortCol===`act_${a.id}`;
         sh+=`<th class="sc-cell ${s?(sortDir==='asc'?'sort-asc':'sort-desc'):''}" onclick="window.sortBy('act_${a.id}')" style="text-align:center;min-width:96px;">
-            <div class="assessment-head">
+            <div class="activity-head">
                 ${ct(a.category)}
-                <div class="assessment-title">${a.title}</div>
-                <div class="assessment-meta">${a.date||'No date'} / ${a.perfectScore}</div>
+                <div class="activity-title">${a.title}</div>
+                <div class="activity-meta">${a.date||'No date'} / ${a.perfectScore}</div>
             </div>
         </th>`;
     });
