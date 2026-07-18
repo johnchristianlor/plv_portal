@@ -366,6 +366,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         window.logout = async function() {
             studentSessionGuard.stop();
             await studentPresence.stop();
+            try { await supabase.auth.signOut(); } catch (error) {}
             localStorage.removeItem('loggedInUser');
             window.location.href = 'index.html';
         };

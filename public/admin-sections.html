@@ -198,7 +198,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
 
         const adminSessionGuard = startAdminSessionGuard(supabase, user);
-        window.logout = function() { adminSessionGuard.stop(); localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
+        window.logout = async function() { adminSessionGuard.stop(); try { await supabase.auth.signOut(); } catch (error) {} localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
 
         window.showToast = function(message, type = 'success') {
             const toast = document.getElementById('toast');

@@ -562,7 +562,7 @@ import { avatarStaticUrl, resolveAvatarElement, defaultAvatarFor } from "./avata
 const _u=JSON.parse(localStorage.getItem('loggedInUser'));
 if(!_u||_u.role!=='admin')location.href='index.html';
 const adminSessionGuard = startAdminSessionGuard(supabase, _u);
-window.logout=()=>{adminSessionGuard.stop();localStorage.removeItem('loggedInUser');location.href='index.html';};
+window.logout=async()=>{adminSessionGuard.stop();try{await supabase.auth.signOut();}catch(error){}localStorage.removeItem('loggedInUser');location.href='index.html';};
 
 // ===================== CACHE =====================
 let subjectsMap={};   // subjectCode -> {subjectCode, subjectName, profName, schedule?}

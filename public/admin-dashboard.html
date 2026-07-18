@@ -218,8 +218,9 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
         const adminSessionGuard = startAdminSessionGuard(supabase, user);
 
-        window.logout = function() {
+        window.logout = async function() {
             adminSessionGuard.stop();
+            try { await supabase.auth.signOut(); } catch (error) {}
             localStorage.removeItem('loggedInUser');
             window.location.href = 'index.html';
         };
