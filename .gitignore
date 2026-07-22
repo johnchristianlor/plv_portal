@@ -46,6 +46,7 @@ build/Release
 
 # Dependency directories
 node_modules/
+.wrangler/
 
 # Optional npm cache directory
 .npm
