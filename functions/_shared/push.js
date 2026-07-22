@@ -86,9 +86,10 @@ export async function sendOneSignalPush(env, subscriptionIds, message) {
       data: { type: message.type },
     }),
   });
-  if (!response.ok) {
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !isUuid(result.id)) {
     console.error('Push provider rejected a message.', response.status);
     throw new Error('push_delivery_failed');
   }
-  return { delivered: true };
+  return { delivered: true, recipients: ids.length };
 }

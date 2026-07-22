@@ -111,7 +111,11 @@ export async function onRequestPost({ request, env }) {
     const message = await notificationFor(env, payload);
     if (!message) return json({ accepted: true, skipped: true });
     const result = await sendOneSignalPush(env, message.audience, message);
-    return json({ accepted: true, delivered: result.delivered });
+    return json({
+      accepted: true,
+      delivered: result.delivered,
+      recipients: result.recipients || 0,
+    });
   } catch (error) {
     console.error('Push webhook failed.', error instanceof Error ? error.message : 'unknown');
     return json({ error: 'Notification delivery is temporarily unavailable.' }, 503);

@@ -61,6 +61,18 @@ Enter the real webhook secret only in the Supabase and Cloudflare dashboards. Do
 5. Insert a test announcement from the admin website, then background or close the app.
 6. The phone should receive a PLV Portal system notification. Tapping it opens the app; the private details remain inside the signed-in portal.
 
+## Delivery verification
+
+Check these in order when an announcement appears inside the app but no Android system notification arrives:
+
+1. In OneSignal > Settings > Push & In-App, **Google Android (FCM)** must be Active. Installing the Flutter SDK is not enough; OneSignal requires the Firebase Cloud Messaging V1 service-account JSON to deliver Android notifications.
+2. In OneSignal > Audience > Subscriptions, the phone must appear as **Subscribed**, not Never Subscribed or Unsubscribed.
+3. On the phone, open PLV Portal > Profile > Notification preferences. The status must say **Phone notifications are active on this device**. Tap Retry after granting Android notification permission.
+4. In Supabase > Database > Webhooks > announcement webhook logs, a successful response contains `delivered: true` and `recipients` greater than zero. A zero-recipient response means the phone has not registered yet.
+5. Confirm the production Cloudflare Pages project contains `ONESIGNAL_APP_ID`, `ONESIGNAL_APP_API_KEY`, `PUSH_WEBHOOK_SECRET`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`, then redeploy after changing any value.
+
+Do not place the FCM service-account JSON, OneSignal API key, webhook secret, or Supabase service-role key in the Flutter project or Git repository.
+
 If a student signed in through the legacy password RPC rather than Supabase Auth, the device will not be registered. Native push intentionally requires a valid Supabase Auth session.
 
 ## iOS status

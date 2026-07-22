@@ -27,7 +27,7 @@ globalThis.fetch = async (url, init = {}) => {
     return Response.json([{ subscription_id: subscriptionId }]);
   }
   if (String(url) === 'https://api.onesignal.com/notifications') {
-    return Response.json({ id: 'message-id' });
+    return Response.json({ id: '9bb36922-9e34-421e-b046-047b368147fb' });
   }
   throw new Error(`Unexpected test request: ${url}`);
 };
