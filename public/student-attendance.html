@@ -357,6 +357,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         import { supabase } from "./supabase-adapter.js";
         import { startStudentPresence } from "./student-presence.js";
         import { startStudentSessionGuard } from "./student-session.js";
+        import { normalizeAttendanceStatus, summarizeAttendance } from "./attendance-utils.mjs";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'student') window.location.href = 'index.html';
@@ -400,10 +401,11 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 allRecords = [];
                 const subjectSet = new Set();
                 (attendanceRows || []).forEach(data => {
-                    allRecords.push(data);
+                    const record = { ...data, status: normalizeAttendanceStatus(data.status) };
+                    allRecords.push(record);
                     if(data.subjectCode) subjectSet.add(data.subjectCode);
                 });
-                allRecords.sort((a,b) => b.date.localeCompare(a.date));
+                allRecords.sort((a,b) => String(b.date || '').localeCompare(String(a.date || '')));
 
                 // Populate subject filter
                 const fSubj = document.getElementById('filterSubject');
@@ -419,12 +421,14 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         }
 
         function computeStats(records) {
-            const total = records.length;
-            const p = records.filter(r => r.status === 'P').length;
-            const a = records.filter(r => r.status === 'A').length;
-            const l = records.filter(r => r.status === 'L').length;
-            const e = records.filter(r => r.status === 'E').length;
-            const rate = total > 0 ? Math.round(((p + l) / total) * 100) : 0;
+            const summary = summarizeAttendance(records);
+            const total = summary.totalRecords;
+            const p = summary.present;
+            const a = summary.absent;
+            const l = summary.late;
+            const e = summary.excused;
+            const rate = summary.rate;
+            const marked = p + a + l + e;
 
             document.getElementById('heroTotal').textContent = total;
             document.getElementById('heroPresent').textContent = p;
@@ -436,16 +440,15 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             document.getElementById('statExcused').textContent = e;
 
             setTimeout(() => {
-                if(total > 0) {
-                    document.getElementById('progPresent').style.width = `${(p/total)*100}%`;
-                    document.getElementById('progAbsent').style.width = `${(a/total)*100}%`;
-                    document.getElementById('progLate').style.width = `${(l/total)*100}%`;
-                    document.getElementById('progExcused').style.width = `${(e/total)*100}%`;
-                }
+                document.getElementById('progPresent').style.width = `${marked ? (p/marked)*100 : 0}%`;
+                document.getElementById('progAbsent').style.width = `${marked ? (a/marked)*100 : 0}%`;
+                document.getElementById('progLate').style.width = `${marked ? (l/marked)*100 : 0}%`;
+                document.getElementById('progExcused').style.width = `${marked ? (e/marked)*100 : 0}%`;
             }, 200);
         }
 
         function statusBadge(s) {
+            s = normalizeAttendanceStatus(s);
             const map = { P:['badge-present','<i class="ph-bold ph-check"></i> Present'], A:['badge-absent','<i class="ph-bold ph-x"></i> Absent'], L:['badge-late','<i class="ph-bold ph-clock-countdown"></i> Late'], E:['badge-excused','<i class="ph-bold ph-note"></i> Excused'] };
             const [cls, label] = map[s] || ['','—'];
             return `<span class="badge ${cls}">${label}</span>`;
@@ -467,7 +470,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             const dateSet = new Set();
             records.forEach(r => {
                 if(!subjectMap[r.subjectCode]) subjectMap[r.subjectCode] = {};
-                subjectMap[r.subjectCode][r.date] = r.status;
+                subjectMap[r.subjectCode][r.date] = normalizeAttendanceStatus(r.status);
                 dateSet.add(r.date);
             });
             const dates = Array.from(dateSet).sort();
@@ -492,20 +495,16 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             let html = '';
             subjects.forEach(sub => {
                 const dateMap = subjectMap[sub];
-                let presentLate = 0, total = 0;
                 const cells = dates.map(d => {
                     const s = dateMap[d];
-                    total++;
                     if(s) {
-                        if(s==='P'||s==='L') presentLate++;
                         const labels = {P:'Present',A:'Absent',L:'Late',E:'Excused'};
                         return `<td class="mtd-cell mc-${s}" title="${d}: ${labels[s]}">${statusIcon[s]}</td>`;
                     }
                     return `<td class="mtd-cell mc-empty">—</td>`;
                 }).join('');
-                const attended = Object.values(dateMap).filter(s=>s==='P'||s==='L').length;
-                const totalWithRecord = Object.keys(dateMap).length;
-                const rate = totalWithRecord > 0 ? Math.round((attended/totalWithRecord)*100) : 0;
+                const summary = summarizeAttendance(Object.values(dateMap).map(status => ({ status })));
+                const rate = summary.rate;
                 const rateColor = rate >= 80 ? 'var(--success)' : rate >= 60 ? 'var(--warning)' : 'var(--danger)';
                 html += `<tr>
                     <td class="mtd-subject">${sub}</td>
