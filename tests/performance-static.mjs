@@ -46,6 +46,16 @@ test('shared-file queries retain the fields needed by upload and legacy download
     assert.match(studentSettings, /\.in\('recipientStudentNo',\s*\['all',\s*studentId\]\)/);
 });
 
+test('student attendance uses one professional spreadsheet view', () => {
+    const attendance = read('student-attendance.html');
+    assert.match(attendance, /class="card glass records-card"/);
+    assert.match(attendance, /id="matrixTable"/);
+    assert.match(attendance, /id="filterSubject"[^>]+applyMatrixFilter/);
+    assert.match(attendance, /ph-fill ph-check-circle/);
+    assert.match(attendance, /ph-fill ph-clock-countdown/);
+    assert.doesNotMatch(attendance, /id="btnListView"|id="listViewContainer"|window\.switchAttView/);
+});
+
 test('inline and shared browser modules remain syntactically valid', () => {
     const failures = [];
     for (const file of htmlFiles) {
