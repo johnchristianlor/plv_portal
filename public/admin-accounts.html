@@ -452,7 +452,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
             <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
                 <button class="btn btn-outline" onclick="window.downloadSmartTemplate()"><i class="ph-bold ph-download-simple"></i> Download Smart Excel Template</button>
-                <button class="btn btn-primary" id="btnCommitUpload" style="display:none;" onclick="window.commitUpload()"><i class="ph-bold ph-cloud-arrow-up"></i> Upload <span id="commitCount">0</span> Students to Database</button>
+                <button class="btn btn-primary" id="btnCommitUpload" style="display:none;" onclick="window.commitUpload()"><i class="ph-bold ph-cloud-arrow-up"></i> Upload <span id="commitCount">0</span> Rows to Database</button>
                 <button class="btn" id="btnClearPreview" style="display:none;background:rgba(100,116,139,.1);color:var(--text-muted);" onclick="window.clearPreview()"><i class="ph-bold ph-x"></i> Clear Preview</button>
             </div>
             <div id="previewContainer"></div>
@@ -558,6 +558,15 @@ import { supabase } from "./supabase-adapter.js";
 import { startAdminSessionGuard } from "./admin-session.js";
 import { avatarStaticUrl, resolveAvatarElement, defaultAvatarFor } from "./avatar-utils.js";
 import { loadVendor } from "./vendor-loader.v1.js";
+import {
+    createBulkReferenceIndex,
+    findSchedule,
+    normalizeLookupValue,
+    prepareBulkUploadRows,
+    runWithConcurrency,
+    scheduleLookupKey,
+    uniqueBy
+} from "./admin-accounts-bulk.js";
 const _u=JSON.parse(localStorage.getItem('loggedInUser'));
 if(!_u||_u.role!=='admin')location.href='index.html';
 const adminSessionGuard = startAdminSessionGuard(supabase, _u);
@@ -572,6 +581,7 @@ let allDirectoryStudents=[];
 let sortCol='studentName', sortDir='asc';
 let pendingAction=null;
 let pendingUploadRows=[];
+let bulkReferenceIndex=createBulkReferenceIndex();
 
 const TABLE_FIELDS={
     users:'id,studentNo,username,fullName,email,courseYear,section,role,status,avatarUrl,isFirstLogin,isOnline,lastSeenAt',
@@ -646,13 +656,13 @@ async function loadReferenceData(){
     sectionsMap={};
     sections.forEach(dat=>{ sectionsMap[dat.sectionName||dat.id]={...dat}; });
     schedulesMap={};
-    schedules.forEach(dat=>{ schedulesMap[dat.id || ((dat.subjectCode || '') + '_' + (dat.section || ''))]={...dat}; });
+    schedules.forEach(dat=>{ schedulesMap[scheduleLookupKey(dat.subjectCode,dat.section)]={...dat}; });
+    bulkReferenceIndex=createBulkReferenceIndex({subjects,sections,schedules});
 }
 
 // ===================== HELPERS =====================
 function getSchedule(subCode,section){
-    const key=`${subCode}_${section}`;
-    const s=schedulesMap[key];
+    const s=findSchedule(bulkReferenceIndex,subCode,section)||schedulesMap[scheduleLookupKey(subCode,section)];
     if(s&&(s.time||s.room)) return {time:s.time||'',room:s.room||'',full:`${s.time||''}${s.time&&s.room?' | ':''}${s.room||''}`};
     return null;
 }
@@ -1403,7 +1413,15 @@ window.triggerUpload=()=>{
             let rows=[];
             if(file.name.match(/\.csv$/i)){
                 await loadVendor('papa');
-                await new Promise(resolve=>Papa.parse(file,{header:true,skipEmptyLines:true,complete:r=>{rows=r.data;resolve();}}));
+                await new Promise((resolve,reject)=>Papa.parse(file,{
+                    header:true,
+                    skipEmptyLines:true,
+                    complete:result=>{
+                        if(result.errors?.length)reject(new Error(result.errors[0].message));
+                        else{rows=result.data;resolve();}
+                    },
+                    error:reject
+                }));
             } else {
                 await loadVendor('xlsx');
                 const buf=await file.arrayBuffer();
@@ -1416,46 +1434,10 @@ window.triggerUpload=()=>{
     input.click();
 };
 
-function normalizeKey(k){return k.toString().trim().toLowerCase().replace(/\s*\(.*?\)/g,'').replace(/[^a-z_]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');}
-
 function processUploadData(rawRows){
     if(!rawRows.length){window.showToast('File is empty.','err');return;}
-    const mapped=rawRows.map(row=>{
-        const r={};
-        Object.keys(row).forEach(k=>{r[normalizeKey(k)]=row[k];});
-        return{
-            Student_No:(r.student_no||r.studentno||'').toString().trim(),
-            Full_Name:(r.full_name||r.fullname||'').toString().trim(),
-            Email:(r.email||'').toString().trim(),
-            Course_Year:(r.course_year||r.courseyear||'').toString().trim(),
-            Section:(r.section||'').toString().trim(),
-            Subject_Code:(r.subject_code||r.subjectcode||'').toString().trim(),
-            Password:(r.password||'PLV12345').toString().trim(),
-        };
-    }).filter(r=>r.Student_No&&r.Subject_Code);
-
-    if(!mapped.length){window.showToast('No valid rows found. Ensure Student_No and Subject_Code columns exist.','err');return;}
-
-    // Auto-enrich from DB cache
-    const enriched=mapped.map(r=>{
-        const subInfo=subjectsMap[r.Subject_Code]||null;
-        const secInfo=sectionsMap[r.Section]||null;
-        const sched=getSchedule(r.Subject_Code,r.Section);
-        const warns=[];
-        if(!subInfo)warns.push('Unknown subject');
-        if(!secInfo)warns.push('Unknown section');
-        if(!sched)warns.push('No schedule');
-        return{
-            ...r,
-            Subject_Name:subInfo?.subjectName||'',
-            Prof_Name:subInfo?.profName||'',
-            Schedule:sched?.full||subInfo?.schedule||'TBA',
-            Year_Level:secInfo?.yearLevel||'',
-            _subOk:!!subInfo,_secOk:!!secInfo,_schedOk:!!sched,
-            _warns:warns,
-            _ok:!!subInfo&&!!secInfo
-        };
-    });
+    const enriched=prepareBulkUploadRows(rawRows,bulkReferenceIndex);
+    if(!enriched.length){window.showToast('No valid rows found. Ensure Student_No and Subject_Code columns exist.','err');return;}
     pendingUploadRows=enriched;
     renderUploadPreview(enriched);
 }
@@ -1470,16 +1452,18 @@ function renderUploadPreview(rows){
     const previewRows=rows.slice(0,30).map(r=>{
         const rowCls=r._ok?'':'style="background:var(--warn-bg);"';
         const check=(ok)=>ok?'<span style="color:var(--success);font-weight:800;">✓</span>':'<span style="color:var(--warn);font-weight:800;">⚠</span>';
-        const statusHtml=r._warns.length?`<span style="color:var(--warn);font-size:11px;">${r._warns.join(', ')}</span>`:'<span style="color:var(--success);font-size:11px;font-weight:800;">✓ Ready</span>';
+        const statusHtml=r._commitError
+            ?`<span style="color:var(--danger);font-size:11px;">Row ${r._sourceRow}: ${escapeHtml(r._commitError)}</span>`
+            :(r._warns.length?`<span style="color:var(--warn);font-size:11px;">${r._warns.join(', ')}</span>`:'<span style="color:var(--success);font-size:11px;font-weight:800;">✓ Ready</span>');
         return`<tr ${rowCls}>
-            <td style="font-family:monospace;font-size:11px;">${r.Student_No}</td>
-            <td>${r.Full_Name}</td>
-            <td>${r.Section} ${check(r._secOk)}</td>
-            <td>${r.Subject_Code} ${check(r._subOk)}</td>
-            <td style="font-size:11px;color:var(--text-muted);">${r.Subject_Name||'—'}</td>
-            <td style="font-size:11px;color:var(--text-muted);">${r.Prof_Name||'—'}</td>
-            <td style="font-size:11px;">${r.Schedule} ${check(r._schedOk)}</td>
-            <td style="font-size:11px;color:var(--text-muted);">${r.Year_Level||'—'}</td>
+            <td style="font-family:monospace;font-size:11px;">${escapeHtml(r.Student_No)}</td>
+            <td>${escapeHtml(r.Full_Name)}</td>
+            <td>${escapeHtml(r.Section)} ${check(r._secOk)}</td>
+            <td>${escapeHtml(r.Subject_Code)} ${check(r._subOk)}</td>
+            <td style="font-size:11px;color:var(--text-muted);">${escapeHtml(r.Subject_Name||'—')}</td>
+            <td style="font-size:11px;color:var(--text-muted);">${escapeHtml(r.Prof_Name||'—')}</td>
+            <td style="font-size:11px;">${escapeHtml(r.Schedule)} ${check(r._schedOk)}</td>
+            <td style="font-size:11px;color:var(--text-muted);">${escapeHtml(r.Year_Level||'—')}</td>
             <td>${statusHtml}</td>
         </tr>`;
     }).join('');
@@ -1510,27 +1494,68 @@ window.clearPreview=()=>{
 window.commitUpload=async()=>{
     if(!pendingUploadRows.length)return;
     const btn=document.getElementById('btnCommitUpload');
-    btn.innerHTML='<span class="spin" style="width:14px;height:14px;"></span> Uploading...';btn.disabled=true;
-    let ok=0,errs=0;
-    for(const r of pendingUploadRows){
-        try{
-            await saveUserByStudentNo({
-                studentNo:r.Student_No,fullName:r.Full_Name,email:r.Email,
-                password:r.Password||'PLV12345',courseYear:r.Course_Year,
-                section:r.Section,role:'student',status:'Active',isFirstLogin:true
-            });
-            await saveEnrollment({
-                studentNo:r.Student_No,subjectCode:r.Subject_Code,studentName:r.Full_Name,
-                section:r.Section,schedule:r.Schedule,midtermGrade:null,finalTermGrade:null
-            });
-            ok++;
-        }catch(err){console.error('Row error',r.Student_No,err);errs++;}
+    const originalRows=[...pendingUploadRows];
+    const uniqueStudents=uniqueBy(originalRows,r=>normalizeLookupValue(r.Student_No));
+    const uniqueEnrollments=uniqueBy(originalRows,r=>`${normalizeLookupValue(r.Student_No)}::${normalizeLookupValue(r.Subject_Code)}`);
+    const studentErrors=new Map();
+    btn.disabled=true;
+
+    try{
+        btn.innerHTML=`<span class="spin" style="width:14px;height:14px;"></span> Saving ${uniqueStudents.length} students...`;
+        const userResults=await runWithConcurrency(uniqueStudents,5,async r=>saveUserByStudentNo({
+            studentNo:r.Student_No,fullName:r.Full_Name,email:r.Email,
+            password:r.Password||'PLV12345',courseYear:r.Course_Year,
+            section:r.Section,role:'student',status:'Active',isFirstLogin:true
+        }));
+        userResults.forEach((result,index)=>{
+            if(result.status==='rejected')studentErrors.set(normalizeLookupValue(uniqueStudents[index].Student_No),result.reason);
+        });
+
+        const enrollmentRows=uniqueEnrollments.filter(r=>!studentErrors.has(normalizeLookupValue(r.Student_No)));
+        btn.innerHTML=`<span class="spin" style="width:14px;height:14px;"></span> Saving ${enrollmentRows.length} enrollments...`;
+        const enrollmentResults=await runWithConcurrency(enrollmentRows,5,r=>saveEnrollment({
+            studentNo:r.Student_No,subjectCode:r.Subject_Code,studentName:r.Full_Name,
+            section:r.Section,schedule:r.Schedule,midtermGrade:null,finalTermGrade:null
+        }));
+
+        const enrollmentErrors=new Map();
+        enrollmentResults.forEach((result,index)=>{
+            if(result.status==='rejected'){
+                const row=enrollmentRows[index];
+                enrollmentErrors.set(`${normalizeLookupValue(row.Student_No)}::${normalizeLookupValue(row.Subject_Code)}`,result.reason);
+            }
+        });
+
+        const failedRows=originalRows.flatMap(r=>{
+            const studentError=studentErrors.get(normalizeLookupValue(r.Student_No));
+            const enrollmentError=enrollmentErrors.get(`${normalizeLookupValue(r.Student_No)}::${normalizeLookupValue(r.Subject_Code)}`);
+            const error=studentError||enrollmentError;
+            if(!error)return[];
+            console.error('Bulk upload row error',r.Student_No,r.Subject_Code,error);
+            return[{...r,_commitError:error?.message||String(error)}];
+        });
+        const savedEnrollments=uniqueEnrollments.length-enrollmentErrors.size-
+            uniqueEnrollments.filter(r=>studentErrors.has(normalizeLookupValue(r.Student_No))).length;
+        const savedStudents=uniqueStudents.length-studentErrors.size;
+
+        await window.loadAccounts();
+        if(failedRows.length){
+            pendingUploadRows=failedRows;
+            renderUploadPreview(failedRows);
+            window.showToast(`Saved ${savedStudents} students and ${savedEnrollments} enrollments. ${failedRows.length} rows need attention.`,'err');
+        }else{
+            window.clearPreview();
+            window.showToast(`Saved ${savedStudents} students and ${savedEnrollments} enrollments!`);
+        }
+    }catch(error){
+        console.error('Bulk upload failed',error);
+        window.showToast(`Bulk upload failed: ${error?.message||error}`,'err');
+    }finally{
+        btn.innerHTML='<i class="ph-bold ph-cloud-arrow-up"></i> Upload <span id="commitCount">0</span> Rows to Database';
+        btn.disabled=false;
+        const count=document.getElementById('commitCount');
+        if(count)count.textContent=pendingUploadRows.length;
     }
-    window.showToast(`Uploaded ${ok} students${errs?`. ${errs} errors — check console.`:'!'}`);
-    window.clearPreview();
-    window.loadAccounts();
-    btn.innerHTML='<i class="ph-bold ph-cloud-arrow-up"></i> Upload <span id="commitCount">0</span> Students to Database';
-    btn.disabled=false;
 };
 
 // ===================== THEME =====================
