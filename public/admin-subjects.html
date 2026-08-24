@@ -268,7 +268,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             const tbody = document.getElementById('subjectTableBody');
             tbody.innerHTML = '';
             try {
-                const { data, error } = await supabase.from('subjects').select('*').order('subjectCode', { ascending: true });
+                const { data, error } = await supabase.from('subjects').select('id,subjectCode,subjectName,profName').order('subjectCode', { ascending: true });
                 if (error) throw error;
 
                 const subjects = data || [];
@@ -309,7 +309,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
             try {
                 const payload = { subjectCode: subCode, subjectName: subName, profName: subProf };
-                const existing = await supabase.from('subjects').select('*').eq('subjectCode', subCode).limit(1);
+                const existing = await supabase.from('subjects').select('id').eq('subjectCode', subCode).limit(1);
                 if (existing.error) throw existing.error;
 
                 if (existing.data && existing.data.length > 0) {

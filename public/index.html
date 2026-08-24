@@ -19,7 +19,7 @@
 :root { --plv-navy: #001a4d; --plv-blue: #003DA5; --plv-gold: #FFD700; --plv-gold-hover: #e6c200; --plv-input-bg: #001233; --text-main: #ffffff; --text-muted: #a0b4d6; --glass-border: rgba(255, 255, 255, 0.15); --success: #10b981; --danger: #e11d48; }
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
 body { min-height: 100vh; display: flex; flex-direction: column; position: relative; color: var(--text-main); overflow-x: hidden; }
-body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--plv-blue); background-image: url('https://res.cloudinary.com/dfdlqf6ng/image/upload/v1772078771/Whisk_e856493a76a77f5965d4dd22c5caee18dr_uiw2g3.png'); background-size: cover; background-position: center center; background-repeat: no-repeat; z-index: -1; }
+body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--plv-blue); background-image: url('https://res.cloudinary.com/dfdlqf6ng/image/upload/f_auto,q_auto,w_1344/v1772078771/Whisk_e856493a76a77f5965d4dd22c5caee18dr_uiw2g3.png'); background-size: cover; background-position: center center; background-repeat: no-repeat; z-index: -1; }
 .login-header { display: flex; justify-content: space-between; align-items: center; gap: clamp(16px, 3vw, 40px); padding: clamp(18px, 2.2vw, 30px) clamp(18px, 3.2vw, 48px); width: 100%; z-index: 10; position: relative; }
 .school-brand { display: flex; align-items: center; gap: clamp(10px, 1.2vw, 15px); min-width: 0; }
 .school-brand img { width:clamp(40px,3.2vw,48px); height:clamp(40px,3.2vw,48px); flex:0 0 auto; border-radius:50%; box-shadow:0 4px 12px rgba(0,0,0,0.5); border:2px solid var(--plv-gold); }
@@ -195,6 +195,7 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
     import { supabase } from "./supabase-adapter.js";
 
     const ADMIN_EMAIL = 'admin@plv.edu.ph';
+    const SAFE_PROFILE_FIELDS = 'id,uid,studentNo,username,email,fullName,courseYear,section,role,status,isFirstLogin,isOnline,lastSeenAt,avatarUrl';
     let pendingUser = null;
 
     const loginBtn = document.getElementById('loginBtn');
@@ -218,7 +219,7 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
             if (!value) continue;
             const { data, error } = await supabase
                 .from('users')
-                .select('*')
+                .select(SAFE_PROFILE_FIELDS)
                 .eq(field, value)
                 .limit(5);
 
@@ -304,7 +305,7 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
 
         for (const [field, value] of candidates) {
             if (!value) continue;
-            const found = await supabase.from('users').select('*').eq(field, value).limit(5);
+            const found = await supabase.from('users').select(SAFE_PROFILE_FIELDS).eq(field, value).limit(5);
             if (found.error) continue;
             const profile = (found.data || []).find(row => row.role === 'student');
             if (profile) {

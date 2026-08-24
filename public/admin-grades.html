@@ -12,7 +12,6 @@
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/style.css">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/fill/style.css">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/bold/style.css">
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <style>
         :root { --bg-body: #f0f4f8; --text-main: #0f172a; --text-muted: #64748b; --glass-bg: rgba(255, 255, 255, 0.75); --glass-border: rgba(255, 255, 255, 0.9); --glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.9); --glass-shadow: 0 24px 48px -12px rgba(0, 35, 102, 0.08); --accent-primary: #003DA5; --accent-hover: #00287A; --accent-light: rgba(0, 61, 165, 0.08); --accent-gold: #D4AF37; --input-bg: rgba(255, 255, 255, 0.9); --input-border: rgba(0, 35, 102, 0.1); --blob-1: #cce0ff; --blob-2: #ffeb99; --blob-3: #e0ebff; --success: #10b981; --danger: #e11d48; }
@@ -516,6 +515,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
 
 import { startAdminSessionGuard } from "./admin-session.js";
+import { loadVendor } from "./vendor-loader.v1.js";
 const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
 
@@ -526,7 +526,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         let allStudents = [];
 
         async function getEnrollment(studentNo, subjectCode) {
-            const { data, error } = await supabase.from("enrollments").select("*").eq("studentNo", studentNo).eq("subjectCode", subjectCode).limit(1).maybeSingle();
+            const { data, error } = await supabase.from("enrollments").select("id,studentNo,subjectCode").eq("studentNo", studentNo).eq("subjectCode", subjectCode).limit(1).maybeSingle();
             if (error) throw error;
             return data;
         }
@@ -551,13 +551,13 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         async function loadData() {
             try {
                 // 1. Fetch Students
-                const { data: userRows, error: userError } = await supabase.from("users").select("*").eq("role", "student");
+                const { data: userRows, error: userError } = await supabase.from("users").select("studentNo,fullName,username").eq("role", "student");
                 if (userError) throw userError;
                 allStudents = (userRows || []).map(d => ({ no: d.studentNo, name: d.fullName || d.name || d.username || d.studentNo }));
                 allStudents.sort((a,b) => a.name.localeCompare(b.name));
 
                 // 2. Fetch Subjects
-                const { data: subjectRows, error: subjectError } = await supabase.from("subjects").select("*");
+                const { data: subjectRows, error: subjectError } = await supabase.from("subjects").select("id,subjectCode,subjectName");
                 if (subjectError) throw subjectError;
                 const subSelect = document.getElementById('gSub');
                 subSelect.innerHTML = '<option value="">-- Select Subject --</option>';
@@ -575,7 +575,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
                 // 3. Fetch Sections
                 try {
-                    const { data: sectionRows, error: sectionError } = await supabase.from("sections").select("*");
+                    const { data: sectionRows, error: sectionError } = await supabase.from("sections").select("id,sectionName");
                     if (sectionError) throw sectionError;
                     const batchSecSel = document.getElementById('batchSection');
                     batchSecSel.innerHTML = '<option value="">-- Select Section --</option>';
@@ -712,7 +712,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             btn.innerHTML = '<i class="ph-bold ph-spinner"></i> Loading...'; btn.disabled = true;
             try {
                 // Query enrollments directly by section+subject (same as activities page)
-                const { data: enrollments, error } = await supabase.from("enrollments").select("*").eq("section", sectionId).eq("subjectCode", subCode);
+                const { data: enrollments, error } = await supabase.from("enrollments").select("id,studentNo,studentName,subjectCode,midtermRawGrade,midtermGrade,finalTermRawGrade,finalTermGrade").eq("section", sectionId).eq("subjectCode", subCode);
                 if (error) throw error;
                 if (!enrollments || !enrollments.length) { window.showToast("No students enrolled in this section for the selected subject.", "error"); btn.innerHTML = '<i class="ph-bold ph-magnifying-glass"></i> Load Section Grades'; btn.disabled = false; return; }
                 batchData = [];
@@ -1037,7 +1037,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             loadMsg.style.display = 'flex';
             try {
                 // Query enrollments by section + subjectCode — identical to activities page pattern
-                const { data: enrollments, error } = await supabase.from("enrollments").select("*").eq("section", sec).eq("subjectCode", sub);
+                const { data: enrollments, error } = await supabase.from("enrollments").select("id,studentNo,studentName,subjectCode,midtermRawGrade,finalTermRawGrade").eq("section", sec).eq("subjectCode", sub);
                 if (error) throw error;
                 if (!enrollments || !enrollments.length) { loadMsg.style.display = 'none'; emptyState.style.display = 'block'; return; }
                 csvRosterData = [];
@@ -1106,8 +1106,10 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
         window.simulateUpload = function() {
             const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv';
-            input.onchange = e => {
+            input.onchange = async e => {
                 const file = e.target.files[0]; if (!file) return;
+                try { await loadVendor('papa'); }
+                catch(error) { window.showToast('CSV tools could not be loaded.', 'error'); return; }
                 window.showToast(`Processing ${file.name}...`);
                 Papa.parse(file, { header: true, skipEmptyLines: true, complete: async function(results) {
                     let saved=0, skipped=0, errors=0, log=[];

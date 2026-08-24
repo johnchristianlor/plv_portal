@@ -12,7 +12,6 @@
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/style.css">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/fill/style.css">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/bold/style.css">
-        <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 
     <style>
         /* CORE DESIGN PRESERVED */
@@ -391,6 +390,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
 
 import { startAdminSessionGuard } from "./admin-session.js";
+import { loadVendor } from "./vendor-loader.v1.js";
 const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
 
@@ -419,7 +419,10 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         document.getElementById('aDate').valueAsDate = new Date();
 
         async function insertRow(table, row) {
-            const { data, error } = await supabase.from(table).insert(row).select('*').single();
+            const fields = table === 'activities'
+                ? 'id,subjectCode,section,term,category,title,date,perfectScore'
+                : 'id,activityId,studentNo,score';
+            const { data, error } = await supabase.from(table).insert(row).select(fields).single();
             if (error) throw error;
             return data;
         }
@@ -433,7 +436,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         window.loadSections = async function() {
             const select = document.getElementById('sectionSelect');
             try {
-                const { data, error } = await supabase.from("sections").select("*").order("sectionName", { ascending: true });
+                const { data, error } = await supabase.from("sections").select("id,sectionName,yearLevel").order("sectionName", { ascending: true });
                 if (error) throw error;
                 const sections = (data || []).map(d => d.sectionName);
                 sections.sort();
@@ -448,7 +451,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         window.loadSubjects = async function() {
             const select = document.getElementById('subCode');
             try {
-                const { data, error } = await supabase.from("subjects").select("*").order("subjectCode", { ascending: true });
+                const { data, error } = await supabase.from("subjects").select("id,subjectCode,subjectName,profName,schedule").order("subjectCode", { ascending: true });
                 if (error) throw error;
                 const subjects = data || [];
                 subjects.sort((a,b) => a.subjectCode.localeCompare(b.subjectCode));
@@ -493,7 +496,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
             try {
                 // Fetch enrollments for specific section AND subject
-                const { data: students, error } = await supabase.from("enrollments").select("*").eq("section", sec).eq("subjectCode", sub);
+                const { data: students, error } = await supabase.from("enrollments").select("id,studentNo,studentName").eq("section", sec).eq("subjectCode", sub);
                 if (error) throw error;
                 if(!students || !students.length) { window.showToast("No students found in this section for this subject.", "error"); btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-users"></i> Load Student Roster'; return; }
                 students.sort((a,b) => a.studentName.localeCompare(b.studentName));
@@ -543,7 +546,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         async function populateTmplSections() {
             const sel = document.getElementById('tmplSection');
             try {
-                const { data, error } = await supabase.from("sections").select("*").order("sectionName", { ascending: true });
+                const { data, error } = await supabase.from("sections").select("id,sectionName,yearLevel").order("sectionName", { ascending: true });
                 if (error) throw error;
                 const secs = (data || []).map(d => d.sectionName);
                 secs.sort();
@@ -565,7 +568,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             tmplSubjects = [];
 
             try {
-                const { data: enrollments, error } = await supabase.from("enrollments").select("*").eq("section", sec);
+                const { data: enrollments, error } = await supabase.from("enrollments").select("id,studentNo,studentName,section,subjectCode").eq("section", sec);
                 if (error) throw error;
 
                 const subjectSet = new Set();
@@ -686,7 +689,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             }, 200);
         }
 
-        window.generateSmartTemplate = function() {
+        window.generateSmartTemplate = async function() {
             const sec = document.getElementById('tmplSection').value;
             if(!sec || tmplStudentData.length === 0) {
                 window.showToast("Please select a section first.", "error");
@@ -721,6 +724,8 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                 window.showToast("Please fill in all activity titles and subjects.", "error");
                 return;
             }
+            try { await loadVendor('xlsx'); }
+            catch(error) { window.showToast('Excel tools could not be loaded.', 'error'); return; }
 
             // Build one workbook
             const wb = XLSX.utils.book_new();
@@ -829,8 +834,10 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         // =============================================
         window.simulateUpload = function() {
             const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx, .xls';
-            input.onchange = e => {
+            input.onchange = async e => {
                 const file = e.target.files[0]; if(!file) return;
+                try { await loadVendor('xlsx'); }
+                catch(error) { window.showToast('Excel tools could not be loaded.', 'error'); return; }
                 const pContainer = document.getElementById('progressBarContainer');
                 const pBar = document.getElementById('progressBar');
                 pContainer.style.display = 'block'; pBar.style.width = '5%';
@@ -991,7 +998,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             const tbody = document.getElementById('manageBody');
             tbody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
             try {
-                const { data: activities, error } = await supabase.from("activities").select("*");
+                const { data: activities, error } = await supabase.from("activities").select("id,subjectCode,section,term,category,title,date,perfectScore");
                 if (error) throw error;
                 if(!activities || !activities.length) { tbody.innerHTML = '<tr><td colspan="8">No activities found.</td></tr>'; allActivitiesData = []; return; }
 

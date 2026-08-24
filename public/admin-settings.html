@@ -408,7 +408,14 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         let sectionData = {};
 
         async function insertRow(table, row) {
-            const { data, error } = await supabase.from(table).insert(row).select("*").single();
+            const fieldsByTable = {
+                deadlines: 'id,title,desc,status,createdAt',
+                announcements: 'id,title,message,isUrgent,createdAt',
+                sharedFiles: 'id,fileName,originalName,fileUrl,b2FileId,b2FileName,storage,contentType,fileType,fileSize,recipientStudentNo,uploadedBy,uploadedAt'
+            };
+            const fields = fieldsByTable[table];
+            if (!fields) throw new Error(`No explicit field list configured for ${table}.`);
+            const { data, error } = await supabase.from(table).insert(row).select(fields).single();
             if (error) throw error;
             return data;
         }
@@ -420,14 +427,14 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
         async function loadSettingsAndRankings() {
             try {
-                const { data: settings, error } = await supabase.from("settings").select("*").eq("id", "global").limit(1).maybeSingle();
+                const { data: settings, error } = await supabase.from("settings").select("showStanding").eq("id", "global").limit(1).maybeSingle();
                 if (error) throw error;
                 if(settings) { document.getElementById('toggleStanding').checked = settings.showStanding || false; }
                 else { const { error: insertError } = await supabase.from("settings").insert({ id: "global", showStanding: false }); if (insertError) throw insertError; }
             } catch(e) { console.error(e); }
 
             try {
-                const { data: enrollments, error } = await supabase.from("enrollments").select("*");
+                const { data: enrollments, error } = await supabase.from("enrollments").select("id,studentNo,studentName,section,subjectCode");
                 if (error) throw error;
                 sectionData = {};
                 (enrollments || []).forEach(d => {
@@ -450,13 +457,19 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             let grandTotalPerfect = 0;
             const activityIds = new Set();
             try {
-                const { data: activities, error: activitiesError } = await supabase.from("activities").select("*").eq("subjectCode", subjectCode);
+                const { data: activities, error: activitiesError } = await supabase.from("activities").select("id,perfectScore").eq("subjectCode", subjectCode).eq("section", section);
                 if (activitiesError) throw activitiesError;
                 (activities || []).forEach(activity => { grandTotalPerfect += Number(activity.perfectScore); activityIds.add(activity.id); });
-                const { data: scores, error: scoresError } = await supabase.from("scores").select("*");
-                if (scoresError) throw scoresError;
+                const activityIdList = Array.from(activityIds);
+                const scoreResults = await Promise.all(Array.from({ length: Math.ceil(activityIdList.length / 100) }, (_, index) =>
+                    supabase.from("scores").select("activityId,studentNo,score").in("activityId", activityIdList.slice(index * 100, index * 100 + 100))
+                ));
+                const scores = scoreResults.flatMap(result => {
+                    if (result.error) throw result.error;
+                    return result.data || [];
+                });
                 const studentScoresMap = {};
-                (scores || []).forEach(s => {
+                scores.forEach(s => {
                     if(activityIds.has(s.activityId)) { if(!studentScoresMap[s.studentNo]) studentScoresMap[s.studentNo] = 0; studentScoresMap[s.studentNo] += Number(s.score); }
                 });
                 const rankedStudents = data.students.map(stud => {
@@ -499,7 +512,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         async function loadDeadlines() {
             const list = document.getElementById('deadlinesList');
             try {
-                const { data: deadlines, error } = await supabase.from("deadlines").select("*").order("createdAt", { ascending: false });
+                const { data: deadlines, error } = await supabase.from("deadlines").select("id,title,desc,status,createdAt").order("createdAt", { ascending: false });
                 if (error) throw error;
                 list.innerHTML = '';
                 if(!deadlines || !deadlines.length) { list.innerHTML = '<p style="color:var(--text-muted);">No active deadlines.</p>'; return; }
@@ -520,14 +533,14 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         async function loadAnnouncements() {
             const list = document.getElementById('announceList');
             try {
-                const { data: announcements, error } = await supabase.from("announcements").select("*").order("createdAt", { ascending: false });
+                const { data: announcements, error } = await supabase.from("announcements").select("id,title,message,isUrgent,createdAt").order("createdAt", { ascending: false });
                 if (error) throw error;
                 list.innerHTML = '';
                 if(!announcements || !announcements.length) { list.innerHTML = '<p style="color:var(--text-muted);">No active announcements.</p>'; return; }
                 announcements.forEach(data => {
                     const urgentClass = data.isUrgent ? 'item-urgent' : '';
                     const badgeText = data.isUrgent ? 'URGENT' : 'NORMAL';
-                    list.innerHTML += `<div class="managed-item" style="align-items:flex-start;"><div class="item-details" style="flex:1;padding-right:10px;"><h5>${data.title}</h5><p>${data.message}</p></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;"><span class="item-meta ${urgentClass}">${badgeText}</span><button class="btn-danger" onclick="window.deleteItem('announcements','${d.id}')"><i class="ph-bold ph-trash"></i></button></div></div>`;
+                    list.innerHTML += `<div class="managed-item" style="align-items:flex-start;"><div class="item-details" style="flex:1;padding-right:10px;"><h5>${data.title}</h5><p>${data.message}</p></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;"><span class="item-meta ${urgentClass}">${badgeText}</span><button class="btn-danger" onclick="window.deleteItem('announcements','${data.id}')"><i class="ph-bold ph-trash"></i></button></div></div>`;
                 });
             } catch(e) { console.error(e); }
         }
@@ -829,7 +842,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             container.innerHTML = '<p style="color:var(--text-muted);grid-column:1/-1;padding:20px 0;">Loading...</p>';
             try {
                 const recipFilter = document.getElementById('fFilterRecipient').value;
-                let request = supabase.from('sharedFiles').select('*').order('uploadedAt', { ascending: false });
+                let request = supabase.from('sharedFiles').select('id,fileName,originalName,fileType,recipientStudentNo,uploadedAt,fileSize').order('uploadedAt', { ascending: false });
                 if (recipFilter) request = request.eq('recipientStudentNo', recipFilter);
                 const { data, error } = await request;
                 if (error) throw error;

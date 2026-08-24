@@ -1,4 +1,7 @@
 /* PLV shared responsive polish. Loaded after page-level styles. */
+@font-face{font-family:"Phosphor";src:url("https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/Phosphor.woff2") format("woff2");font-weight:normal;font-style:normal;font-display:swap}
+@font-face{font-family:"Phosphor-Fill";src:url("https://unpkg.com/@phosphor-icons/web@2.1.2/src/fill/Phosphor-Fill.woff2") format("woff2");font-weight:normal;font-style:normal;font-display:swap}
+@font-face{font-family:"Phosphor-Bold";src:url("https://unpkg.com/@phosphor-icons/web@2.1.2/src/bold/Phosphor-Bold.woff2") format("woff2");font-weight:normal;font-style:normal;font-display:swap}
 *{box-sizing:border-box;min-width:0}
 html{width:100%;max-width:100%;overflow-x:hidden;text-size-adjust:100%;-webkit-text-size-adjust:100%}
 body{width:100%;max-width:100%;overflow-x:hidden}

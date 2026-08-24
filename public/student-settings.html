@@ -278,6 +278,7 @@ import { supabase } from "./supabase-adapter.js";
 import { startStudentPresence } from "./student-presence.js";
 import { startStudentSessionGuard } from "./student-session.js";
 import { resolveAvatarElement } from "./avatar-utils.js";
+import { getStudentEnrollments } from "./student-data.js";
 
 // ── AUTH GUARD ──
 const user = JSON.parse(localStorage.getItem('loggedInUser'));
@@ -352,8 +353,7 @@ async function loadProfile() {
     document.getElementById('iNo').textContent = user.studentNo || '—';
     document.getElementById('iUser').textContent = user.username || '—';
     try {
-        const { data: enrollments, error } = await supabase.from('enrollments').select('*').eq('studentNo', user.studentNo);
-        if (error) throw error;
+        const enrollments = await getStudentEnrollments(supabase, user.studentNo);
         if (enrollments && enrollments.length) {
             document.getElementById('iSec').textContent = enrollments[0].section || '—';
         }
@@ -476,10 +476,8 @@ window.applyFilter = () => {
     renderFiles(list);
 };
 
-// ── LOAD FILES — no composite index required ──
-// Strategy: fetch ALL sharedFiles from Supabase (no orderBy on filtered queries),
-// then filter client-side by recipientStudentNo === studentId OR 'all'.
-// This avoids the Supabase composite index error.
+// ── LOAD FILES ──
+// Fetch only this student's files and broadcasts; the migration adds the matching index.
 async function loadFiles() {
     const g = document.getElementById('filesGrid');
     g.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
@@ -493,9 +491,10 @@ async function loadFiles() {
     }
 
     try {
-        // Fetch all sharedFiles and filter on client side.
-        // This is the most compatible approach — no composite indexes needed.
-        const { data: rows, error } = await supabase.from('sharedFiles').select('*').order('uploadedAt', { ascending: false });
+        const { data: rows, error } = await supabase.from('sharedFiles')
+            .select('id,fileName,originalName,fileUrl,b2FileName,storage,fileType,recipientStudentNo,uploadedAt,fileSize')
+            .in('recipientStudentNo', ['all', studentId])
+            .order('uploadedAt', { ascending: false });
         if (error) throw error;
 
         const seen = new Set();

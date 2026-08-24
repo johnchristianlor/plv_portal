@@ -217,7 +217,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             const tbody = document.getElementById('sectionTableBody');
             tbody.innerHTML = '';
             try {
-                const { data, error } = await supabase.from('sections').select('*').order('sectionName', { ascending: true });
+                const { data, error } = await supabase.from('sections').select('id,sectionName,yearLevel').order('sectionName', { ascending: true });
                 if (error) throw error;
 
                 const sections = data || [];
@@ -256,7 +256,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
             try {
                 const payload = { sectionName: secName, yearLevel: secYear };
-                const existing = await supabase.from('sections').select('*').eq('sectionName', secName).limit(1);
+                const existing = await supabase.from('sections').select('id').eq('sectionName', secName).limit(1);
                 if (existing.error) throw existing.error;
 
                 if (existing.data && existing.data.length > 0) {

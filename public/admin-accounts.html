@@ -12,8 +12,6 @@
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/style.css">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/fill/style.css">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/bold/style.css">
-        <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         :root{--bg-body:#f0f4f8;--text-main:#0f172a;--text-muted:#64748b;--glass-bg:rgba(255,255,255,0.75);--glass-border:rgba(255,255,255,0.9);--glass-highlight:inset 0 1px 0 0 rgba(255,255,255,0.9);--glass-shadow:0 24px 48px -12px rgba(0,35,102,0.08);--accent-primary:#003DA5;--accent-hover:#00287A;--accent-light:rgba(0,61,165,0.08);--accent-gold:#D4AF37;--input-bg:rgba(255,255,255,0.92);--input-border:rgba(0,35,102,0.12);--blob-1:#cce0ff;--blob-2:#ffeb99;--blob-3:#e0ebff;--success:#10b981;--success-bg:rgba(16,185,129,0.1);--danger:#e11d48;--danger-bg:rgba(225,29,72,0.1);--warn:#f59e0b;--warn-bg:rgba(245,158,11,0.1);}
         .dark-theme{--bg-body:#040914;--text-main:#f8fafc;--text-muted:#94a3b8;--glass-bg:rgba(10,15,30,0.65);--glass-border:rgba(255,255,255,0.07);--glass-highlight:inset 0 1px 0 0 rgba(255,255,255,0.04);--glass-shadow:0 24px 48px -12px rgba(0,0,0,0.8);--accent-primary:#3b82f6;--accent-hover:#60a5fa;--accent-light:rgba(59,130,246,0.15);--accent-gold:#FCD34D;--input-bg:rgba(255,255,255,0.05);--input-border:rgba(255,255,255,0.1);--blob-1:#001f5c;--blob-2:#422b00;--blob-3:#001233;--success:#34d399;--success-bg:rgba(52,211,153,0.12);--danger:#fb7185;--danger-bg:rgba(251,113,133,0.12);--warn:#fbbf24;--warn-bg:rgba(251,191,36,0.12);}
@@ -559,6 +557,7 @@ import { supabase } from "./supabase-adapter.js";
 
 import { startAdminSessionGuard } from "./admin-session.js";
 import { avatarStaticUrl, resolveAvatarElement, defaultAvatarFor } from "./avatar-utils.js";
+import { loadVendor } from "./vendor-loader.v1.js";
 const _u=JSON.parse(localStorage.getItem('loggedInUser'));
 if(!_u||_u.role!=='admin')location.href='index.html';
 const adminSessionGuard = startAdminSessionGuard(supabase, _u);
@@ -574,8 +573,18 @@ let sortCol='studentName', sortDir='asc';
 let pendingAction=null;
 let pendingUploadRows=[];
 
+const TABLE_FIELDS={
+    users:'id,studentNo,username,fullName,email,courseYear,section,role,status,avatarUrl,isFirstLogin,isOnline,lastSeenAt',
+    enrollments:'id,studentNo,studentName,subjectCode,section,schedule,midtermRawGrade,midtermGrade,finalTermRawGrade,finalTermGrade',
+    subjects:'id,subjectCode,subjectName,profName,schedule',
+    sections:'id,sectionName,yearLevel',
+    class_schedules:'id,subjectCode,section,time,room'
+};
+
 async function fetchRows(table, builder = null) {
-    let request = supabase.from(table).select('*');
+    const fields=TABLE_FIELDS[table];
+    if(!fields)throw new Error(`No explicit field list configured for ${table}.`);
+    let request = supabase.from(table).select(fields);
     if (builder) request = builder(request);
     const { data, error } = await request;
     if (error) throw error;
@@ -587,7 +596,9 @@ async function fetchOne(table, builder) {
 }
 async function insertRow(table, row) {
     const clean = Object.fromEntries(Object.entries(row).filter(([, value]) => value !== undefined));
-    const { data, error } = await supabase.from(table).insert(clean).select('*').single();
+    const fields=TABLE_FIELDS[table];
+    if(!fields)throw new Error(`No explicit field list configured for ${table}.`);
+    const { data, error } = await supabase.from(table).insert(clean).select(fields).single();
     if (error) throw error;
     return data;
 }
@@ -962,7 +973,8 @@ window.loadAccounts=async()=>{
                 courseYear:ud.courseYear||'',
                 fullName:ud.fullName||'',
                 email:ud.email||'',
-                section:ud.section||''
+                section:ud.section||'',
+                avatarUrl:ud.avatarUrl||''
             };
         });
         let records=[];
@@ -1265,15 +1277,14 @@ document.getElementById('editForm').addEventListener('submit',async e=>{
         if(isIdChanged){
             const oldUD=await fetchOne('users', q => q.eq('studentNo', oldSno));
             if(!oldUD)throw new Error('Original user not found');
-            await insertRow('users', {
-                ...oldUD,id:undefined,studentNo:newSno,fullName:newName,courseYear:newCourse,section:newSec,
-                password:newPass||oldUD.password,isFirstLogin:!!newPass
-            });
-            await insertRow('enrollments', {
-                studentNo:newSno,subjectCode:newSubCode,studentName:newName,
-                section:newSec,schedule:finalSched,midtermGrade:null,finalTermGrade:null
-            });
-            await Promise.all([deleteWhere('users', q => q.eq('studentNo', oldSno)), oldEnrollId ? deleteById('enrollments', oldEnrollId) : Promise.resolve()]);
+            const userUpdates={studentNo:newSno,fullName:newName,courseYear:newCourse,section:newSec};
+            if(newPass){userUpdates.password=newPass;userUpdates.isFirstLogin=true;}
+            await updateById('users', oldUD.id, userUpdates);
+            if(oldEnrollId){
+                await updateById('enrollments',oldEnrollId,{studentNo:newSno,subjectCode:newSubCode,studentName:newName,section:newSec,schedule:finalSched});
+            }else{
+                await insertRow('enrollments',{studentNo:newSno,subjectCode:newSubCode,studentName:newName,section:newSec,schedule:finalSched,midtermGrade:null,finalTermGrade:null});
+            }
             window.showToast('Student ID changed & data migrated!');
         } else {
             const udUpdate={fullName:newName,courseYear:newCourse,section:newSec,studentNo:oldSno};
@@ -1339,7 +1350,8 @@ document.getElementById('createAccountForm').addEventListener('submit',async e=>
 });
 
 // ===================== SMART EXCEL TEMPLATE =====================
-window.downloadSmartTemplate=()=>{
+window.downloadSmartTemplate=async()=>{
+    try{await loadVendor('xlsx');}catch(error){window.showToast('Excel tools could not be loaded.','err');return;}
     const wb=XLSX.utils.book_new();
 
     // Sheet 1: Data Entry
@@ -1390,8 +1402,10 @@ window.triggerUpload=()=>{
         try{
             let rows=[];
             if(file.name.match(/\.csv$/i)){
+                await loadVendor('papa');
                 await new Promise(resolve=>Papa.parse(file,{header:true,skipEmptyLines:true,complete:r=>{rows=r.data;resolve();}}));
             } else {
+                await loadVendor('xlsx');
                 const buf=await file.arrayBuffer();
                 const wb=XLSX.read(buf);
                 rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});

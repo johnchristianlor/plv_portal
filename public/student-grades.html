@@ -235,6 +235,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         import { supabase } from "./supabase-adapter.js";
         import { startStudentPresence } from "./student-presence.js";
         import { startStudentSessionGuard } from "./student-session.js";
+        import { getStudentEnrollments, getSubject } from "./student-data.js";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'student') window.location.href = 'index.html';
@@ -283,13 +284,11 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
         async function loadData() {
             try {
-                const { data: enrollments, error: enrollError } = await supabase.from("enrollments").select("*").eq("studentNo", user.studentNo);
-                if (enrollError) throw enrollError;
+                const enrollments = await getStudentEnrollments(supabase, user.studentNo);
                 if(!enrollments || !enrollments.length) { document.getElementById('subTitle').innerText="No subjects enrolled"; window.showToast("No enrolled subjects", "error"); return; }
                 const enroll = enrollments[0];
 
-                const { data: subject, error: subjectError } = await supabase.from("subjects").select("*").eq("subjectCode", enroll.subjectCode).limit(1).maybeSingle();
-                if (subjectError) throw subjectError;
+                const subject = await getSubject(supabase, enroll.subjectCode);
                 if(subject) document.getElementById('subTitle').innerText = `${subject.subjectCode}: ${subject.subjectName}`;
 
                 // Support both raw grade (0-100) and already-transmuted (1.00-5.00) storage

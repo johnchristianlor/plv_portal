@@ -260,6 +260,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         import { supabase } from "./supabase-adapter.js";
         import { startStudentPresence } from "./student-presence.js";
         import { startStudentSessionGuard } from "./student-session.js";
+        import { getStudentEnrollments, getSubject } from "./student-data.js";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'student') window.location.href = 'index.html';
@@ -291,23 +292,23 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
         async function loadData() {
             try {
-                // Get Enrollment to know Section and Subject
-                const { data: enrollments, error: enrollError } = await supabase.from("enrollments").select("*").eq("studentNo", user.studentNo);
-                if (enrollError) throw enrollError;
+                const enrollments = await getStudentEnrollments(supabase, user.studentNo);
                 if(!enrollments || !enrollments.length) { document.getElementById('hSubject').innerText="No subjects enrolled"; window.showToast("No subjects found", "error"); return; }
 
                 const enroll = enrollments[0];
                 const studentSection = enroll.section; // Get Student's Section
-
-                const { data: subject, error: subjectError } = await supabase.from("subjects").select("*").eq("subjectCode", enroll.subjectCode).limit(1).maybeSingle();
-                if (subjectError) throw subjectError;
+                const [subject, scoresResult, activitiesResult] = await Promise.all([
+                    getSubject(supabase, enroll.subjectCode),
+                    supabase.from("scores").select("activityId,score").eq("studentNo", user.studentNo),
+                    supabase.from("activities").select("id,term,category,title,date,perfectScore").eq("subjectCode", enroll.subjectCode).eq("section", studentSection)
+                ]);
                 if(subject) document.getElementById('hSubject').innerText = `${subject.subjectCode}: ${subject.subjectName}`;
 
-                const { data: scores, error: scoresError } = await supabase.from("scores").select("*").eq("studentNo", user.studentNo);
+                const { data: scores, error: scoresError } = scoresResult;
                 if (scoresError) throw scoresError;
                 (scores || []).forEach(s => { scoresMap[s.activityId] = s.score; });
 
-                const { data: activities, error: activitiesError } = await supabase.from("activities").select("*").eq("subjectCode", enroll.subjectCode).eq("section", studentSection);
+                const { data: activities, error: activitiesError } = activitiesResult;
                 if (activitiesError) throw activitiesError;
 
                 (activities || []).forEach(a => {

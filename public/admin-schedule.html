@@ -303,7 +303,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             const subSelect = document.getElementById('subSelect');
             subSelect.innerHTML = '<option value="">-- Select Subject --</option>';
             try {
-                const { data, error } = await supabase.from('subjects').select('*').order('subjectCode', { ascending: true });
+                const { data, error } = await supabase.from('subjects').select('id,subjectCode,subjectName').order('subjectCode', { ascending: true });
                 if (error) throw error;
                 (data || []).forEach(subject => {
                     subSelect.innerHTML += `<option value="${htmlEscape(subject.subjectCode)}">${htmlEscape(subject.subjectCode)}: ${htmlEscape(subject.subjectName || '')}</option>`;
@@ -317,7 +317,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             const tbody = document.getElementById('scheduleTableBody');
             tbody.innerHTML = '';
             try {
-                const { data, error } = await supabase.from('class_schedules').select('*').order('subjectCode', { ascending: true }).order('section', { ascending: true });
+                const { data, error } = await supabase.from('class_schedules').select('id,subjectCode,section,time,room').order('subjectCode', { ascending: true }).order('section', { ascending: true });
                 if (error) throw error;
 
                 allSchedules = data || [];
@@ -380,7 +380,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
             try {
                 const payload = { subjectCode: subCode, section, time, room };
-                const existing = await supabase.from('class_schedules').select('*').eq('subjectCode', subCode).eq('section', section).limit(1);
+                const existing = await supabase.from('class_schedules').select('id').eq('subjectCode', subCode).eq('section', section).limit(1);
                 if (existing.error) throw existing.error;
 
                 if (existing.data && existing.data.length > 0) {
@@ -396,7 +396,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                     .update({ schedule: fullScheduleString })
                     .eq('subjectCode', subCode)
                     .eq('section', section)
-                    .select('*');
+                    .select('id');
                 if (updated.error) throw updated.error;
 
                 const updatedCount = updated.data?.length || 0;

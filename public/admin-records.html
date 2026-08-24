@@ -12,7 +12,6 @@
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/style.css">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/fill/style.css">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/bold/style.css">
-        <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <style>
         :root{--bg-body:#f0f4f8;--text-main:#0f172a;--text-muted:#64748b;--glass-bg:rgba(255,255,255,0.75);--glass-border:rgba(255,255,255,0.9);--glass-highlight:inset 0 1px 0 0 rgba(255,255,255,0.9);--glass-shadow:0 24px 48px -12px rgba(0,35,102,0.08);--accent-primary:#003DA5;--accent-hover:#00287A;--accent-light:rgba(0,61,165,0.08);--accent-gold:#D4AF37;--input-bg:rgba(255,255,255,0.92);--input-border:rgba(0,35,102,0.12);--blob-1:#cce0ff;--blob-2:#ffeb99;--blob-3:#e0ebff;--success:#10b981;--success-bg:rgba(16,185,129,0.1);--danger:#e11d48;--danger-bg:rgba(225,29,72,0.1);--warn:#f59e0b;--warn-bg:rgba(245,158,11,0.1);}
         .dark-theme{--bg-body:#040914;--text-main:#f8fafc;--text-muted:#94a3b8;--glass-bg:rgba(10,15,30,0.65);--glass-border:rgba(255,255,255,0.07);--glass-highlight:inset 0 1px 0 0 rgba(255,255,255,0.04);--glass-shadow:0 24px 48px -12px rgba(0,0,0,0.8);--accent-primary:#3b82f6;--accent-hover:#60a5fa;--accent-light:rgba(59,130,246,0.15);--accent-gold:#FCD34D;--input-bg:rgba(255,255,255,0.05);--input-border:rgba(255,255,255,0.1);--blob-1:#001f5c;--blob-2:#422b00;--blob-3:#001233;--success:#34d399;--success-bg:rgba(52,211,153,0.12);--danger:#fb7185;--danger-bg:rgba(251,113,133,0.12);--warn:#fbbf24;--warn-bg:rgba(251,191,36,0.12);}
@@ -1124,6 +1123,7 @@ body.dark-theme .records-card.freeze-pane-on .grid-table .col-name::after{backgr
 import { supabase } from "./supabase-adapter.js";
 
 import { startAdminSessionGuard } from "./admin-session.js";
+import { loadVendor } from "./vendor-loader.v1.js";
 const _u=JSON.parse(localStorage.getItem('loggedInUser'));
 if(!_u||_u.role!=='admin')location.href='index.html';
 const adminSessionGuard = startAdminSessionGuard(supabase, _u);
@@ -1149,10 +1149,10 @@ async function loadAll(){
     document.getElementById('gridBody').innerHTML='<tr class="loading-msg"><td colspan="12"><span class="spin"></span> Loading all records...</td></tr>';
     try{
         const[{data:eRows,error:eErr},{data:aRows,error:aErr},{data:sRows,error:sErr},{data:settings,error:settingsErr}]=await Promise.all([
-            supabase.from('enrollments').select('*'),
-            supabase.from('activities').select('*'),
-            supabase.from('scores').select('*'),
-            supabase.from('settings').select('*').eq('id','global').limit(1).maybeSingle()
+            supabase.from('enrollments').select('id,studentNo,studentName,section,subjectCode,midtermGrade,finalTermGrade'),
+            supabase.from('activities').select('id,subjectCode,section,term,category,title,date,perfectScore'),
+            supabase.from('scores').select('id,activityId,studentNo,score'),
+            supabase.from('settings').select('showStanding').eq('id','global').limit(1).maybeSingle()
         ]);
         if(eErr)throw eErr;if(aErr)throw aErr;if(sErr)throw sErr;if(settingsErr)throw settingsErr;
         enrollments=eRows||[];
@@ -1651,7 +1651,7 @@ document.getElementById('gridBody').addEventListener('dblclick',async e=>{
                 const i=scores.findIndex(s=>s.id===existing.id);
                 if(i>=0)scores[i].score=val;
             }else{
-                const { data: inserted, error } = await supabase.from('scores').insert({activityId:actId,studentNo:sno,score:val}).select('*').single();
+                const { data: inserted, error } = await supabase.from('scores').insert({activityId:actId,studentNo:sno,score:val}).select('id,activityId,studentNo,score').single();
                 if (error) throw error;
                 scores.push(inserted);
             }
@@ -1711,7 +1711,7 @@ window.saveEditModal=async()=>{
                 ps.push(supabase.from('scores').update({score:num}).eq('id',sid).then(({ error })=>{ if(error) throw error; }));
                 const i=scores.findIndex(s=>s.id===sid);if(i>=0)scores[i].score=num;
             }else{
-                ps.push(supabase.from('scores').insert({activityId:actId,studentNo:sno,score:num}).select('*').single().then(({ data, error })=>{ if(error) throw error; scores.push(data); }));
+                ps.push(supabase.from('scores').insert({activityId:actId,studentNo:sno,score:num}).select('id,activityId,studentNo,score').single().then(({ data, error })=>{ if(error) throw error; scores.push(data); }));
             }
         });
         const mid=document.getElementById('editMidGrade').value.trim();
@@ -1765,7 +1765,7 @@ window.openExportModal=()=>{
 };
 window.closeExportModal=()=>document.getElementById('exportModal').classList.remove('open');
 
-window.doExport=(fmt)=>{
+window.doExport=async(fmt)=>{
     const expSec=document.getElementById('expSection').value;
     const expSub=document.getElementById('expSubject').value;
     const incR=document.getElementById('expRanking').checked;
@@ -1784,6 +1784,7 @@ window.doExport=(fmt)=>{
     if(!rows.length){window.showToast('No data to export.','err');return;}
 
     if(fmt==='xlsx'){
+        try{await loadVendor('xlsx');}catch(error){window.showToast('Excel tools could not be loaded.','err');return;}
         const wb=XLSX.utils.book_new();
         const bySub={};rows.forEach(r=>{if(!bySub[r.subjectCode])bySub[r.subjectCode]=[];bySub[r.subjectCode].push(r);});
         Object.entries(bySub).forEach(([sc,sRows])=>{

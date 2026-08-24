@@ -12,8 +12,6 @@
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/style.css">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/fill/style.css">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/bold/style.css">
-        <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root { --bg-body: #f0f4f8; --text-main: #0f172a; --text-muted: #64748b; --glass-bg: rgba(255,255,255,0.75); --glass-border: rgba(255,255,255,0.9); --glass-highlight: inset 0 1px 0 0 rgba(255,255,255,0.9); --glass-shadow: 0 24px 48px -12px rgba(0,35,102,0.08); --accent-primary: #003DA5; --accent-hover: #00287A; --accent-light: rgba(0,61,165,0.08); --accent-gold: #D4AF37; --input-bg: rgba(255,255,255,0.9); --input-border: rgba(0,35,102,0.1); --blob-1: #cce0ff; --blob-2: #ffeb99; --blob-3: #e0ebff; --success: #10b981; --danger: #e11d48; --warning: #f59e0b; }
         .dark-theme { --bg-body: #040914; --text-main: #f8fafc; --text-muted: #94a3b8; --glass-bg: rgba(10,15,30,0.6); --glass-border: rgba(255,255,255,0.06); --glass-highlight: inset 0 1px 0 0 rgba(255,255,255,0.04); --glass-shadow: 0 24px 48px -12px rgba(0,0,0,0.8); --accent-primary: #3b82f6; --accent-hover: #60a5fa; --accent-light: rgba(59,130,246,0.15); --accent-gold: #FCD34D; --input-bg: rgba(0,0,0,0.4); --input-border: rgba(255,255,255,0.1); --blob-1: #001f5c; --blob-2: #422b00; --blob-3: #001233; --success: #34d399; --danger: #fb7185; --warning: #fbbf24; }
@@ -682,6 +680,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
 
 import { startAdminSessionGuard } from "./admin-session.js";
+import { loadVendor } from "./vendor-loader.v1.js";
 const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
 
@@ -696,8 +695,16 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         let currentQrSession = null;
         let qrCountdownTimer = null;
 
+        const TABLE_FIELDS = {
+            sections: 'id,sectionName,yearLevel',
+            enrollments: 'id,studentNo,studentName,section,subjectCode',
+            attendance: 'id,section,subjectCode,date,studentNo,studentName,status,createdAt'
+        };
+
         async function fetchRows(table, builder = null) {
-            let request = supabase.from(table).select('*');
+            const fields = TABLE_FIELDS[table];
+            if (!fields) throw new Error(`No explicit field list configured for ${table}.`);
+            let request = supabase.from(table).select(fields);
             if (builder) request = builder(request);
             const { data, error } = await request;
             if (error) throw error;
@@ -705,7 +712,9 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         }
 
         async function insertRow(table, row) {
-            const { data, error } = await supabase.from(table).insert(row).select('*').single();
+            const fields = TABLE_FIELDS[table];
+            if (!fields) throw new Error(`No explicit field list configured for ${table}.`);
+            const { data, error } = await supabase.from(table).insert(row).select(fields).single();
             if (error) throw error;
             return data;
         }
@@ -792,13 +801,11 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         }
 
 
-        window.generateAttendanceQR = function() {
+        window.generateAttendanceQR = async function() {
             const session = getSelectedSession();
             if(!session) return;
-            if(typeof QRCode === 'undefined') {
-                window.showToast('QR library did not load. Please refresh the page.', 'error');
-                return;
-            }
+            try { await loadVendor('qrcode'); }
+            catch(error) { window.showToast('QR tools could not be loaded.', 'error'); return; }
 
             const durationMinutes = getQrDurationMinutes();
             document.getElementById('qrDurationMinutes').value = durationMinutes;
@@ -1485,13 +1492,15 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         window.closeEditModal = function() { document.getElementById('editModal').classList.remove('open'); currentEditDocId = null; }
 
         // Export
-        window.exportAttendanceExcel = function() {
+        window.exportAttendanceExcel = async function() {
             const sec = document.getElementById('filterSection').value;
             const sub = document.getElementById('filterSubject').value;
             const status = document.getElementById('filterStatus').value;
             const date = document.getElementById('filterDate').value;
             let filtered = allAttendanceData.filter(r => (!sec||r.section===sec)&&(!sub||r.subjectCode===sub)&&(!status||r.status===status)&&(!date||r.date===date));
             if(filtered.length === 0) { window.showToast("No data to export.", "error"); return; }
+            try { await loadVendor('xlsx'); }
+            catch(error) { window.showToast('Excel tools could not be loaded.', 'error'); return; }
             const rows = filtered.map(r => ({ Date: r.date, Student_No: r.studentNo, Student_Name: r.studentName, Section: r.section, Subject_Code: r.subjectCode, Status: r.status==='P'?'Present':r.status==='A'?'Absent':r.status==='L'?'Late':'Excused' }));
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.json_to_sheet(rows);
@@ -1505,6 +1514,8 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx,.xls';
             input.onchange = async e => {
                 const file = e.target.files[0]; if(!file) return;
+                try { await loadVendor('xlsx'); }
+                catch(error) { window.showToast('Excel tools could not be loaded.', 'error'); return; }
                 const pc = document.getElementById('progContainer'); const pb = document.getElementById('progBar');
                 pc.style.display = 'block'; pb.style.width = '10%';
                 window.showToast(`Reading ${file.name}...`);
@@ -1542,7 +1553,9 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             input.click();
         }
 
-        window.downloadAttTemplate = function() {
+        window.downloadAttTemplate = async function() {
+            try { await loadVendor('xlsx'); }
+            catch(error) { window.showToast('Excel tools could not be loaded.', 'error'); return; }
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet([
                 ["Section","Subject_Code","Date","Student_No","Student_Name","Status"],

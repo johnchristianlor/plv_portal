@@ -12,7 +12,6 @@
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/style.css">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/fill/style.css">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/bold/style.css">
-        <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
         :root { --bg-body: #f0f4f8; --text-main: #0f172a; --text-muted: #64748b; --glass-bg: rgba(255,255,255,0.65); --glass-border: rgba(255,255,255,0.9); --glass-highlight: inset 0 1px 0 0 rgba(255,255,255,0.9); --glass-shadow: 0 24px 48px -12px rgba(0,35,102,0.08); --accent-primary: #003DA5; --accent-hover: #00287A; --accent-light: rgba(0,61,165,0.08); --accent-gold: #D4AF37; --accent-gold-light: rgba(212,175,55,0.15); --hero-bg: linear-gradient(135deg,#001f5c 0%,#003DA5 100%); --input-bg: rgba(255,255,255,0.9); --input-border: rgba(0,35,102,0.1); --blob-1: #cce0ff; --blob-2: #ffeb99; --blob-3: #e0ebff; --success: #10b981; --success-bg: rgba(16,185,129,0.1); --danger: #e11d48; --danger-bg: rgba(225,29,72,0.1); --warning: #f59e0b; --warning-bg: rgba(245,158,11,0.1); }
         .dark-theme { --bg-body: #040914; --text-main: #f8fafc; --text-muted: #94a3b8; --glass-bg: rgba(10,15,30,0.55); --glass-border: rgba(255,255,255,0.06); --glass-highlight: inset 0 1px 0 0 rgba(255,255,255,0.04); --glass-shadow: 0 24px 48px -12px rgba(0,0,0,0.8); --accent-primary: #3b82f6; --accent-hover: #60a5fa; --accent-light: rgba(59,130,246,0.15); --accent-gold: #FCD34D; --accent-gold-light: rgba(252,211,77,0.15); --input-bg: rgba(0,0,0,0.4); --input-border: rgba(255,255,255,0.1); --blob-1: #001f5c; --blob-2: #422b00; --blob-3: #001233; --success: #34d399; --success-bg: rgba(52,211,153,0.15); --danger: #fb7185; --danger-bg: rgba(251,113,133,0.15); --warning: #fbbf24; --warning-bg: rgba(251,191,36,0.15); }
@@ -358,6 +357,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         import { startStudentPresence } from "./student-presence.js";
         import { startStudentSessionGuard } from "./student-session.js";
         import { normalizeAttendanceStatus, summarizeAttendance } from "./attendance-utils.mjs";
+        import { loadVendor } from "./vendor-loader.v1.js";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'student') window.location.href = 'index.html';
@@ -380,13 +380,13 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         async function loadData() {
             try {
                 // Load student info
-                const { data: userRows, error: userError } = await supabase.from("users").select("*").eq("studentNo", studentNo);
+                const { data: userRows, error: userError } = await supabase.from("users").select("studentNo,fullName,username,section").eq("studentNo", studentNo);
                 if (userError) throw userError;
                 let studentName = user.name || user.username || 'Student';
                 let section = user.section || '';
                 if(userRows && userRows.length) {
                     const ud = userRows[0];
-                    studentName = ud.name || ud.studentName || studentName;
+                    studentName = ud.fullName || ud.username || studentName;
                     section = ud.section || section;
                 }
 
@@ -396,7 +396,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 document.getElementById('studentSubheader').textContent = `${section || 'Your'} attendance overview`;
 
                 // Load attendance
-                const { data: attendanceRows, error: attendanceError } = await supabase.from("attendance").select("*").eq("studentNo", studentNo);
+                const { data: attendanceRows, error: attendanceError } = await supabase.from("attendance").select("id,section,subjectCode,date,studentNo,studentName,status,createdAt").eq("studentNo", studentNo);
                 if (attendanceError) throw attendanceError;
                 allRecords = [];
                 const subjectSet = new Set();
@@ -586,11 +586,11 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             const status = document.getElementById('qrStatus');
             status.textContent = 'Checking your enrollment...';
 
-            const { data: enrollRows, error: enrollError } = await supabase.from('enrollments').select('*').eq('studentNo', studentNo).eq('section', payload.section).eq('subjectCode', payload.subjectCode);
+            const { data: enrollRows, error: enrollError } = await supabase.from('enrollments').select('id').eq('studentNo', studentNo).eq('section', payload.section).eq('subjectCode', payload.subjectCode);
             if (enrollError) throw enrollError;
             if(!enrollRows || !enrollRows.length) throw new Error('You are not enrolled in this section and subject.');
 
-            const { data: existingRows, error: existingError } = await supabase.from('attendance').select('*').eq('studentNo', studentNo).eq('section', payload.section).eq('subjectCode', payload.subjectCode).eq('date', payload.date);
+            const { data: existingRows, error: existingError } = await supabase.from('attendance').select('id').eq('studentNo', studentNo).eq('section', payload.section).eq('subjectCode', payload.subjectCode).eq('date', payload.date);
             if (existingError) throw existingError;
             const now = new Date().toISOString();
             const name = currentStudentName || user.name || user.fullName || user.username || studentNo;
@@ -639,10 +639,8 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 showQrToast('Camera is not available in this browser.', 'error');
                 return;
             }
-            if(typeof jsQR === 'undefined') {
-                showQrToast('QR scanner did not load. Please refresh the page.', 'error');
-                return;
-            }
+            try { await loadVendor('jsqr'); }
+            catch(error) { showQrToast('QR scanner could not be loaded.', 'error'); return; }
 
             try {
                 qrBusy = false;

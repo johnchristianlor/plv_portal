@@ -227,32 +227,20 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
         const INACTIVE_MS = 5 * 60 * 1000;
 
-        function activeMillis(value) {
-            if (!value) return 0;
-            if (typeof value === 'number') return value;
-            const parsed = new Date(value).getTime();
-            return Number.isNaN(parsed) ? 0 : parsed;
-        }
-
-        function countOnlineStudents(students) {
-            const cutoff = Date.now() - INACTIVE_MS;
-            return (students || []).filter(student => {
-                const ms = activeMillis(student.lastActiveAt);
-                return student.isOnline !== false && ms >= cutoff;
-            }).length;
-        }
-
         async function fetchStats() {
             try {
-                const studentsResult = await supabase.from('users').select('*').eq('role', 'student');
+                const cutoff = new Date(Date.now() - INACTIVE_MS).toISOString();
+                const [studentsResult, onlineResult, subjectsResult] = await Promise.all([
+                    supabase.from('users').select('id', { count: 'exact', head: true }).eq('role', 'student'),
+                    supabase.from('users').select('id', { count: 'exact', head: true }).eq('role', 'student').eq('isOnline', true).gte('lastSeenAt', cutoff),
+                    supabase.from('subjects').select('id', { count: 'exact', head: true })
+                ]);
                 if (studentsResult.error) throw studentsResult.error;
-                const students = studentsResult.data || [];
-                document.getElementById('totalStudents').textContent = students.length;
-                document.getElementById('onlineUsers').textContent = countOnlineStudents(students);
-
-                const subjectsResult = await supabase.from('subjects').select('subjectCode,id');
+                if (onlineResult.error) throw onlineResult.error;
                 if (subjectsResult.error) throw subjectsResult.error;
-                document.getElementById('totalSubjects').textContent = (subjectsResult.data || []).length;
+                document.getElementById('totalStudents').textContent = studentsResult.count || 0;
+                document.getElementById('onlineUsers').textContent = onlineResult.count || 0;
+                document.getElementById('totalSubjects').textContent = subjectsResult.count || 0;
             } catch (error) {
                 console.error("Dashboard stats error:", error);
             }

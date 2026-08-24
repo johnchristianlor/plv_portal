@@ -1,4 +1,5 @@
 import { supabase } from './supabase-adapter.js';
+import { getRecentAnnouncements, getStudentEnrollments } from './student-data.js';
 
 const user = (() => {
     try { return JSON.parse(localStorage.getItem('loggedInUser') || 'null'); }
@@ -80,15 +81,10 @@ if (user && user.role === 'student' && !document.documentElement.dataset.plvNoti
         };
     }
 
-    async function fetchAnnouncements() {
+    async function fetchAnnouncements(force = false) {
         try {
-            const { data, error } = await supabase
-                .from('announcements')
-                .select('*')
-                .order('createdAt', { ascending: false })
-                .limit(25);
-            if (error) throw error;
-            return (data || []).map(row => ({
+            const data = await getRecentAnnouncements(supabase, { force, limit: 25 });
+            return data.map(row => ({
                 id: `announcement:${row.id || `${row.createdAt || ''}:${row.title || ''}`}`,
                 type: 'announcement',
                 icon: row.isUrgent ? 'ph-fill ph-warning-circle' : 'ph-fill ph-megaphone',
@@ -104,11 +100,10 @@ if (user && user.role === 'student' && !document.documentElement.dataset.plvNoti
         }
     }
 
-    async function fetchGrades() {
+    async function fetchGrades(force = false) {
         if (!studentNo) return [];
         try {
-            const { data, error } = await supabase.from('enrollments').select('*').eq('studentNo', studentNo);
-            if (error) throw error;
+            const data = await getStudentEnrollments(supabase, studentNo, { force });
             const firstSeen = readJson(gradeSeenKey, {});
             const nextSeen = firstSeen && typeof firstSeen === 'object' ? { ...firstSeen } : {};
             const notifications = [];
@@ -345,7 +340,7 @@ if (user && user.role === 'student' && !document.documentElement.dataset.plvNoti
         const list = ui.panel.querySelector('[data-notification-list]');
         if (!items.length && isOpen) list.innerHTML = '<div class="plv-notification-loading">Checking for new updates...</div>';
         try {
-            const results = await Promise.allSettled([fetchAnnouncements(), fetchGrades()]);
+            const results = await Promise.allSettled([fetchAnnouncements(force), fetchGrades(force)]);
             const merged = results.flatMap(result => result.status === 'fulfilled' ? result.value : []);
             const deduped = new Map();
             merged.forEach(item => deduped.set(String(item.id), item));

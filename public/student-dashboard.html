@@ -329,6 +329,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
     import { startStudentPresence } from "./student-presence.js";
     import { startStudentSessionGuard } from "./student-session.js";
     import { resolveAvatarElement, uploadStudentAvatarBlob, defaultAvatarFor } from "./avatar-utils.js";
+    import { getGlobalSettings, getRecentAnnouncements, getRecentDeadlines, getStudentEnrollments, getSubject } from "./student-data.js";
 
     const user = JSON.parse(localStorage.getItem('loggedInUser'));
     if (!user || user.role !== 'student') window.location.href = 'index.html';
@@ -633,17 +634,19 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
     async function loadData() {
         try {
-            // 1. Load Enrollment Data
-            const { data: myEnrollments, error: enrollError } = await supabase.from("enrollments").select("*").eq("studentNo", user.studentNo);
-            if (enrollError) throw enrollError;
+            // Load the enrollment dependency first, then issue independent reads together.
+            const myEnrollments = await getStudentEnrollments(supabase, user.studentNo);
+            const enroll = myEnrollments[0] || null;
+            const [sub, settings, deadlines, recentAnnouncements] = await Promise.all([
+                enroll ? getSubject(supabase, enroll.subjectCode) : Promise.resolve(null),
+                getGlobalSettings(supabase),
+                getRecentDeadlines(supabase, { limit: 4 }),
+                getRecentAnnouncements(supabase, { limit: 25 })
+            ]);
 
-            if(myEnrollments && myEnrollments.length) {
-                const enroll = myEnrollments[0];
+            if(enroll) {
                 const currentSubjectCode = enroll.subjectCode;
                 const currentSection = enroll.section;
-
-                const { data: sub, error: subjectError } = await supabase.from("subjects").select("*").eq("subjectCode", currentSubjectCode).limit(1).maybeSingle();
-                if (subjectError) throw subjectError;
 
                 if(sub) {
                     document.getElementById('subTitle').textContent = `${sub.subjectCode}: ${sub.subjectName}`;
@@ -663,11 +666,6 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                     document.getElementById('subRoom').textContent = roomStr;
                 }
 
-                // 2. Load Grade Visibility Settings
-                const { data: settingsRow, error: settingsError } = await supabase.from("settings").select("*").eq("id", "global").limit(1).maybeSingle();
-                if (settingsError) throw settingsError;
-                const settings = settingsRow || { showStanding: false };
-
                 if(settings.showStanding) {
                     // --- SMART CLASS STANDING LOGIC --------------------------------------
                     // Priority: Final computed grade > Midterm raw grade > Activity score %
@@ -675,7 +673,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                     // ---------------------------------------------------------------------
 
                     // Fetch all enrollments in the same section for the same subject
-                    const { data: classRows, error: classError } = await supabase.from("enrollments").select("*").eq("section", currentSection).eq("subjectCode", currentSubjectCode);
+                    const { data: classRows, error: classError } = await supabase.from("enrollments").select("studentNo,midtermRawGrade,midtermGrade,finalTermRawGrade,finalTermGrade").eq("section", currentSection).eq("subjectCode", currentSubjectCode);
                     if (classError) throw classError;
 
                     const enrollMap = {};
@@ -707,7 +705,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
                     if (scoringMode === 'activity') {
                         // Fallback: use activity scores
-                        const { data: activityRows, error: activityError } = await supabase.from("activities").select("*").eq("subjectCode", currentSubjectCode);
+                        const { data: activityRows, error: activityError } = await supabase.from("activities").select("id,perfectScore").eq("subjectCode", currentSubjectCode).eq("section", currentSection);
                         if (activityError) throw activityError;
                         const activityIds = [];
                         (activityRows || []).forEach(activity => {
@@ -722,15 +720,17 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                             const chunks = [];
                             for (let i = 0; i < activityIds.length; i += 10)
                                 chunks.push(activityIds.slice(i, i + 10));
-                            for (const chunk of chunks) {
-                                const { data: scoreRows, error: scoreError } = await supabase.from("scores").select("*").in("activityId", chunk);
+                            const scoreResults = await Promise.all(chunks.map(chunk =>
+                                supabase.from("scores").select("activityId,studentNo,score").in("activityId", chunk)
+                            ));
+                            scoreResults.forEach(({ data: scoreRows, error: scoreError }) => {
                                 if (scoreError) throw scoreError;
                                 (scoreRows || []).forEach(s => {
                                     if (activityScoreMap.hasOwnProperty(s.studentNo)) {
                                         activityScoreMap[s.studentNo] += Number(s.score || 0);
                                     }
                                 });
-                            }
+                            });
                         }
 
                         leaderboard = allStudentNos.map(sNo => ({
@@ -831,9 +831,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 document.getElementById('subTitle').textContent = "No Subject Enrolled";
             }
 
-            // 3. Load Deadlines
-            const { data: deadlines, error: deadlinesError } = await supabase.from("deadlines").select("*").order("createdAt", { ascending: false }).limit(4);
-            if (deadlinesError) throw deadlinesError;
+            // Render the bounded content reads already completed above.
             const dCont = document.getElementById('deadlinesContainer');
             dCont.innerHTML = '';
             if(!deadlines || !deadlines.length) {
@@ -845,9 +843,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 });
             }
 
-            // 4. Load Announcements
-            const { data: announcements, error: announcementsError } = await supabase.from("announcements").select("*").order("createdAt", { ascending: false }).limit(5);
-            if (announcementsError) throw announcementsError;
+            const announcements = recentAnnouncements.slice(0, 5);
             const aCont = document.getElementById('announceContainer');
             aCont.innerHTML = '';
             if(!announcements || !announcements.length) {
