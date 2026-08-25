@@ -71,11 +71,21 @@
 
         .btn-icon-danger { width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(225, 29, 72, 0.2); background: rgba(225, 29, 72, 0.05); color: var(--danger); display: flex; justify-content: center; align-items: center; cursor: pointer; transition: all 0.3s; }
         .btn-icon-danger:hover { background: var(--danger); color: #fff; transform: scale(1.1); box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3); }
+        .btn-icon-edit { min-width: 36px; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid rgba(0, 61, 165, 0.2); background: var(--accent-light); color: var(--accent-primary); display: inline-flex; justify-content: center; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; font-weight: 800; transition: all 0.3s; }
+        .btn-icon-edit:hover { background: var(--accent-primary); color: #fff; transform: translateY(-1px); }
+        .table-actions { display: flex; justify-content: center; align-items: center; gap: 8px; }
 
         .btn-bulk-delete { background: var(--danger); color: white; border:none; padding: 12px 20px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3); display: none; align-items: center; gap: 8px; transition: all 0.3s; }
         .btn-bulk-delete.visible { display: inline-flex; animation: fadeIn 0.3s ease; }
 
         .score-input { width: 100px; padding: 10px; text-align: center; font-weight: 700; color: var(--accent-primary); border: 1px solid var(--input-border); border-radius: 8px; background: var(--glass-bg); } .score-divider { font-size: 13px; color: var(--text-muted); margin-left: 8px; font-weight: 700;}
+        .activity-status { display: none; align-items: flex-start; gap: 12px; margin: 20px 0 4px; padding: 16px 18px; border-radius: 14px; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); color: var(--text-main); }
+        .activity-status.visible { display: flex; }
+        .activity-status i { color: var(--success); font-size: 22px; margin-top: 1px; }
+        .activity-status strong { display: block; font-size: 14px; margin-bottom: 3px; }
+        .activity-status span { color: var(--text-muted); font-size: 12px; font-weight: 600; line-height: 1.5; }
+        .form-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+        .score-progress { display: inline-flex; align-items: center; gap: 7px; margin-left: 8px; padding: 5px 10px; border-radius: 999px; background: var(--accent-light); color: var(--accent-primary); font-size: 12px; font-weight: 800; }
         .upload-zone { border: 2px dashed var(--accent-primary); background: var(--accent-light); border-radius: 20px; padding: 48px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; cursor: pointer; transition: all 0.3s; margin-bottom: 24px;} .upload-zone:hover { background: rgba(0, 61, 165, 0.15); border-color: var(--accent-hover); } .dark-theme .upload-zone:hover { background: rgba(59, 130, 246, 0.2); } .upload-icon { font-size: 48px; color: var(--accent-primary); } .upload-text h4 { font-size: 18px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;} .upload-text p { font-size: 13px; color: var(--text-muted); font-weight: 500;}
         .progress-container { width: 100%; height: 8px; background: rgba(0,0,0,0.1); border-radius: 100px; margin-top: 20px; overflow: hidden; display: none; } .progress-bar { width: 0%; height: 100%; background: var(--accent-primary); transition: width 0.3s ease; border-radius: 100px; }
 
@@ -201,16 +211,16 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         <div class="card glass">
             <!-- 3 Tabs Layout -->
             <div class="tab-controls">
-                <button class="tab-btn active" onclick="window.toggleTab('act-manual', this)">Manual Entry</button>
+                <button class="tab-btn active" id="manualTabBtn" onclick="window.toggleTab('act-manual', this)">Manual Entry</button>
                 <button class="tab-btn" onclick="window.toggleTab('act-bulk', this)">Bulk Excel Upload</button>
-                <button class="tab-btn" onclick="window.toggleTab('act-manage', this)">Manage & Delete</button>
+                <button class="tab-btn" onclick="window.toggleTab('act-manage', this)">Manage Activities</button>
             </div>
 
             <!-- MANUAL ENTRY: 2 STEP PROCESS -->
             <div id="act-manual" class="tab-content active">
                 <form id="activityForm">
                     <div class="form-grid">
-                        <div class="form-section-title"><i class="ph-bold ph-file-text"></i> Step 1: Activity Details</div>
+                        <div class="form-section-title"><i class="ph-bold ph-file-text"></i> Step 1: Create Activity</div>
                         <div class="form-group"><label class="form-label">Subject Code</label>
                             <!-- CHANGED TO DROPDOWN -->
                             <select id="subCode" class="form-control" required>
@@ -223,13 +233,23 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                         <div class="form-group"><label class="form-label">Date</label><input type="date" id="aDate" class="form-control" required></div>
                         <div class="form-group"><label class="form-label">Total Perfect Score</label><input type="number" id="perfectScore" class="form-control" placeholder="e.g. 50" min="1" required></div>
                         <div class="form-group full"><label class="form-label">Activity Title</label><input type="text" id="aTitle" class="form-control" placeholder="e.g. Quiz 1: Algorithms" required></div>
-                        <div class="form-group full" style="margin-top: 10px;"><button type="submit" id="loadRosterBtn" class="btn btn-secondary"><i class="ph-bold ph-users"></i> Load Student Roster</button></div>
+                        <div class="form-group full" style="margin-top: 10px;">
+                            <div class="form-actions">
+                                <button type="submit" id="loadRosterBtn" class="btn btn-primary"><i class="ph-bold ph-floppy-disk"></i> Save & Initialize Activity</button>
+                                <button type="button" id="newActivityBtn" class="btn btn-outline" style="display:none;" onclick="window.startNewActivity()"><i class="ph-bold ph-plus"></i> New Activity</button>
+                            </div>
+                        </div>
                     </div>
                 </form>
 
+                <div id="activityStatus" class="activity-status" role="status">
+                    <i class="ph-fill ph-check-circle"></i>
+                    <div><strong id="activityStatusTitle">Activity initialized</strong><span id="activityStatusText">You may enter scores now or return later.</span></div>
+                </div>
+
                 <div id="roster-container" style="display: none; margin-top: 32px; border-top: 1px solid var(--glass-border); padding-top: 24px;">
-                    <div class="form-section-title"><i class="ph-bold ph-pencil-simple"></i> Step 2: Input Scores</div>
-                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Encoding scores for section <strong id="display-section" style="color: var(--accent-primary);"></strong>. Perfect score is <strong id="display-perfect" style="color: var(--accent-primary);"></strong>.</p>
+                    <div class="form-section-title"><i class="ph-bold ph-pencil-simple"></i> Step 2: Enter Scores <span id="scoreProgress" class="score-progress">0 graded</span></div>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Encoding scores for section <strong id="display-section" style="color: var(--accent-primary);"></strong>. Perfect score is <strong id="display-perfect" style="color: var(--accent-primary);"></strong>. Leave unfinished students blank; you can reopen this activity later. Clearing a saved score marks that student as not yet graded.</p>
                     <form id="scoreForm">
                         <div class="table-container">
                             <table class="modern-table">
@@ -237,7 +257,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                                 <tbody id="roster-body"></tbody>
                             </table>
                         </div>
-                        <div class="form-group full" style="margin-top: 24px;"><button type="submit" id="saveScoreBtn" class="btn btn-primary"><i class="ph-bold ph-floppy-disk"></i> Save Activity & Scores</button></div>
+                        <div class="form-group full" style="margin-top: 24px;"><button type="submit" id="saveScoreBtn" class="btn btn-primary"><i class="ph-bold ph-floppy-disk"></i> Save Scores & Continue Later</button></div>
                     </form>
                 </div>
             </div>
@@ -387,6 +407,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
     <!-- SUPABASE LOGIC -->
     <script type="module">
         import { supabase } from "./supabase-adapter.js";
+        import { planActivityScoreChanges } from "./admin-activities-manual.v1.js";
 
 
 import { startAdminSessionGuard } from "./admin-session.js";
@@ -416,6 +437,9 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         }
 
         let activeSubjectCode = "";
+        let activeActivityId = null;
+        let activeActivity = null;
+        let existingActivityScores = new Map();
         document.getElementById('aDate').valueAsDate = new Date();
 
         async function insertRow(table, row) {
@@ -430,6 +454,17 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         async function deleteById(table, id) {
             const { error } = await supabase.from(table).delete().eq('id', id);
             if (error) throw error;
+        }
+
+        async function updateActivityById(id, row) {
+            const fields = 'id,subjectCode,section,term,category,title,date,perfectScore';
+            const { data, error } = await supabase.from('activities').update(row).eq('id', id).select(fields).single();
+            if (error) throw error;
+            return data;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[char]);
         }
 
         // 1. Load Sections Dropdown from 'sections' collection
@@ -465,75 +500,168 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         window.loadSubjects();
 
         // Helper: Check Duplicate
-        async function checkDuplicate(sub, term, cat, title, section) {
+        async function checkDuplicate(sub, term, cat, title, section, excludeId = null) {
             const { data, error } = await supabase.from("activities").select("id").eq("subjectCode", sub).eq("term", term).eq("category", cat).eq("title", title).eq("section", section);
             if (error) throw error;
-            return !!(data && data.length);
+            return !!(data && data.some(item => String(item.id) !== String(excludeId || '')));
         }
 
         // 2. Manual Entry Logic
+        function getActivityFormData() {
+            return {
+                subjectCode: document.getElementById('subCode').value,
+                section: document.getElementById('sectionSelect').value,
+                term: document.getElementById('aTerm').value,
+                category: document.getElementById('aCat').value,
+                title: document.getElementById('aTitle').value.trim(),
+                perfectScore: Number(document.getElementById('perfectScore').value),
+                date: document.getElementById('aDate').value || new Date().toISOString().split('T')[0]
+            };
+        }
+
+        function setManualMode(activity = null) {
+            activeActivityId = activity?.id || null;
+            activeActivity = activity;
+            const isEditing = Boolean(activeActivityId);
+            document.getElementById('subCode').disabled = isEditing;
+            document.getElementById('sectionSelect').disabled = isEditing;
+            document.getElementById('newActivityBtn').style.display = isEditing ? 'inline-flex' : 'none';
+            document.getElementById('loadRosterBtn').innerHTML = isEditing
+                ? '<i class="ph-bold ph-floppy-disk"></i> Update Activity Setup'
+                : '<i class="ph-bold ph-floppy-disk"></i> Save & Initialize Activity';
+        }
+
+        function updateScoreProgress() {
+            const inputs = [...document.querySelectorAll('.stud-score')];
+            const graded = inputs.filter(input => input.value.trim() !== '').length;
+            document.getElementById('scoreProgress').textContent = `${graded} of ${inputs.length} graded`;
+        }
+
+        async function loadActivityRoster(activity) {
+            const tbody = document.getElementById('roster-body');
+            tbody.innerHTML = '<tr><td colspan="3">Loading student roster...</td></tr>';
+            document.getElementById('roster-container').style.display = 'block';
+
+            const [enrollmentResult, scoreResult] = await Promise.all([
+                supabase.from('enrollments').select('id,studentNo,studentName').eq('section', activity.section).eq('subjectCode', activity.subjectCode),
+                supabase.from('scores').select('id,activityId,studentNo,score').eq('activityId', activity.id)
+            ]);
+            if (enrollmentResult.error) throw enrollmentResult.error;
+            if (scoreResult.error) throw scoreResult.error;
+
+            const uniqueStudents = [...new Map((enrollmentResult.data || []).map(student => [String(student.studentNo).trim(), student])).values()]
+                .filter(student => String(student.studentNo).trim())
+                .sort((a, b) => String(a.studentName || '').localeCompare(String(b.studentName || '')));
+            existingActivityScores = new Map((scoreResult.data || []).map(score => [String(score.studentNo).trim(), score]));
+
+            if (!uniqueStudents.length) {
+                tbody.innerHTML = '<tr><td colspan="3">No enrolled students found for this subject and section. The activity is saved and can be graded after enrollments are added.</td></tr>';
+                document.getElementById('saveScoreBtn').disabled = true;
+            } else {
+                tbody.innerHTML = uniqueStudents.map(student => {
+                    const studentNo = String(student.studentNo).trim();
+                    const saved = existingActivityScores.get(studentNo);
+                    const value = saved && saved.score !== null && saved.score !== undefined ? escapeHtml(saved.score) : '';
+                    return `<tr><td>${escapeHtml(studentNo)}</td><td>${escapeHtml(String(student.studentName || '').toUpperCase())}</td><td><div style="display:flex;align-items:center;"><input type="number" class="score-input stud-score" data-sno="${escapeHtml(studentNo)}" min="0" max="${activity.perfectScore}" step="any" value="${value}" placeholder="Not graded"><span class="score-divider">/ ${escapeHtml(activity.perfectScore)}</span></div></td></tr>`;
+                }).join('');
+                document.getElementById('saveScoreBtn').disabled = false;
+            }
+
+            document.getElementById('display-section').innerText = activity.section;
+            document.getElementById('display-perfect').innerText = activity.perfectScore;
+            document.getElementById('activityStatus').classList.add('visible');
+            document.getElementById('activityStatusTitle').textContent = `Activity ready: ${activity.title}`;
+            document.getElementById('activityStatusText').textContent = 'The setup is saved. Scores are optional and may be completed over multiple sessions.';
+            updateScoreProgress();
+        }
+
         document.getElementById('activityForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('loadRosterBtn');
+            const formData = getActivityFormData();
+            let setupSaved = false;
+            let savedAsNew = false;
 
-            const sub = document.getElementById('subCode').value;
-            const sec = document.getElementById('sectionSelect').value;
-            const term = document.getElementById('aTerm').value;
-            const cat = document.getElementById('aCat').value;
-            const title = document.getElementById('aTitle').value;
-
-            if(!sub || !sec) {
+            if(!formData.subjectCode || !formData.section) {
                 window.showToast("Please select Subject and Section", "error");
                 return;
             }
 
-            const isDup = await checkDuplicate(sub, term, cat, title, sec);
-            if(isDup) { window.showToast("Activity already exists for this section!", "error"); return; }
-
-            btn.innerHTML = 'Loading...'; btn.disabled = true;
-            const perfScore = document.getElementById('perfectScore').value;
-            const tbody = document.getElementById('roster-body'); tbody.innerHTML = '';
-
             try {
-                // Fetch enrollments for specific section AND subject
-                const { data: students, error } = await supabase.from("enrollments").select("id,studentNo,studentName").eq("section", sec).eq("subjectCode", sub);
-                if (error) throw error;
-                if(!students || !students.length) { window.showToast("No students found in this section for this subject.", "error"); btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-users"></i> Load Student Roster'; return; }
-                students.sort((a,b) => a.studentName.localeCompare(b.studentName));
+                btn.innerHTML = activeActivityId ? 'Updating...' : 'Initializing...';
+                btn.disabled = true;
+                const isDup = await checkDuplicate(formData.subjectCode, formData.term, formData.category, formData.title, formData.section, activeActivityId);
+                if(isDup) throw new Error('DUPLICATE_ACTIVITY');
 
-                students.forEach(data => {
-                    tbody.innerHTML += `<tr><td>${data.studentNo}</td><td>${data.studentName}</td><td><div style="display: flex; align-items: center;"><input type="number" class="score-input stud-score" data-sno="${data.studentNo}" min="0" max="${perfScore}" required placeholder="0"><span class="score-divider">/ ${perfScore}</span></div></td></tr>`;
-                });
-
-                document.getElementById('display-section').innerText = sec;
-                document.getElementById('display-perfect').innerText = perfScore;
-                document.getElementById('roster-container').style.display = 'block';
-            } catch(e) { console.error(e); window.showToast("Database Error", "error"); }
-            btn.innerHTML = '<i class="ph-bold ph-users"></i> Load Student Roster'; btn.disabled = false;
+                if (activeActivityId) {
+                    const savedScores = [...existingActivityScores.values()].filter(score => Number(score.score) > formData.perfectScore);
+                    if (savedScores.length) throw new Error('PERFECT_SCORE_TOO_LOW');
+                    activeActivity = await updateActivityById(activeActivityId, formData);
+                } else {
+                    activeActivity = await insertRow('activities', formData);
+                    savedAsNew = true;
+                    setManualMode(activeActivity);
+                }
+                setupSaved = true;
+                await loadActivityRoster(activeActivity);
+                window.loadActivities();
+                window.showToast(savedAsNew
+                    ? 'Activity initialized. You can enter scores now or later.'
+                    : 'Activity setup updated. Existing scores were preserved.');
+            } catch(error) {
+                console.error(error);
+                if (error.message === 'DUPLICATE_ACTIVITY') window.showToast('This activity already exists for the selected class.', 'error');
+                else if (error.message === 'PERFECT_SCORE_TOO_LOW') window.showToast('Perfect score cannot be lower than an already saved student score.', 'error');
+                else if (setupSaved) window.showToast('Activity setup was saved, but the roster could not be refreshed. Reopen it from Manage Activities.', 'error');
+                else window.showToast('Could not save the activity setup. Please try again.', 'error');
+            } finally {
+                btn.disabled = false;
+                setManualMode(activeActivity);
+            }
         });
+
+        document.getElementById('roster-body').addEventListener('input', updateScoreProgress);
 
         document.getElementById('scoreForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('saveScoreBtn'); btn.innerHTML = 'Saving...'; btn.disabled = true;
+            let scoreWritesCompleted = false;
             try {
-                // IMPORTANT: Save Section in Activity Doc
-                const actRef = await insertRow("activities", {
-                    subjectCode: document.getElementById('subCode').value,
-                    section: document.getElementById('sectionSelect').value,
-                    term: document.getElementById('aTerm').value,
-                    category: document.getElementById('aCat').value,
-                    title: document.getElementById('aTitle').value,
-                    perfectScore: Number(document.getElementById('perfectScore').value),
-                    date: document.getElementById('aDate').value || new Date().toISOString()
-                });
-                const inputs = document.querySelectorAll('.stud-score');
-                for(let inp of inputs) { await insertRow("scores", { activityId: actRef.id, studentNo: inp.dataset.sno, score: Number(inp.value) }); }
-                window.showToast('Activity and all student scores saved!');
-                document.getElementById('activityForm').reset(); document.getElementById('roster-container').style.display = 'none';
+                if (!activeActivityId) throw new Error('ACTIVITY_NOT_INITIALIZED');
+                const inputs = [...document.querySelectorAll('.stud-score')].map(input => ({ studentNo: input.dataset.sno, value: input.value }));
+                const changes = planActivityScoreChanges(inputs, existingActivityScores, activeActivity.perfectScore);
+                if (changes.invalid.length) throw new Error(`INVALID_SCORES:${changes.invalid.join(', ')}`);
+
+                await Promise.all([
+                    ...changes.inserts.map(item => insertRow('scores', { activityId: activeActivityId, studentNo: item.studentNo, score: item.score })),
+                    ...changes.updates.map(item => supabase.from('scores').update({ score: item.score }).eq('id', item.id).then(({ error }) => { if (error) throw error; })),
+                    ...changes.deletes.map(item => deleteById('scores', item.id))
+                ]);
+
+                scoreWritesCompleted = true;
+                await loadActivityRoster(activeActivity);
+                const ungraded = inputs.length - changes.gradedCount;
+                window.showToast(`Scores saved. ${changes.gradedCount} graded, ${ungraded} still ungraded.`);
                 window.loadActivities();
-            } catch(e) { console.error(e); window.showToast("Failed to save scores", "error"); }
-            btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Save Activity & Scores'; btn.disabled = false;
+            } catch(error) {
+                console.error(error);
+                if (error.message.startsWith('INVALID_SCORES:')) window.showToast(`Check scores for: ${error.message.split(':').slice(1).join(':')}`, 'error');
+                else if (scoreWritesCompleted) window.showToast('Scores were saved, but the roster could not be refreshed. Reopen the activity to continue.', 'error');
+                else window.showToast('Failed to save scores. No activity setup was lost.', 'error');
+            }
+            btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Save Scores & Continue Later'; btn.disabled = false;
         });
+
+        window.startNewActivity = function() {
+            document.getElementById('activityForm').reset();
+            document.getElementById('aDate').valueAsDate = new Date();
+            document.getElementById('roster-container').style.display = 'none';
+            document.getElementById('activityStatus').classList.remove('visible');
+            document.getElementById('roster-body').innerHTML = '';
+            existingActivityScores = new Map();
+            setManualMode(null);
+            document.getElementById('subCode').focus();
+        };
 
         // =============================================
         // SMART TEMPLATE BUILDER LOGIC
@@ -940,8 +1068,10 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                                     for(const row of studentRows) {
                                         const sNo = String(row[0] || '').trim();
                                         const scoreRaw = row[act.colIdx];
-                                        const score = scoreRaw !== '' && scoreRaw !== undefined ? Number(scoreRaw) : 0;
                                         if(!sNo) continue;
+                                        if(scoreRaw === '' || scoreRaw === undefined || scoreRaw === null) continue;
+                                        const score = Number(scoreRaw);
+                                        if(!Number.isFinite(score) || score < 0 || score > act.perfect) continue;
                                         await insertRow("scores", { activityId: actRef.id, studentNo: sNo, score });
                                         savedScores++;
                                     }
@@ -1031,7 +1161,10 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                         <td>${d.category.toUpperCase()}</td>
                         <td>${d.perfectScore}</td>
                         <td style="text-align:center;">
-                            <button class="btn-icon-danger" onclick="window.openDeleteModal('${d.id}')"><i class="ph-bold ph-trash"></i></button>
+                            <div class="table-actions">
+                                <button class="btn-icon-edit" onclick="window.openActivityForScoring('${d.id}')" title="Edit setup and scores"><i class="ph-bold ph-pencil-simple"></i> Scores</button>
+                                <button class="btn-icon-danger" onclick="window.openDeleteModal('${d.id}')" title="Delete activity"><i class="ph-bold ph-trash"></i></button>
+                            </div>
                         </td>
                     </tr>`;
             });
@@ -1047,6 +1180,32 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             );
             window.renderTable(filtered);
         }
+
+        window.openActivityForScoring = async function(id) {
+            try {
+                let activity = allActivitiesData.find(item => String(item.id) === String(id));
+                if (!activity) {
+                    const { data, error } = await supabase.from('activities').select('id,subjectCode,section,term,category,title,date,perfectScore').eq('id', id).single();
+                    if (error) throw error;
+                    activity = data;
+                }
+
+                document.getElementById('subCode').value = activity.subjectCode;
+                document.getElementById('sectionSelect').value = activity.section;
+                document.getElementById('aTerm').value = activity.term;
+                document.getElementById('aCat').value = activity.category;
+                document.getElementById('aTitle').value = activity.title;
+                document.getElementById('perfectScore').value = activity.perfectScore;
+                document.getElementById('aDate').value = activity.date ? String(activity.date).split('T')[0] : '';
+                setManualMode(activity);
+                window.toggleTab('act-manual', document.getElementById('manualTabBtn'));
+                await loadActivityRoster(activity);
+                document.getElementById('activityForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } catch(error) {
+                console.error(error);
+                window.showToast('Could not open this activity for editing.', 'error');
+            }
+        };
 
         window.toggleSelectAll = function() {
             const masterCheck = document.getElementById('selectAll');
