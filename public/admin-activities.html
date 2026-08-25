@@ -78,7 +78,74 @@
         .btn-bulk-delete { background: var(--danger); color: white; border:none; padding: 12px 20px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3); display: none; align-items: center; gap: 8px; transition: all 0.3s; }
         .btn-bulk-delete.visible { display: inline-flex; animation: fadeIn 0.3s ease; }
 
-        .score-input { width: 100px; padding: 10px; text-align: center; font-weight: 700; color: var(--accent-primary); border: 1px solid var(--input-border); border-radius: 8px; background: var(--glass-bg); } .score-divider { font-size: 13px; color: var(--text-muted); margin-left: 8px; font-weight: 700;}
+        .manual-dashboard { display: flex; flex-direction: column; gap: 24px; }
+        .saved-activities-panel { padding: 24px; background: linear-gradient(135deg, var(--accent-light), transparent 70%); border: 1px solid var(--input-border); border-radius: 20px; }
+        .workspace-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+        .workspace-heading h2 { display: flex; align-items: center; gap: 9px; font-size: 18px; font-weight: 800; color: var(--text-main); }
+        .workspace-heading h2 i { color: var(--accent-primary); font-size: 22px; }
+        .workspace-heading p { margin-top: 4px; color: var(--text-muted); font-size: 13px; font-weight: 600; line-height: 1.5; }
+        .activity-count-badge { flex-shrink: 0; padding: 7px 12px; border-radius: 999px; background: var(--accent-primary); color: #fff; font-size: 12px; font-weight: 800; }
+        .saved-activity-tools { display: grid; grid-template-columns: minmax(220px, 1fr) 180px 160px auto; gap: 10px; margin-bottom: 18px; }
+        .saved-search { position: relative; }
+        .saved-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+        .saved-search .form-control { width: 100%; padding-left: 42px; }
+        .compact-control { padding: 11px 13px; font-size: 13px; }
+        .refresh-activities-btn { width: 44px; height: 44px; padding: 0; }
+        .saved-activities-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; }
+        .saved-activity-card { display: flex; flex-direction: column; min-width: 0; padding: 18px; border: 1px solid var(--input-border); border-radius: 16px; background: var(--input-bg); box-shadow: 0 8px 24px rgba(15,23,42,0.04); cursor: pointer; transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease; }
+        .saved-activity-card:hover { transform: translateY(-3px); border-color: var(--accent-primary); box-shadow: 0 14px 30px rgba(0,61,165,0.1); }
+        .saved-activity-card.active { border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-light); }
+        .saved-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .saved-card-title { min-width: 0; }
+        .saved-card-title h3 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 800; color: var(--text-main); }
+        .saved-card-title p { margin-top: 4px; color: var(--accent-primary); font-size: 12px; font-weight: 800; }
+        .activity-state { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .35px; }
+        .activity-state.not-started { color: #b45309; background: rgba(245,158,11,.12); }
+        .activity-state.in-progress { color: var(--accent-primary); background: var(--accent-light); }
+        .activity-state.complete { color: #047857; background: rgba(16,185,129,.12); }
+        .activity-state.empty { color: var(--text-muted); background: rgba(100,116,139,.12); }
+        .saved-card-meta { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0; }
+        .saved-card-meta span { display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted); font-size: 11px; font-weight: 700; }
+        .activity-progress-track { width: 100%; height: 7px; overflow: hidden; border-radius: 999px; background: rgba(100,116,139,.15); }
+        .activity-progress-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent-primary), #60a5fa); }
+        .saved-card-progress { display: flex; justify-content: space-between; gap: 10px; margin: 8px 0 14px; color: var(--text-muted); font-size: 11px; font-weight: 700; }
+        .saved-card-progress strong { color: var(--text-main); }
+        .saved-card-action { width: 100%; margin-top: auto; padding: 11px 14px; font-size: 13px; }
+        .saved-empty { grid-column: 1 / -1; padding: 32px 18px; text-align: center; border: 2px dashed var(--input-border); border-radius: 16px; color: var(--text-muted); }
+        .saved-empty i { display: block; margin-bottom: 8px; font-size: 32px; color: var(--accent-primary); }
+        .saved-empty strong { display: block; margin-bottom: 4px; color: var(--text-main); font-size: 14px; }
+        .setup-panel { border: 1px solid var(--input-border); border-radius: 18px; background: var(--glass-bg); overflow: hidden; }
+        .setup-panel > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; cursor: pointer; list-style: none; color: var(--text-main); font-size: 14px; font-weight: 800; }
+        .setup-panel > summary::-webkit-details-marker { display: none; }
+        .setup-panel > summary span { display: flex; align-items: center; gap: 9px; }
+        .setup-panel > summary i { color: var(--accent-primary); font-size: 20px; }
+        .setup-panel > summary .setup-chevron { color: var(--text-muted); transition: transform .25s ease; }
+        .setup-panel[open] > summary .setup-chevron { transform: rotate(180deg); }
+        .setup-panel-content { padding: 4px 20px 22px; }
+        .score-input { width: 118px; min-height: 46px; padding: 10px 12px; text-align: center; font-size: 17px; font-weight: 800; color: var(--accent-primary); border: 1px solid var(--input-border); border-radius: 10px; background: var(--glass-bg); outline: none; }
+        .score-input:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 4px var(--accent-light); }
+        .score-divider { font-size: 13px; color: var(--text-muted); margin-left: 8px; font-weight: 700; white-space: nowrap; }
+        .score-table-wrap { max-height: 62vh; overflow: auto; border: 1px solid var(--input-border); border-radius: 16px; }
+        .score-table { margin-top: 0; border-spacing: 0 7px; }
+        .score-table thead { position: sticky; top: 0; z-index: 3; background: var(--bg-body); }
+        .score-table th { padding-top: 13px; }
+        .student-score-row.graded td { background: rgba(16,185,129,.06); }
+        .student-score-row.hidden { display: none; }
+        .student-name-main { display: block; color: var(--text-main); font-weight: 800; }
+        .student-number-mobile { display: none; }
+        .score-entry-box { display: flex; align-items: center; justify-content: flex-end; }
+        .score-roster-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 18px 0 12px; }
+        .score-roster-search { flex: 1 1 260px; max-width: 420px; position: relative; }
+        .score-roster-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+        .score-roster-search input { width: 100%; padding-left: 42px; }
+        .score-filter-group { display: flex; padding: 4px; border-radius: 12px; background: rgba(100,116,139,.1); }
+        .score-filter-btn { padding: 8px 13px; border: 0; border-radius: 9px; background: transparent; color: var(--text-muted); font-size: 12px; font-weight: 800; cursor: pointer; }
+        .score-filter-btn.active { background: var(--input-bg); color: var(--accent-primary); box-shadow: 0 3px 8px rgba(15,23,42,.08); }
+        .roster-result-count { color: var(--text-muted); font-size: 12px; font-weight: 700; }
+        .score-save-bar { position: sticky; bottom: 12px; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 18px; padding: 14px 16px; border: 1px solid var(--glass-border); border-radius: 16px; background: var(--bg-body); background: color-mix(in srgb, var(--bg-body) 86%, transparent); backdrop-filter: blur(20px); box-shadow: 0 14px 36px rgba(15,23,42,.16); }
+        .score-save-summary strong { display: block; color: var(--text-main); font-size: 13px; }
+        .score-save-summary span { display: block; margin-top: 3px; color: var(--text-muted); font-size: 11px; font-weight: 600; }
+        .score-save-actions { display: flex; gap: 9px; }
         .activity-status { display: none; align-items: flex-start; gap: 12px; margin: 20px 0 4px; padding: 16px 18px; border-radius: 14px; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); color: var(--text-main); }
         .activity-status.visible { display: flex; }
         .activity-status i { color: var(--success); font-size: 22px; margin-top: 1px; }
@@ -138,8 +205,48 @@
         .spin-ring { width: 18px; height: 18px; border: 2px solid var(--accent-light); border-top-color: var(--accent-primary); border-radius: 50%; animation: spin 0.6s linear infinite; flex-shrink: 0; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        @media (max-width: 1024px) { body { flex-direction: column; } .sidebar { width: 100%; height: auto; flex-direction: row; padding: 20px; justify-content: space-between; align-items: center; z-index: 100; border-right: none; border-bottom: 1px solid var(--glass-border); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable;} .nav-menu { display: none; } .form-grid { grid-template-columns: 1fr; } .form-group.full, .form-section-title { grid-column: span 1; } .search-wrapper { width: 100%; order: 2; } .table-controls-wrapper { flex-direction: column; align-items: flex-start; } .btn-bulk-delete { width: 100%; order: 1; justify-content: center; } .act-def-row { grid-template-columns: 1fr 1fr; } .template-builder { padding-left: 0; } }
-        @media (max-width: 600px) { .act-def-row { grid-template-columns: 1fr; } .bulk-step-box { padding: 20px 16px; } }
+        @media (max-width: 1024px) { body { flex-direction: column; } .sidebar { width: 100%; height: auto; flex-direction: row; padding: 20px; justify-content: space-between; align-items: center; z-index: 100; border-right: none; border-bottom: 1px solid var(--glass-border); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable;} .nav-menu { display: none; } .form-grid { grid-template-columns: 1fr; } .form-group.full, .form-section-title { grid-column: span 1; } .search-wrapper { width: 100%; order: 2; } .table-controls-wrapper { flex-direction: column; align-items: flex-start; } .btn-bulk-delete { width: 100%; order: 1; justify-content: center; } .act-def-row { grid-template-columns: 1fr 1fr; } .template-builder { padding-left: 0; } .saved-activity-tools { grid-template-columns: minmax(200px,1fr) 160px 150px auto; } }
+        @media (max-width: 700px) {
+            .card { padding: 16px; border-radius: 20px; overflow: visible; }
+            .tab-controls { width: 100%; overflow-x: auto; margin-bottom: 18px; }
+            .tab-btn { flex: 0 0 auto; padding: 10px 14px; }
+            .saved-activities-panel { padding: 17px 14px; margin-inline: -2px; }
+            .workspace-heading { align-items: center; }
+            .workspace-heading h2 { font-size: 16px; }
+            .workspace-heading p { font-size: 12px; }
+            .saved-activity-tools { grid-template-columns: 1fr 1fr 44px; }
+            .saved-search { grid-column: 1 / -1; }
+            .saved-activities-grid { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; padding: 2px 2px 10px; margin-inline: -2px; }
+            .saved-activity-card { flex: 0 0 min(84vw, 310px); scroll-snap-align: start; }
+            .saved-empty { flex: 1 0 100%; }
+            .setup-panel-content { padding: 2px 14px 18px; }
+            .form-actions .btn { width: 100%; }
+            #roster-container { margin-top: 22px !important; padding-top: 18px !important; }
+            .score-roster-tools { align-items: stretch; }
+            .score-roster-search { max-width: none; flex-basis: 100%; }
+            .score-filter-group { width: 100%; overflow-x: auto; }
+            .score-filter-btn { flex: 1 0 auto; }
+            .score-table-wrap { max-height: none; overflow: visible; border: 0; }
+            .score-table, .score-table tbody { display: block; width: 100%; }
+            .score-table thead { display: none; }
+            .score-table tr.student-score-row { display: grid; grid-template-columns: minmax(0,1fr) auto; grid-template-rows: auto auto; gap: 4px 12px; margin-bottom: 10px; padding: 14px; border: 1px solid var(--input-border); border-radius: 14px; background: var(--input-bg); box-shadow: 0 5px 14px rgba(15,23,42,.04); }
+            .score-table tr.student-score-row.hidden { display: none; }
+            .score-table td { display: block; padding: 0; border: 0 !important; border-radius: 0 !important; background: transparent !important; }
+            .student-no-cell { display: none !important; }
+            .student-name-cell { grid-column: 1; grid-row: 1 / span 2; align-self: center; min-width: 0; }
+            .student-name-main { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+            .student-number-mobile { display: block; margin-top: 5px; color: var(--text-muted); font-size: 11px; font-weight: 700; }
+            .score-cell { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+            .score-input { width: 92px; min-height: 50px; font-size: 18px; }
+            .score-divider { display: none; }
+            .score-save-bar { bottom: calc(82px + env(safe-area-inset-bottom)); margin-inline: -4px; padding: 12px; }
+            .score-save-summary span { display: none; }
+            .score-save-actions .btn-outline { display: none; }
+            .score-save-actions .btn-primary { padding: 13px 16px; font-size: 13px; }
+            .activity-status { padding: 13px; }
+            .score-progress { margin: 8px 0 0; }
+        }
+        @media (max-width: 420px) { .saved-activity-tools { grid-template-columns: 1fr 44px; } #savedTermFilter { display: none; } .bulk-step-box { padding: 20px 16px; } .act-def-row { grid-template-columns: 1fr; } }
 
         /* ===== MOBILE NAVIGATION ===== */
         .mobile-nav-bar { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--glass-bg); backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px); border-top: 1px solid var(--glass-border); box-shadow: 0 -8px 32px rgba(0,0,0,0.1); z-index: 200; padding: 6px 0 max(6px, env(safe-area-inset-bottom)); }
@@ -218,6 +325,42 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
             <!-- MANUAL ENTRY: 2 STEP PROCESS -->
             <div id="act-manual" class="tab-content active">
+                <div class="manual-dashboard">
+                <section class="saved-activities-panel" id="savedActivitiesPanel" aria-labelledby="savedActivitiesTitle">
+                    <div class="workspace-heading">
+                        <div>
+                            <h2 id="savedActivitiesTitle"><i class="ph-fill ph-books"></i> Saved Activities & Grading</h2>
+                            <p>Select any initialized activity to view the student list and continue entering scores.</p>
+                        </div>
+                        <span class="activity-count-badge" id="savedActivityCount">0 activities</span>
+                    </div>
+                    <div class="saved-activity-tools">
+                        <div class="saved-search">
+                            <i class="ph-bold ph-magnifying-glass"></i>
+                            <input type="search" id="savedActivitySearch" class="form-control compact-control" placeholder="Search title, subject, or section" oninput="window.filterSavedActivities()" aria-label="Search saved activities">
+                        </div>
+                        <select id="savedStatusFilter" class="form-control compact-control" onchange="window.filterSavedActivities()" aria-label="Filter activities by grading status">
+                            <option value="all">All statuses</option>
+                            <option value="not-started">Not started</option>
+                            <option value="in-progress">In progress</option>
+                            <option value="complete">Completed</option>
+                            <option value="empty">No students</option>
+                        </select>
+                        <select id="savedTermFilter" class="form-control compact-control" onchange="window.filterSavedActivities()" aria-label="Filter activities by grading period">
+                            <option value="all">All periods</option>
+                            <option value="midterm">Midterm</option>
+                            <option value="final">Final Term</option>
+                        </select>
+                        <button type="button" class="btn btn-outline refresh-activities-btn" onclick="window.loadSavedActivities()" title="Refresh saved activities" aria-label="Refresh saved activities"><i class="ph-bold ph-arrows-clockwise"></i></button>
+                    </div>
+                    <div id="savedActivitiesGrid" class="saved-activities-grid" aria-live="polite">
+                        <div class="saved-empty"><div class="spin-ring" style="margin:0 auto 10px;"></div><strong>Loading saved activities</strong><span>Please wait a moment.</span></div>
+                    </div>
+                </section>
+
+                <details id="activitySetupPanel" class="setup-panel" open>
+                    <summary><span><i class="ph-bold ph-plus-circle"></i><span id="setupPanelTitle">Create a New Activity</span></span><i class="ph-bold ph-caret-down setup-chevron"></i></summary>
+                    <div class="setup-panel-content">
                 <form id="activityForm">
                     <div class="form-grid">
                         <div class="form-section-title"><i class="ph-bold ph-file-text"></i> Step 1: Create Activity</div>
@@ -241,6 +384,8 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                         </div>
                     </div>
                 </form>
+                    </div>
+                </details>
 
                 <div id="activityStatus" class="activity-status" role="status">
                     <i class="ph-fill ph-check-circle"></i>
@@ -251,14 +396,33 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                     <div class="form-section-title"><i class="ph-bold ph-pencil-simple"></i> Step 2: Enter Scores <span id="scoreProgress" class="score-progress">0 graded</span></div>
                     <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Encoding scores for section <strong id="display-section" style="color: var(--accent-primary);"></strong>. Perfect score is <strong id="display-perfect" style="color: var(--accent-primary);"></strong>. Leave unfinished students blank; you can reopen this activity later. Clearing a saved score marks that student as not yet graded.</p>
                     <form id="scoreForm">
-                        <div class="table-container">
-                            <table class="modern-table">
+                        <div class="score-roster-tools">
+                            <div class="score-roster-search">
+                                <i class="ph-bold ph-magnifying-glass"></i>
+                                <input type="search" id="scoreRosterSearch" class="form-control compact-control" placeholder="Find student name or number" oninput="window.filterScoreRoster()" aria-label="Search student roster">
+                            </div>
+                            <div class="score-filter-group" role="group" aria-label="Filter student scores">
+                                <button type="button" class="score-filter-btn active" data-score-filter="all" onclick="window.setScoreFilter('all', this)">All</button>
+                                <button type="button" class="score-filter-btn" data-score-filter="ungraded" onclick="window.setScoreFilter('ungraded', this)">Ungraded</button>
+                                <button type="button" class="score-filter-btn" data-score-filter="graded" onclick="window.setScoreFilter('graded', this)">Graded</button>
+                            </div>
+                            <span id="rosterResultCount" class="roster-result-count">0 students</span>
+                        </div>
+                        <div class="table-container score-table-wrap">
+                            <table class="modern-table score-table">
                                 <thead><tr><th>Student No.</th><th>Student Name</th><th>Score</th></tr></thead>
                                 <tbody id="roster-body"></tbody>
                             </table>
                         </div>
-                        <div class="form-group full" style="margin-top: 24px;"><button type="submit" id="saveScoreBtn" class="btn btn-primary"><i class="ph-bold ph-floppy-disk"></i> Save Scores & Continue Later</button></div>
+                        <div class="score-save-bar">
+                            <div class="score-save-summary"><strong id="scoreSaveSummary">0 of 0 students graded</strong><span>Blank scores remain ungraded and can be completed later.</span></div>
+                            <div class="score-save-actions">
+                                <button type="button" class="btn btn-outline" onclick="window.scrollToSavedActivities()"><i class="ph-bold ph-books"></i> Saved Activities</button>
+                                <button type="submit" id="saveScoreBtn" class="btn btn-primary"><i class="ph-bold ph-floppy-disk"></i> Save Scores</button>
+                            </div>
+                        </div>
                     </form>
+                </div>
                 </div>
             </div>
 
@@ -407,7 +571,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
     <!-- SUPABASE LOGIC -->
     <script type="module">
         import { supabase } from "./supabase-adapter.js";
-        import { planActivityScoreChanges } from "./admin-activities-manual.v1.js";
+        import { filterSavedActivityRecords, getActivityProgress, planActivityScoreChanges } from "./admin-activities-manual.v2.js";
 
 
 import { startAdminSessionGuard } from "./admin-session.js";
@@ -440,6 +604,8 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         let activeActivityId = null;
         let activeActivity = null;
         let existingActivityScores = new Map();
+        let savedActivitiesData = [];
+        let scoreRosterFilter = 'all';
         document.getElementById('aDate').valueAsDate = new Date();
 
         async function insertRow(table, row) {
@@ -467,6 +633,17 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[char]);
         }
 
+        async function selectAllRows(table, fields) {
+            const pageSize = 1000;
+            const rows = [];
+            for (let start = 0; ; start += pageSize) {
+                const { data, error } = await supabase.from(table).select(fields).order('id', { ascending: true }).range(start, start + pageSize - 1);
+                if (error) throw error;
+                rows.push(...(data || []));
+                if (!data || data.length < pageSize) return rows;
+            }
+        }
+
         // 1. Load Sections Dropdown from 'sections' collection
         window.loadSections = async function() {
             const select = document.getElementById('sectionSelect');
@@ -480,7 +657,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                 sections.forEach(sec => { select.innerHTML += `<option value="${sec}">${sec}</option>`; });
             } catch(e) { console.error(e); }
         }
-        window.loadSections();
+        const sectionsReady = window.loadSections();
 
         // 1.5 Load Subjects Dropdown from 'subjects' collection
         window.loadSubjects = async function() {
@@ -497,7 +674,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                 });
             } catch(e) { console.error(e); }
         }
-        window.loadSubjects();
+        const subjectsReady = window.loadSubjects();
 
         // Helper: Check Duplicate
         async function checkDuplicate(sub, term, cat, title, section, excludeId = null) {
@@ -505,6 +682,97 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             if (error) throw error;
             return !!(data && data.some(item => String(item.id) !== String(excludeId || '')));
         }
+
+        function activityClassKey(section, subjectCode) {
+            return `${String(section || '').trim().toLowerCase()}||${String(subjectCode || '').trim().toLowerCase()}`;
+        }
+
+        function renderSavedActivities(records) {
+            const grid = document.getElementById('savedActivitiesGrid');
+            const count = document.getElementById('savedActivityCount');
+            count.textContent = records.length === savedActivitiesData.length
+                ? `${records.length} activit${records.length === 1 ? 'y' : 'ies'}`
+                : `${records.length} of ${savedActivitiesData.length}`;
+
+            if (!records.length) {
+                grid.innerHTML = `<div class="saved-empty"><i class="ph-bold ph-magnifying-glass"></i><strong>No activities found</strong><span>${savedActivitiesData.length ? 'Try changing the search or filters.' : 'Create and initialize your first activity below.'}</span></div>`;
+                return;
+            }
+
+            const statusLabels = { 'not-started': 'Not started', 'in-progress': 'In progress', complete: 'Completed', empty: 'No students' };
+            grid.innerHTML = records.map(activity => {
+                const isActive = String(activity.id) === String(activeActivityId);
+                const dateLabel = activity.date ? new Date(`${String(activity.date).split('T')[0]}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date';
+                return `<article class="saved-activity-card${isActive ? ' active' : ''}" data-activity-id="${escapeHtml(activity.id)}" role="button" tabindex="0" aria-label="Open ${escapeHtml(activity.title)} for grading">
+                    <div class="saved-card-top">
+                        <div class="saved-card-title"><h3 title="${escapeHtml(activity.title)}">${escapeHtml(activity.title)}</h3><p>${escapeHtml(activity.subjectCode)} · ${escapeHtml(activity.section || 'No section')}</p></div>
+                        <span class="activity-state ${activity.progressStatus}">${statusLabels[activity.progressStatus]}</span>
+                    </div>
+                    <div class="saved-card-meta">
+                        <span><i class="ph-bold ph-calendar-blank"></i>${escapeHtml(dateLabel)}</span>
+                        <span><i class="ph-bold ph-flag"></i>${activity.term === 'final' ? 'Final Term' : 'Midterm'}</span>
+                        <span><i class="ph-bold ph-target"></i>${escapeHtml(activity.perfectScore)} pts</span>
+                    </div>
+                    <div class="activity-progress-track"><div class="activity-progress-fill" style="width:${activity.progressPercent}%"></div></div>
+                    <div class="saved-card-progress"><span><strong>${activity.gradedCount}</strong> graded</span><span><strong>${activity.totalStudents - activity.gradedCount}</strong> remaining</span></div>
+                    <button type="button" class="btn btn-primary saved-card-action"><i class="ph-bold ph-pencil-simple"></i>${activity.gradedCount ? 'Continue Grading' : 'Start Grading'}</button>
+                </article>`;
+            }).join('');
+
+            grid.querySelectorAll('[data-activity-id]').forEach(card => {
+                const open = () => window.openActivityForScoring(card.dataset.activityId);
+                card.addEventListener('click', open);
+                card.addEventListener('keydown', event => {
+                    if (event.target === card && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); open(); }
+                });
+            });
+        }
+
+        window.filterSavedActivities = function() {
+            const records = filterSavedActivityRecords(savedActivitiesData, {
+                query: document.getElementById('savedActivitySearch').value,
+                status: document.getElementById('savedStatusFilter').value,
+                term: document.getElementById('savedTermFilter').value
+            });
+            renderSavedActivities(records);
+        };
+
+        window.loadSavedActivities = async function() {
+            const grid = document.getElementById('savedActivitiesGrid');
+            grid.innerHTML = '<div class="saved-empty"><div class="spin-ring" style="margin:0 auto 10px;"></div><strong>Loading saved activities</strong><span>Preparing grading progress.</span></div>';
+            try {
+                const [activityResult, scoreResult, enrollmentResult] = await Promise.all([
+                    selectAllRows('activities', 'id,subjectCode,section,term,category,title,date,perfectScore'),
+                    selectAllRows('scores', 'activityId,studentNo'),
+                    selectAllRows('enrollments', 'studentNo,section,subjectCode')
+                ]);
+
+                const rosterByClass = new Map();
+                enrollmentResult.forEach(enrollment => {
+                    const key = activityClassKey(enrollment.section, enrollment.subjectCode);
+                    if (!rosterByClass.has(key)) rosterByClass.set(key, new Set());
+                    rosterByClass.get(key).add(String(enrollment.studentNo || '').trim());
+                });
+                const scoresByActivity = new Map();
+                scoreResult.forEach(score => {
+                    const key = String(score.activityId);
+                    if (!scoresByActivity.has(key)) scoresByActivity.set(key, new Set());
+                    scoresByActivity.get(key).add(String(score.studentNo || '').trim());
+                });
+
+                savedActivitiesData = activityResult.map(activity => {
+                    const totalStudents = rosterByClass.get(activityClassKey(activity.section, activity.subjectCode))?.size || 0;
+                    const gradedStudents = scoresByActivity.get(String(activity.id))?.size || 0;
+                    const progress = getActivityProgress(totalStudents, gradedStudents);
+                    return { ...activity, totalStudents: progress.total, gradedCount: progress.graded, progressPercent: progress.percent, progressStatus: progress.status };
+                }).sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || String(a.title || '').localeCompare(String(b.title || '')));
+                window.filterSavedActivities();
+            } catch(error) {
+                console.error(error);
+                grid.innerHTML = '<div class="saved-empty"><i class="ph-bold ph-warning-circle"></i><strong>Saved activities could not be loaded</strong><span>Use the refresh button to try again.</span></div>';
+                document.getElementById('savedActivityCount').textContent = 'Unavailable';
+            }
+        };
 
         // 2. Manual Entry Logic
         function getActivityFormData() {
@@ -529,18 +797,47 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             document.getElementById('loadRosterBtn').innerHTML = isEditing
                 ? '<i class="ph-bold ph-floppy-disk"></i> Update Activity Setup'
                 : '<i class="ph-bold ph-floppy-disk"></i> Save & Initialize Activity';
+            document.getElementById('setupPanelTitle').textContent = isEditing ? 'Edit Activity Setup' : 'Create a New Activity';
         }
 
         function updateScoreProgress() {
             const inputs = [...document.querySelectorAll('.stud-score')];
             const graded = inputs.filter(input => input.value.trim() !== '').length;
             document.getElementById('scoreProgress').textContent = `${graded} of ${inputs.length} graded`;
+            document.getElementById('scoreSaveSummary').textContent = `${graded} of ${inputs.length} students graded`;
+        }
+
+        window.filterScoreRoster = function() {
+            const query = document.getElementById('scoreRosterSearch').value.trim().toLowerCase();
+            const rows = [...document.querySelectorAll('.student-score-row')];
+            let visible = 0;
+            rows.forEach(row => {
+                const matchesSearch = !query || row.dataset.search.includes(query);
+                const matchesStatus = scoreRosterFilter === 'all' || row.dataset.scoreStatus === scoreRosterFilter;
+                const show = matchesSearch && matchesStatus;
+                row.classList.toggle('hidden', !show);
+                if (show) visible++;
+            });
+            document.getElementById('rosterResultCount').textContent = `${visible} student${visible === 1 ? '' : 's'} shown`;
+        };
+
+        window.setScoreFilter = function(filter, button) {
+            scoreRosterFilter = filter;
+            document.querySelectorAll('.score-filter-btn').forEach(item => item.classList.toggle('active', item === button));
+            window.filterScoreRoster();
+        };
+
+        window.scrollToSavedActivities = function() {
+            document.getElementById('savedActivitiesPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         async function loadActivityRoster(activity) {
             const tbody = document.getElementById('roster-body');
             tbody.innerHTML = '<tr><td colspan="3">Loading student roster...</td></tr>';
             document.getElementById('roster-container').style.display = 'block';
+            document.getElementById('scoreRosterSearch').value = '';
+            scoreRosterFilter = 'all';
+            document.querySelectorAll('.score-filter-btn').forEach(item => item.classList.toggle('active', item.dataset.scoreFilter === 'all'));
 
             const [enrollmentResult, scoreResult] = await Promise.all([
                 supabase.from('enrollments').select('id,studentNo,studentName').eq('section', activity.section).eq('subjectCode', activity.subjectCode),
@@ -560,9 +857,11 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             } else {
                 tbody.innerHTML = uniqueStudents.map(student => {
                     const studentNo = String(student.studentNo).trim();
+                    const studentName = String(student.studentName || '').toUpperCase();
                     const saved = existingActivityScores.get(studentNo);
                     const value = saved && saved.score !== null && saved.score !== undefined ? escapeHtml(saved.score) : '';
-                    return `<tr><td>${escapeHtml(studentNo)}</td><td>${escapeHtml(String(student.studentName || '').toUpperCase())}</td><td><div style="display:flex;align-items:center;"><input type="number" class="score-input stud-score" data-sno="${escapeHtml(studentNo)}" min="0" max="${activity.perfectScore}" step="any" value="${value}" placeholder="Not graded"><span class="score-divider">/ ${escapeHtml(activity.perfectScore)}</span></div></td></tr>`;
+                    const status = value === '' ? 'ungraded' : 'graded';
+                    return `<tr class="student-score-row ${status}" data-search="${escapeHtml(`${studentNo} ${studentName}`.toLowerCase())}" data-score-status="${status}"><td class="student-no-cell">${escapeHtml(studentNo)}</td><td class="student-name-cell"><span class="student-name-main">${escapeHtml(studentName)}</span><span class="student-number-mobile">${escapeHtml(studentNo)}</span></td><td class="score-cell"><div class="score-entry-box"><input type="number" inputmode="decimal" class="score-input stud-score" data-sno="${escapeHtml(studentNo)}" min="0" max="${activity.perfectScore}" step="any" value="${value}" placeholder="—" aria-label="Score for ${escapeHtml(studentName)}"><span class="score-divider">/ ${escapeHtml(activity.perfectScore)}</span></div></td></tr>`;
                 }).join('');
                 document.getElementById('saveScoreBtn').disabled = false;
             }
@@ -573,6 +872,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             document.getElementById('activityStatusTitle').textContent = `Activity ready: ${activity.title}`;
             document.getElementById('activityStatusText').textContent = 'The setup is saved. Scores are optional and may be completed over multiple sessions.';
             updateScoreProgress();
+            window.filterScoreRoster();
         }
 
         document.getElementById('activityForm').addEventListener('submit', async (e) => {
@@ -604,7 +904,9 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                 }
                 setupSaved = true;
                 await loadActivityRoster(activeActivity);
+                document.getElementById('activitySetupPanel').open = false;
                 window.loadActivities();
+                window.loadSavedActivities();
                 window.showToast(savedAsNew
                     ? 'Activity initialized. You can enter scores now or later.'
                     : 'Activity setup updated. Existing scores were preserved.');
@@ -620,7 +922,24 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             }
         });
 
-        document.getElementById('roster-body').addEventListener('input', updateScoreProgress);
+        document.getElementById('roster-body').addEventListener('input', event => {
+            if (!event.target.matches('.stud-score')) return;
+            const row = event.target.closest('.student-score-row');
+            const isGraded = event.target.value.trim() !== '';
+            row.dataset.scoreStatus = isGraded ? 'graded' : 'ungraded';
+            row.classList.toggle('graded', isGraded);
+            row.classList.toggle('ungraded', !isGraded);
+            updateScoreProgress();
+        });
+
+        document.getElementById('roster-body').addEventListener('keydown', event => {
+            if (event.key !== 'Enter' || !event.target.matches('.stud-score')) return;
+            event.preventDefault();
+            const visibleInputs = [...document.querySelectorAll('.student-score-row:not(.hidden) .stud-score')];
+            const nextInput = visibleInputs[visibleInputs.indexOf(event.target) + 1];
+            if (nextInput) { nextInput.focus(); nextInput.select(); }
+            else document.getElementById('saveScoreBtn').focus();
+        });
 
         document.getElementById('scoreForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -643,13 +962,14 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                 const ungraded = inputs.length - changes.gradedCount;
                 window.showToast(`Scores saved. ${changes.gradedCount} graded, ${ungraded} still ungraded.`);
                 window.loadActivities();
+                window.loadSavedActivities();
             } catch(error) {
                 console.error(error);
                 if (error.message.startsWith('INVALID_SCORES:')) window.showToast(`Check scores for: ${error.message.split(':').slice(1).join(':')}`, 'error');
                 else if (scoreWritesCompleted) window.showToast('Scores were saved, but the roster could not be refreshed. Reopen the activity to continue.', 'error');
                 else window.showToast('Failed to save scores. No activity setup was lost.', 'error');
             }
-            btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Save Scores & Continue Later'; btn.disabled = false;
+            btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Save Scores'; btn.disabled = false;
         });
 
         window.startNewActivity = function() {
@@ -660,6 +980,9 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             document.getElementById('roster-body').innerHTML = '';
             existingActivityScores = new Map();
             setManualMode(null);
+            document.getElementById('activitySetupPanel').open = true;
+            window.filterSavedActivities();
+            document.getElementById('activitySetupPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
             document.getElementById('subCode').focus();
         };
 
@@ -1103,6 +1426,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                         if(totalSaved > 0) {
                             window.showToast(`Upload complete! ${totalSaved} activit${totalSaved===1?'y':'ies'} saved.`);
                             window.loadActivities();
+                            window.loadSavedActivities();
                         } else {
                             window.showToast("No new activities saved.", "error");
                         }
@@ -1183,7 +1507,8 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
         window.openActivityForScoring = async function(id) {
             try {
-                let activity = allActivitiesData.find(item => String(item.id) === String(id));
+                await Promise.all([sectionsReady, subjectsReady]);
+                let activity = savedActivitiesData.find(item => String(item.id) === String(id)) || allActivitiesData.find(item => String(item.id) === String(id));
                 if (!activity) {
                     const { data, error } = await supabase.from('activities').select('id,subjectCode,section,term,category,title,date,perfectScore').eq('id', id).single();
                     if (error) throw error;
@@ -1198,9 +1523,11 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                 document.getElementById('perfectScore').value = activity.perfectScore;
                 document.getElementById('aDate').value = activity.date ? String(activity.date).split('T')[0] : '';
                 setManualMode(activity);
+                document.getElementById('activitySetupPanel').open = false;
                 window.toggleTab('act-manual', document.getElementById('manualTabBtn'));
+                window.filterSavedActivities();
                 await loadActivityRoster(activity);
-                document.getElementById('activityForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                document.getElementById('roster-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
             } catch(error) {
                 console.error(error);
                 window.showToast('Could not open this activity for editing.', 'error');
@@ -1244,6 +1571,8 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                     await deleteActivityAndScores(id);
                     window.showToast("Activity Deleted!");
                     window.loadActivities();
+                    window.loadSavedActivities();
+                    if (String(activeActivityId) === String(id)) window.startNewActivity();
                     window.closeModal();
                 } catch(e) { console.error(e); window.showToast("Delete failed", "error"); }
                 finally { btn.innerText = originalText; btn.disabled = false; }
@@ -1269,6 +1598,8 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                     await Promise.all(promises);
                     window.showToast(`Deleted ${selected.length} activities successfully!`);
                     window.loadActivities();
+                    window.loadSavedActivities();
+                    if ([...selected].some(box => String(box.getAttribute('data-id')) === String(activeActivityId))) window.startNewActivity();
                     window.closeModal();
                     document.getElementById('selectAll').checked = false;
                 } catch(e) { console.error(e); window.showToast("Bulk delete failed partially or fully.", "error"); }
@@ -1285,6 +1616,8 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
         window.confirmAction = function() { if(pendingAction) pendingAction(); }
         window.closeModal = function() { document.getElementById('customModal').classList.remove('open'); pendingAction = null; }
+
+        window.loadSavedActivities();
 
         const themeToggleBtn = document.getElementById('themeToggle'); const themeIcon = document.getElementById('themeIcon'); const body = document.body;
         if (localStorage.getItem('theme') === 'dark') { body.classList.add('dark-theme'); themeIcon.className = 'ph-fill ph-moon'; } else { themeIcon.className = 'ph-fill ph-sun'; }

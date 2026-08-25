@@ -50,3 +50,25 @@ export function planActivityScoreChanges(entries, existingScores, perfectScore) 
 
     return changes;
 }
+
+export function getActivityProgress(totalStudents, gradedStudents) {
+    const total = Math.max(0, Number(totalStudents) || 0);
+    const graded = Math.max(0, Math.min(total, Number(gradedStudents) || 0));
+    if (total === 0) return { total, graded: 0, percent: 0, status: 'empty' };
+    if (graded === 0) return { total, graded, percent: 0, status: 'not-started' };
+    if (graded >= total) return { total, graded: total, percent: 100, status: 'complete' };
+    return { total, graded, percent: Math.round((graded / total) * 100), status: 'in-progress' };
+}
+
+export function filterSavedActivityRecords(records, filters = {}) {
+    const query = String(filters.query || '').trim().toLowerCase();
+    const status = String(filters.status || 'all');
+    const term = String(filters.term || 'all');
+
+    return records.filter(record => {
+        const searchText = [record.title, record.subjectCode, record.section].map(value => String(value || '').toLowerCase()).join(' ');
+        return (!query || searchText.includes(query))
+            && (status === 'all' || record.progressStatus === status)
+            && (term === 'all' || record.term === term);
+    });
+}
