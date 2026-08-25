@@ -208,8 +208,8 @@
         @media (max-width: 1024px) { body { flex-direction: column; } .sidebar { width: 100%; height: auto; flex-direction: row; padding: 20px; justify-content: space-between; align-items: center; z-index: 100; border-right: none; border-bottom: 1px solid var(--glass-border); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable;} .nav-menu { display: none; } .form-grid { grid-template-columns: 1fr; } .form-group.full, .form-section-title { grid-column: span 1; } .search-wrapper { width: 100%; order: 2; } .table-controls-wrapper { flex-direction: column; align-items: flex-start; } .btn-bulk-delete { width: 100%; order: 1; justify-content: center; } .act-def-row { grid-template-columns: 1fr 1fr; } .template-builder { padding-left: 0; } .saved-activity-tools { grid-template-columns: minmax(200px,1fr) 160px 150px auto; } }
         @media (max-width: 700px) {
             .card { padding: 16px; border-radius: 20px; overflow: visible; }
-            .tab-controls { width: 100%; overflow-x: auto; margin-bottom: 18px; }
-            .tab-btn { flex: 0 0 auto; padding: 10px 14px; }
+            .tab-controls { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); width: 100%; overflow: visible; gap: 3px; margin-bottom: 18px; }
+            .tab-btn { min-width: 0; min-height: 44px; padding: 8px 6px; font-size: 10.5px; line-height: 1.2; white-space: normal; }
             .saved-activities-panel { padding: 17px 14px; margin-inline: -2px; }
             .workspace-heading { align-items: center; }
             .workspace-heading h2 { font-size: 16px; }
@@ -282,7 +282,8 @@
 body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,165,250,.34), rgba(96,165,250,0) 68%);}
 
 </style>
-<link rel="stylesheet" href="./plv-responsive.css">
+<link rel="stylesheet" href="./plv-responsive.css?v=20260825nav1">
+<script src="./plv-navigation.v1.js" defer></script>
 </head>
 <body>
     <div class="ambient-mesh"><div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div></div>

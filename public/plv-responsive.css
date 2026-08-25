@@ -19,6 +19,9 @@ table{max-width:100%;border-collapse:separate}
 .header-actions>.icon-btn{margin:0!important;flex:0 0 auto}
 .header h1,.page-title h1,.main-wrapper h1{font-size:clamp(24px,5vw,38px);line-height:1.12}
 .header p,.page-title p{font-size:clamp(13px,2.8vw,16px);line-height:1.55}
+.sidebar .nav-item a{transition:background-color .22s ease,color .22s ease,transform .22s ease,box-shadow .22s ease!important}
+.sidebar .nav-item a:focus-visible,.mobile-nav-bar a:focus-visible{outline:3px solid color-mix(in srgb,var(--accent-primary,#2563eb) 38%,transparent)!important;outline-offset:2px!important}
+@media (hover:hover){.sidebar .nav-item a:hover{transform:translateX(3px)}}
 
 /* Shared performance layer: retain the glass look without continuously repainting the page. */
 .ambient-mesh .blob{animation:none!important;filter:blur(96px)!important;will-change:auto!important;transform:translate3d(0,0,0)}
@@ -66,11 +69,19 @@ table{max-width:100%;border-collapse:separate}
 }
 
 @media (max-width:760px){
-  body:has(.mobile-nav-bar) .main-wrapper,body:has(.mobile-nav-bar) .main-content,body:has(.mobile-nav-bar) .content{padding-bottom:calc(96px + env(safe-area-inset-bottom))!important}
+  body:has(.mobile-nav-bar) .main-wrapper,body:has(.mobile-nav-bar) .main-content,body:has(.mobile-nav-bar) .content{padding-bottom:calc(104px + env(safe-area-inset-bottom))!important}
   body:has(.mobile-nav-bar) .sidebar .nav-menu{display:none!important}
-  body:has(.mobile-nav-bar) .mobile-nav-bar{display:block!important;box-shadow:0 -18px 50px rgba(15,23,42,.12)}
-  .mobile-nav-bar ul{gap:4px!important;padding:6px 8px!important}
-  .mobile-nav-bar a{min-width:58px!important;border-radius:16px!important}
+  body:has(.mobile-nav-bar) .mobile-nav-bar{display:block!important;position:fixed!important;inset:auto 0 0!important;z-index:1200!important;padding:5px 0 max(7px,env(safe-area-inset-bottom))!important;border-top:1px solid var(--glass-border,rgba(148,163,184,.22))!important;background:rgba(248,250,252,.94)!important;backdrop-filter:blur(22px)!important;-webkit-backdrop-filter:blur(22px)!important;box-shadow:0 -14px 38px rgba(15,23,42,.14)!important;isolation:isolate}
+  body.dark-theme:has(.mobile-nav-bar) .mobile-nav-bar,.dark-theme .mobile-nav-bar{background:rgba(4,9,20,.94)!important;border-top-color:rgba(255,255,255,.08)!important}
+  .mobile-nav-bar ul{display:flex!important;align-items:stretch!important;justify-content:flex-start!important;gap:4px!important;width:100%!important;max-width:100%!important;margin:0!important;padding:2px 10px!important;overflow-x:auto!important;overflow-y:hidden!important;list-style:none!important;scrollbar-width:none!important;-ms-overflow-style:none!important;-webkit-overflow-scrolling:touch!important;overscroll-behavior-x:contain!important;scroll-behavior:smooth!important;scroll-snap-type:x proximity!important;touch-action:pan-x!important}
+  .mobile-nav-bar ul::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+  .mobile-nav-bar ul>li{flex:0 0 72px!important;width:72px!important;min-width:72px!important;max-width:72px!important;margin:0!important;padding:0!important;scroll-snap-align:center!important}
+  .mobile-nav-bar ul>li>a{position:relative!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:4px!important;width:100%!important;min-width:0!important;min-height:60px!important;margin:0!important;padding:7px 5px 8px!important;border:1px solid transparent!important;border-radius:16px!important;background:transparent!important;color:var(--text-muted,#64748b)!important;text-decoration:none!important;text-align:center!important;font-size:9px!important;font-weight:800!important;line-height:1.05!important;letter-spacing:.15px!important;text-transform:uppercase!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;box-shadow:none!important;transition:background-color .2s ease,color .2s ease,border-color .2s ease,transform .2s ease,box-shadow .2s ease!important;-webkit-tap-highlight-color:transparent!important;touch-action:manipulation!important}
+  .mobile-nav-bar ul>li>a i{display:block!important;flex:0 0 auto!important;font-size:23px!important;line-height:1!important;transition:transform .2s ease!important}
+  .mobile-nav-bar ul>li>a:hover{color:var(--accent-primary,#2563eb)!important;background:var(--accent-light,rgba(37,99,235,.08))!important}
+  .mobile-nav-bar ul>li>a.active,.mobile-nav-bar ul>li>a[aria-current="page"]{color:var(--accent-primary,#2563eb)!important;background:var(--accent-light,rgba(37,99,235,.1))!important;border-color:color-mix(in srgb,var(--accent-primary,#2563eb) 16%,transparent)!important;box-shadow:0 6px 16px color-mix(in srgb,var(--accent-primary,#2563eb) 13%,transparent)!important;transform:translateY(-2px)!important}
+  .mobile-nav-bar ul>li>a.active i,.mobile-nav-bar ul>li>a[aria-current="page"] i{transform:scale(1.08)!important}
+  .mobile-nav-bar ul>li>a.active::after,.mobile-nav-bar ul>li>a[aria-current="page"]::after{content:"";position:absolute;left:50%;bottom:3px;width:4px;height:4px;border-radius:50%;background:currentColor;transform:translateX(-50%)}
   .header h1,.page-title h1{font-size:clamp(23px,7vw,30px)!important}
   .header{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:start!important;column-gap:12px!important;row-gap:10px!important;width:100%!important}
   .header-actions{align-self:start!important;gap:8px!important;margin-left:0!important}
@@ -79,6 +90,12 @@ table{max-width:100%;border-collapse:separate}
   .panel,.card{padding:18px!important}
   .table-wrap,.table-container,.records-table-wrap{margin-inline:-6px;padding-inline:6px}
   .btn{justify-content:center}
+}
+
+@media (max-width:370px){
+  .mobile-nav-bar ul{padding-inline:7px!important}
+  .mobile-nav-bar ul>li{flex-basis:68px!important;width:68px!important;min-width:68px!important;max-width:68px!important}
+  .mobile-nav-bar ul>li>a{font-size:8.5px!important;padding-inline:3px!important}
 }
 
 @media (max-width:520px){
