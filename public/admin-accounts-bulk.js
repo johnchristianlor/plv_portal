@@ -1,3 +1,5 @@
+import { normalizeStudentName } from './student-name.js';
+
 export function normalizeLookupValue(value) {
     return String(value ?? '')
         .normalize('NFKC')
@@ -67,7 +69,7 @@ export function prepareBulkUploadRows(rawRows, referenceIndex) {
 
         return {
             Student_No: String(firstValue(normalizedRow, 'student_no', 'studentno', 'student_id', 'studentid')).trim(),
-            Full_Name: String(firstValue(normalizedRow, 'full_name', 'fullname', 'student_name', 'studentname', 'name')).trim(),
+            Full_Name: normalizeStudentName(firstValue(normalizedRow, 'full_name', 'fullname', 'student_name', 'studentname', 'name')),
             Email: String(firstValue(normalizedRow, 'email', 'email_address', 'emailaddress')).trim(),
             Course_Year: String(firstValue(normalizedRow, 'course_year', 'courseyear', 'course_and_year', 'course')).trim(),
             Section: String(firstValue(normalizedRow, 'section', 'section_name', 'sectionname')).trim(),

@@ -237,7 +237,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                     </div>
                     <div class="hero-user-details">
                         <p class="greeting">Welcome back,</p>
-                        <h1 id="sName">Loading...</h1>
+                        <h1 id="sName" style="text-transform:uppercase;">Loading...</h1>
                         <div class="hero-tags"><span class="hero-tag" id="sCourse">...</span><span class="hero-tag" id="sSec">...</span></div>
                     </div>
                 </div>
@@ -330,6 +330,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
     import { startStudentSessionGuard } from "./student-session.js";
     import { resolveAvatarElement, uploadStudentAvatarBlob, defaultAvatarFor } from "./avatar-utils.js";
     import { getGlobalSettings, getRecentAnnouncements, getRecentDeadlines, getStudentEnrollments, getSubject } from "./student-data.js";
+    import { normalizeStudentName } from "./student-name.js";
 
     const user = JSON.parse(localStorage.getItem('loggedInUser'));
     if (!user || user.role !== 'student') window.location.href = 'index.html';
@@ -574,7 +575,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             window.showToast(error.message || 'Failed to prepare avatar crop.', 'error');
         }
     });
-    document.getElementById('sName').textContent = user.fullName;
+    document.getElementById('sName').textContent = normalizeStudentName(user.fullName || user.name || user.studentName || user.studentNo || 'Student');
     document.getElementById('sCourse').textContent = user.courseYear;
     document.getElementById('sSec').textContent = user.section;
 
@@ -616,7 +617,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             if (!data) return;
             Object.assign(user, Object.fromEntries(Object.entries(data).filter(([, value]) => value !== null && value !== undefined && value !== '')));
             localStorage.setItem('loggedInUser', JSON.stringify(user));
-            document.getElementById('sName').textContent = user.fullName || user.name || user.studentName || user.studentNo || 'Student';
+            document.getElementById('sName').textContent = normalizeStudentName(user.fullName || user.name || user.studentName || user.studentNo || 'Student');
             document.getElementById('sCourse').textContent = user.courseYear || '-';
             document.getElementById('sSec').textContent = user.section || '-';
             resolveAvatarElement(document.getElementById('avatarImg'), user.avatarUrl, { user, supabase, fallbackUrl: defaultAvatar });

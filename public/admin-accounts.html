@@ -389,7 +389,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 <div class="form-grid">
                     <div class="form-section-title"><i class="ph-bold ph-identification-card"></i> Student Information</div>
                     <div class="form-group"><label class="form-label">Student Number</label><input type="text" id="sNo" class="form-control" placeholder="e.g. 2021-00123" required></div>
-                    <div class="form-group"><label class="form-label">Full Name</label><input type="text" id="sName" class="form-control" placeholder="DELA CRUZ, JUAN A." required></div>
+                    <div class="form-group"><label class="form-label">Full Name</label><input type="text" id="sName" class="form-control" placeholder="DELA CRUZ, JUAN A." oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase;" required></div>
                     <div class="form-group"><label class="form-label">Email Address</label><input type="email" id="sEmail" class="form-control" placeholder="student@plv.edu.ph" required></div>
                     <div class="form-group"><label class="form-label">Password</label><input type="text" id="sPass" class="form-control" placeholder="Initial password" required></div>
                     <div class="form-group"><label class="form-label">Course &amp; Year</label><input type="text" id="sCourse" class="form-control" placeholder="e.g. BSIT 3rd Year" required></div>
@@ -490,7 +490,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             <div class="form-grid">
                 <div class="form-section-title"><i class="ph-bold ph-user-gear"></i> Personal Details</div>
                 <div class="form-group"><label class="form-label">Student No.</label><input type="text" id="editSno" class="form-control" required></div>
-                <div class="form-group"><label class="form-label">Full Name</label><input type="text" id="editName" class="form-control" required></div>
+                <div class="form-group"><label class="form-label">Full Name</label><input type="text" id="editName" class="form-control" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase;" required></div>
                 <div class="form-group"><label class="form-label">Course &amp; Year</label><input type="text" id="editCourse" class="form-control" required></div>
                 <div class="form-group">
                     <label class="form-label">Section</label>
@@ -558,6 +558,7 @@ import { supabase } from "./supabase-adapter.js";
 import { startAdminSessionGuard } from "./admin-session.js";
 import { avatarStaticUrl, resolveAvatarElement, defaultAvatarFor } from "./avatar-utils.js";
 import { loadVendor } from "./vendor-loader.v1.js";
+import { normalizeStudentName } from "./student-name.js";
 import {
     createBulkReferenceIndex,
     findSchedule,
@@ -1231,7 +1232,7 @@ window.openEditModal=async(studentNo,enrollId,currentSubCode)=>{
         const ed=enrollDoc||{};
 
         document.getElementById('editSno').value=ud.studentNo||studentNo;
-        document.getElementById('editName').value=ud.fullName||'';
+        document.getElementById('editName').value=normalizeStudentName(ud.fullName||'');
         document.getElementById('editCourse').value=ud.courseYear||'';
 
         // Populate selects with current values
@@ -1277,7 +1278,7 @@ document.getElementById('editForm').addEventListener('submit',async e=>{
     const oldEnrollId=document.getElementById('editOriginalEnrollId').value;
     const oldSubCode=document.getElementById('editOriginalSubCode').value;
     const newSno=document.getElementById('editSno').value.trim();
-    const newName=document.getElementById('editName').value.trim();
+    const newName=normalizeStudentName(document.getElementById('editName').value);
     const newCourse=document.getElementById('editCourse').value.trim();
     const newSec=document.getElementById('editSec').value;
     const newPass=document.getElementById('editPass').value.trim();
@@ -1339,7 +1340,7 @@ document.getElementById('createAccountForm').addEventListener('submit',async e=>
         const sec=document.getElementById('sSec').value;
         const schedInfo=getSchedule(subCode,sec);
         const sched=schedInfo?schedInfo.full:(document.getElementById('subSched').value.trim());
-        const studentName=document.getElementById('sName').value.trim();
+        const studentName=normalizeStudentName(document.getElementById('sName').value);
         await saveUserByStudentNo({
             studentNo:sNo,
             username:sNo,
@@ -1407,6 +1408,7 @@ window.downloadSmartTemplate=async()=>{
         ['Purpose','Create student accounts and enroll each student in a subject.'],
         ['How to use','Enter records in the Student Upload sheet beginning on row 2. Use one row per student and subject.'],
         ['Required','Student_No, Full_Name, Course_Year, Section, and Subject_Code.'],
+        ['Name format','Full_Name is automatically converted to UPPERCASE during upload.'],
         ['Optional','Email may be blank. Password may be blank and will default to PLV12345.'],
         ['Matching rule','Section and Subject_Code are matched without regard to letter case or extra spaces, then saved using the official database names.'],
         ['Schedules','Schedule is fetched automatically from Manage Schedules using the matched Section + Subject_Code.'],
@@ -1417,7 +1419,7 @@ window.downloadSmartTemplate=async()=>{
     const wsInstructions=XLSX.utils.aoa_to_sheet(instructionData);
     wsInstructions['!merges']=[{s:{r:0,c:0},e:{r:0,c:1}}];
     wsInstructions['!cols']=[{wch:20},{wch:105}];
-    wsInstructions['!rows']=[{hpt:32},...Array(9).fill({hpt:30})];
+    wsInstructions['!rows']=[{hpt:32},...Array(instructionData.length-1).fill({hpt:30})];
     wsInstructions.A1.s={fill:{fgColor:{rgb:'003DA5'}},font:{bold:true,color:{rgb:'FFD700'},sz:16},alignment:{horizontal:'center',vertical:'center'}};
     for(let row=1;row<instructionData.length;row++){
         wsInstructions[`A${row+1}`].s={fill:{fgColor:{rgb:'EAF1FB'}},font:{bold:true,color:{rgb:'003DA5'}},alignment:{vertical:'top'}};

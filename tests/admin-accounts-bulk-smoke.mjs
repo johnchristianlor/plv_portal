@@ -61,6 +61,7 @@ const prepared = prepareBulkUploadRows([
 
 assert.equal(prepared.length, 3, 'every populated spreadsheet row should be retained');
 assert.deepEqual(prepared.map(row => row.Student_No), ['2021-00001', '2021-00002', '2021-00003']);
+assert.equal(prepared[0].Full_Name, 'STUDENT ONE', 'uploaded names should be stored in uppercase');
 assert.equal(prepared[0].Section, 'BLOCK A', 'uploaded section should use the canonical database name');
 assert.equal(prepared[0].Subject_Code, 'IT312', 'uploaded subject should use the canonical database code');
 assert.equal(prepared[0].Schedule, '8:00 AM - 10:00 AM | LAB 2');
@@ -133,5 +134,11 @@ assert.equal(
 const accountsPage = fs.readFileSync(new URL('../public/admin-accounts.html', import.meta.url), 'utf8');
 assert.match(accountsPage, /username:r\.Student_No/, 'bulk-created accounts must receive a distinct username');
 assert.match(accountsPage, /if\(!insertPayload\.email\)insertPayload\.email=null/, 'blank emails must be stored as null instead of one repeated empty value');
+assert.match(accountsPage, /const studentName=normalizeStudentName\(/, 'manually created student names must be stored uppercase');
+assert.match(accountsPage, /const newName=normalizeStudentName\(/, 'edited student names must be stored uppercase');
+
+const dashboardPage = fs.readFileSync(new URL('../public/student-dashboard.html', import.meta.url), 'utf8');
+assert.match(dashboardPage, /import \{ normalizeStudentName \} from "\.\/student-name\.js"/, 'dashboard must use the shared uppercase name formatter');
+assert.match(dashboardPage, /normalizeStudentName\(user\.fullName/, 'dashboard names must render uppercase for existing accounts');
 
 console.log('admin account bulk upload smoke checks passed');
