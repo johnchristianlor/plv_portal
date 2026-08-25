@@ -133,3 +133,10 @@ export function uniqueBy(items, keyForItem) {
     items.forEach(item => unique.set(keyForItem(item), item));
     return [...unique.values()];
 }
+
+export function updateBulkUploadCount(root, count) {
+    const countElement = root?.getElementById?.('commitCount');
+    if (!countElement) return false;
+    countElement.textContent = String(count);
+    return true;
+}

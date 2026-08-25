@@ -565,7 +565,8 @@ import {
     prepareBulkUploadRows,
     runWithConcurrency,
     scheduleLookupKey,
-    uniqueBy
+    uniqueBy,
+    updateBulkUploadCount
 } from "./admin-accounts-bulk.js";
 const _u=JSON.parse(localStorage.getItem('loggedInUser'));
 if(!_u||_u.role!=='admin')location.href='index.html';
@@ -1445,7 +1446,7 @@ function processUploadData(rawRows){
 function renderUploadPreview(rows){
     const okCount=rows.filter(r=>r._ok).length;
     const warnCount=rows.length-okCount;
-    document.getElementById('commitCount').textContent=rows.length;
+    updateBulkUploadCount(document,rows.length);
     document.getElementById('btnCommitUpload').style.display='inline-flex';
     document.getElementById('btnClearPreview').style.display='inline-flex';
 
@@ -1501,7 +1502,7 @@ window.commitUpload=async()=>{
     btn.disabled=true;
 
     try{
-        btn.innerHTML=`<span class="spin" style="width:14px;height:14px;"></span> Saving ${uniqueStudents.length} students...`;
+        btn.innerHTML=`<span class="spin" style="width:14px;height:14px;"></span> Saving ${uniqueStudents.length} students... <span id="commitCount" hidden>${originalRows.length}</span>`;
         const userResults=await runWithConcurrency(uniqueStudents,5,async r=>saveUserByStudentNo({
             studentNo:r.Student_No,fullName:r.Full_Name,email:r.Email,
             password:r.Password||'PLV12345',courseYear:r.Course_Year,
@@ -1512,7 +1513,7 @@ window.commitUpload=async()=>{
         });
 
         const enrollmentRows=uniqueEnrollments.filter(r=>!studentErrors.has(normalizeLookupValue(r.Student_No)));
-        btn.innerHTML=`<span class="spin" style="width:14px;height:14px;"></span> Saving ${enrollmentRows.length} enrollments...`;
+        btn.innerHTML=`<span class="spin" style="width:14px;height:14px;"></span> Saving ${enrollmentRows.length} enrollments... <span id="commitCount" hidden>${originalRows.length}</span>`;
         const enrollmentResults=await runWithConcurrency(enrollmentRows,5,r=>saveEnrollment({
             studentNo:r.Student_No,subjectCode:r.Subject_Code,studentName:r.Full_Name,
             section:r.Section,schedule:r.Schedule,midtermGrade:null,finalTermGrade:null
@@ -1553,8 +1554,7 @@ window.commitUpload=async()=>{
     }finally{
         btn.innerHTML='<i class="ph-bold ph-cloud-arrow-up"></i> Upload <span id="commitCount">0</span> Rows to Database';
         btn.disabled=false;
-        const count=document.getElementById('commitCount');
-        if(count)count.textContent=pendingUploadRows.length;
+        updateBulkUploadCount(document,pendingUploadRows.length);
     }
 };
 

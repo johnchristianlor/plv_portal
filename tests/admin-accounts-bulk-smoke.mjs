@@ -5,7 +5,8 @@ import {
     prepareBulkUploadRows,
     runWithConcurrency,
     scheduleLookupKey,
-    uniqueBy
+    uniqueBy,
+    updateBulkUploadCount
 } from '../public/admin-accounts-bulk.js';
 
 const subjects = [
@@ -74,5 +75,14 @@ const results = await runWithConcurrency(prepared, 2, async row => {
 });
 assert.equal(started.length, 3, 'a failed row must not prevent later rows from being processed');
 assert.deepEqual(results.map(result => result.status), ['fulfilled', 'rejected', 'fulfilled']);
+
+assert.equal(
+    updateBulkUploadCount({ getElementById: () => null }, 3),
+    false,
+    'a temporarily missing upload counter must not crash partial-failure rendering'
+);
+const fakeCount = { textContent: '' };
+assert.equal(updateBulkUploadCount({ getElementById: () => fakeCount }, 3), true);
+assert.equal(fakeCount.textContent, '3');
 
 console.log('admin account bulk upload smoke checks passed');
