@@ -66,23 +66,30 @@ export function prepareBulkUploadRows(rawRows, referenceIndex) {
         });
 
         return {
-            Student_No: String(firstValue(normalizedRow, 'student_no', 'studentno')).trim(),
-            Full_Name: String(firstValue(normalizedRow, 'full_name', 'fullname')).trim(),
-            Email: String(firstValue(normalizedRow, 'email')).trim(),
-            Course_Year: String(firstValue(normalizedRow, 'course_year', 'courseyear')).trim(),
+            Student_No: String(firstValue(normalizedRow, 'student_no', 'studentno', 'student_id', 'studentid')).trim(),
+            Full_Name: String(firstValue(normalizedRow, 'full_name', 'fullname', 'student_name', 'studentname', 'name')).trim(),
+            Email: String(firstValue(normalizedRow, 'email', 'email_address', 'emailaddress')).trim(),
+            Course_Year: String(firstValue(normalizedRow, 'course_year', 'courseyear', 'course_and_year', 'course')).trim(),
             Section: String(firstValue(normalizedRow, 'section', 'section_name', 'sectionname')).trim(),
-            Subject_Code: String(firstValue(normalizedRow, 'subject_code', 'subjectcode')).trim(),
-            Password: String(firstValue(normalizedRow, 'password') || 'PLV12345').trim(),
+            Subject_Code: String(firstValue(normalizedRow, 'subject_code', 'subjectcode', 'subject')).trim(),
+            Password: String(firstValue(normalizedRow, 'password', 'temporary_password', 'temp_password') || 'PLV12345').trim(),
             _sourceRow: index + 2
         };
-    }).filter(row => row.Student_No && row.Subject_Code).map(row => {
+    }).filter(row => [row.Student_No,row.Full_Name,row.Email,row.Course_Year,row.Section,row.Subject_Code].some(Boolean)).map(row => {
         const subject = findSubject(referenceIndex, row.Subject_Code);
         const section = findSection(referenceIndex, row.Section);
         const canonicalSubjectCode = String(subject?.subjectCode || row.Subject_Code).trim();
         const canonicalSectionName = String(section?.sectionName || row.Section).trim();
         const schedule = findSchedule(referenceIndex, canonicalSubjectCode, canonicalSectionName);
         const warnings = [];
+        const validationErrors = [];
 
+        if (!row.Student_No) validationErrors.push('Student number is required');
+        if (!row.Full_Name) validationErrors.push('Full name is required');
+        if (!row.Course_Year) validationErrors.push('Course and year are required');
+        if (!row.Section) validationErrors.push('Section is required');
+        if (!row.Subject_Code) validationErrors.push('Subject code is required');
+        if (row.Email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.Email)) validationErrors.push('Email format is invalid');
         if (!subject) warnings.push('Unknown subject');
         if (!section) warnings.push('Unknown section');
         if (!schedule) warnings.push('No schedule');
@@ -102,10 +109,77 @@ export function prepareBulkUploadRows(rawRows, referenceIndex) {
             _subOk: !!subject,
             _secOk: !!section,
             _schedOk: !!schedule,
-            _warns: warnings,
-            _ok: !!subject && !!section
+            _warns: [...validationErrors, ...warnings],
+            _validationErrors: validationErrors,
+            _ok: !validationErrors.length && !!subject && !!section
         };
     });
+}
+
+export function validateBulkUploadRows(rows) {
+    const errorsByRow = new Map();
+    const studentProfiles = new Map();
+    const emailOwners = new Map();
+
+    function addError(row, message) {
+        const messages = errorsByRow.get(row) || [];
+        if (!messages.includes(message)) messages.push(message);
+        errorsByRow.set(row, messages);
+    }
+
+    (rows || []).forEach(row => {
+        (row._validationErrors || []).forEach(message => addError(row, message));
+        if (!row._subOk) addError(row, 'Subject code does not exist');
+        if (!row._secOk) addError(row, 'Section does not exist');
+
+        const studentKey = normalizeLookupValue(row.Student_No);
+        if (studentKey) {
+            const profile = [row.Full_Name,row.Email,row.Course_Year,row.Section].map(normalizeLookupValue).join('::');
+            const existingProfile = studentProfiles.get(studentKey);
+            if (existingProfile && existingProfile.profile !== profile) {
+                addError(existingProfile.row, 'Student details conflict across rows');
+                addError(row, 'Student details conflict across rows');
+            } else if (!existingProfile) {
+                studentProfiles.set(studentKey,{profile,row});
+            }
+        }
+
+        const emailKey = normalizeLookupValue(row.Email);
+        if (emailKey) {
+            const owner = emailOwners.get(emailKey);
+            if (owner && owner.studentKey !== studentKey) {
+                addError(owner.row, 'Email is assigned to more than one student');
+                addError(row, 'Email is assigned to more than one student');
+            } else if (!owner) {
+                emailOwners.set(emailKey,{studentKey,row});
+            }
+        }
+    });
+
+    return (rows || []).map(row => {
+        const validationErrors = errorsByRow.get(row) || [];
+        return {
+            ...row,
+            _validationErrors: validationErrors,
+            _warns: [...validationErrors,...(row._warns || []).filter(message=>!validationErrors.includes(message))],
+            _ok: validationErrors.length === 0
+        };
+    });
+}
+
+export function friendlyBulkUploadError(error) {
+    const code = String(error?.code || '');
+    const message = String(error?.message || error || 'Database rejected this row');
+    const lowered = message.toLowerCase();
+    if (code === '23505' || lowered.includes('duplicate key') || lowered.includes('unique constraint')) {
+        if (lowered.includes('email')) return 'Email is already assigned to another account';
+        if (lowered.includes('username')) return 'Username is already assigned to another account';
+        if (lowered.includes('student')) return 'Student number already exists with conflicting data';
+        return 'A unique account value is already in use';
+    }
+    if (code === '23502' || lowered.includes('not-null')) return 'A required database field is missing';
+    if (code === '42501' || lowered.includes('row-level security')) return 'The admin session is not allowed to save this row';
+    return message;
 }
 
 export async function runWithConcurrency(items, limit, worker) {

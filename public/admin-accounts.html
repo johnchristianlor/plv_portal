@@ -433,7 +433,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 <div class="col-list">
                     <span class="col-tag col-req"><i class="ph-bold ph-asterisk" style="font-size:9px;"></i> Student_No</span>
                     <span class="col-tag col-req"><i class="ph-bold ph-asterisk" style="font-size:9px;"></i> Full_Name</span>
-                    <span class="col-tag col-req"><i class="ph-bold ph-asterisk" style="font-size:9px;"></i> Email</span>
+                    <span class="col-tag col-auto"><i class="ph-bold ph-circle" style="font-size:9px;"></i> Email (optional)</span>
                     <span class="col-tag col-req"><i class="ph-bold ph-asterisk" style="font-size:9px;"></i> Course_Year</span>
                     <span class="col-tag col-req"><i class="ph-bold ph-asterisk" style="font-size:9px;"></i> Section</span>
                     <span class="col-tag col-req"><i class="ph-bold ph-asterisk" style="font-size:9px;"></i> Subject_Code</span>
@@ -561,12 +561,14 @@ import { loadVendor } from "./vendor-loader.v1.js";
 import {
     createBulkReferenceIndex,
     findSchedule,
+    friendlyBulkUploadError,
     normalizeLookupValue,
     prepareBulkUploadRows,
     runWithConcurrency,
     scheduleLookupKey,
     uniqueBy,
-    updateBulkUploadCount
+    updateBulkUploadCount,
+    validateBulkUploadRows
 } from "./admin-accounts-bulk.js";
 const _u=JSON.parse(localStorage.getItem('loggedInUser'));
 if(!_u||_u.role!=='admin')location.href='index.html';
@@ -628,7 +630,10 @@ async function deleteWhere(table, builder) {
 async function saveUserByStudentNo(row) {
     const existing = await fetchOne('users', q => q.eq('studentNo', row.studentNo));
     if (existing && existing.id) { await updateById('users', existing.id, row); return { ...existing, ...row }; }
-    return insertRow('users', row);
+    const insertPayload={...row};
+    if(!insertPayload.username&&insertPayload.studentNo)insertPayload.username=insertPayload.studentNo;
+    if(!insertPayload.email)insertPayload.email=null;
+    return insertRow('users', insertPayload);
 }
 async function saveEnrollment(row) {
     const existing = await fetchOne('enrollments', q => q.eq('studentNo', row.studentNo).eq('subjectCode', row.subjectCode));
@@ -1337,6 +1342,7 @@ document.getElementById('createAccountForm').addEventListener('submit',async e=>
         const studentName=document.getElementById('sName').value.trim();
         await saveUserByStudentNo({
             studentNo:sNo,
+            username:sNo,
             fullName:studentName,
             email:document.getElementById('sEmail').value.trim(),
             password:document.getElementById('sPass').value.trim(),
@@ -1362,25 +1368,87 @@ document.getElementById('createAccountForm').addEventListener('submit',async e=>
 
 // ===================== SMART EXCEL TEMPLATE =====================
 window.downloadSmartTemplate=async()=>{
-    try{await loadVendor('xlsx');}catch(error){window.showToast('Excel tools could not be loaded.','err');return;}
+    try{await loadVendor('xlsx');}catch(error){
+        const fallback=document.createElement('a');
+        fallback.href='./outputs/student-accounts/PLV_Student_Accounts_Bulk_Upload.xlsx';
+        fallback.download='PLV_Student_Accounts_Bulk_Upload.xlsx';
+        fallback.click();
+        window.showToast('Downloaded the verified bulk-upload template.');
+        return;
+    }
     const wb=XLSX.utils.book_new();
 
-    // Sheet 1: Data Entry
-    const headers=['Student_No','Full_Name','Email','Course_Year','Section','Subject_Code','Password',
-        'Subject_Name (auto-filled)','Prof_Name (auto-filled)','Schedule (auto-filled)','Year_Level (auto-filled)'];
-    const sample=['2021-00001','DELA CRUZ, JUAN A.','juan@plv.edu.ph','BSIT 3rd Year','BLOCK A','IT312','PLV12345','','','',''];
-    const wsData=[headers,sample];
-    const ws=XLSX.utils.aoa_to_sheet(wsData);
-    ws['!cols']=[{wch:14},{wch:28},{wch:24},{wch:16},{wch:14},{wch:14},{wch:12},{wch:28},{wch:22},{wch:26},{wch:14}];
-    ws['!freeze']={xSplit:0,ySplit:1};
-    XLSX.utils.book_append_sheet(wb,ws,'Students (Fill Here)');
+    wb.Props={
+        Title:'PLV Student Accounts Bulk Upload',
+        Subject:'Validated student account and enrollment import template',
+        Author:'Pamantasan ng Lungsod ng Valenzuela',
+        Company:'Pamantasan ng Lungsod ng Valenzuela',
+        Comments:'Use the Student Upload sheet only for import data.'
+    };
+    const headerStyle={
+        fill:{fgColor:{rgb:'003DA5'}},
+        font:{bold:true,color:{rgb:'FFFFFF'}},
+        alignment:{horizontal:'center',vertical:'center',wrapText:true},
+        border:{bottom:{style:'medium',color:{rgb:'FFD700'}}}
+    };
+    const formatHeader=(sheet,columnCount)=>{
+        for(let column=0;column<columnCount;column++){
+            const cell=sheet[XLSX.utils.encode_cell({r:0,c:column})];
+            if(cell)cell.s=headerStyle;
+        }
+        sheet['!freeze']={xSplit:0,ySplit:1};
+        sheet['!autofilter']={ref:`A1:${XLSX.utils.encode_col(columnCount-1)}1`};
+        sheet['!rows']=[{hpt:30}];
+    };
 
-    // Sheet 2: Ref - Sections
+    // Sheet 1: Instructions
+    const instructionData=[
+        ['PLV STUDENT ACCOUNTS — BULK UPLOAD TEMPLATE'],
+        ['Purpose','Create student accounts and enroll each student in a subject.'],
+        ['How to use','Enter records in the Student Upload sheet beginning on row 2. Use one row per student and subject.'],
+        ['Required','Student_No, Full_Name, Course_Year, Section, and Subject_Code.'],
+        ['Optional','Email may be blank. Password may be blank and will default to PLV12345.'],
+        ['Matching rule','Section and Subject_Code are matched without regard to letter case or extra spaces, then saved using the official database names.'],
+        ['Schedules','Schedule is fetched automatically from Manage Schedules using the matched Section + Subject_Code.'],
+        ['Multiple subjects','Repeat the same student details on another row and change Subject_Code.'],
+        ['Important','Do not rename the Student Upload sheet or its column headers. Do not paste the Example row into the upload sheet unless replacing its sample values.'],
+        ['Before upload','Review Ref - Sections, Ref - Subjects, and Ref - Schedules for valid current values.']
+    ];
+    const wsInstructions=XLSX.utils.aoa_to_sheet(instructionData);
+    wsInstructions['!merges']=[{s:{r:0,c:0},e:{r:0,c:1}}];
+    wsInstructions['!cols']=[{wch:20},{wch:105}];
+    wsInstructions['!rows']=[{hpt:32},...Array(9).fill({hpt:30})];
+    wsInstructions.A1.s={fill:{fgColor:{rgb:'003DA5'}},font:{bold:true,color:{rgb:'FFD700'},sz:16},alignment:{horizontal:'center',vertical:'center'}};
+    for(let row=1;row<instructionData.length;row++){
+        wsInstructions[`A${row+1}`].s={fill:{fgColor:{rgb:'EAF1FB'}},font:{bold:true,color:{rgb:'003DA5'}},alignment:{vertical:'top'}};
+        wsInstructions[`B${row+1}`].s={alignment:{vertical:'top',wrapText:true}};
+    }
+    XLSX.utils.book_append_sheet(wb,wsInstructions,'Instructions');
+
+    // Sheet 2: Clean data entry. Keeping row 1 as headers makes Excel and CSV imports consistent.
+    const headers=['Student_No','Full_Name','Email','Course_Year','Section','Subject_Code','Password'];
+    const wsData=[headers];
+    const ws=XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols']=[{wch:18},{wch:32},{wch:30},{wch:22},{wch:20},{wch:18},{wch:18}];
+    formatHeader(ws,headers.length);
+    ['A','G'].forEach(column=>{for(let row=2;row<=500;row++)ws[`${column}${row}`]={t:'s',v:'',z:'@'};});
+    ws['!ref']='A1:G500';
+    XLSX.utils.book_append_sheet(wb,ws,'Student Upload');
+
+    // Sheet 3: Example is deliberately separate so sample data is never uploaded accidentally.
+    const exampleData=[headers,['2021-00001','DELA CRUZ, JUAN A.','juan@plv.edu.ph','BSIT 3rd Year','BLOCK A','IT312','PLV12345']];
+    const wsExample=XLSX.utils.aoa_to_sheet(exampleData);
+    wsExample['!cols']=ws['!cols'];
+    formatHeader(wsExample,headers.length);
+    XLSX.utils.book_append_sheet(wb,wsExample,'Example');
+
+    // Live reference sheets
     const secData=[['Section_Name','Year_Level'],...Object.values(sectionsMap)
         .sort((a,b)=>(a.sectionName||'').localeCompare(b.sectionName||''))
         .map(s=>[s.sectionName,s.yearLevel||''])];
     const wsS=XLSX.utils.aoa_to_sheet(secData);
     wsS['!cols']=[{wch:18},{wch:14}];
+    formatHeader(wsS,2);
     XLSX.utils.book_append_sheet(wb,wsS,'Ref - Sections');
 
     // Sheet 3: Ref - Subjects
@@ -1389,6 +1457,7 @@ window.downloadSmartTemplate=async()=>{
         .map(s=>[s.subjectCode,s.subjectName||'',s.profName||''])];
     const wsSub=XLSX.utils.aoa_to_sheet(subData);
     wsSub['!cols']=[{wch:14},{wch:34},{wch:24}];
+    formatHeader(wsSub,3);
     XLSX.utils.book_append_sheet(wb,wsSub,'Ref - Subjects');
 
     // Sheet 4: Ref - Schedules
@@ -1397,10 +1466,11 @@ window.downloadSmartTemplate=async()=>{
         .map(s=>[s.subjectCode,s.section,s.time||'',s.room||'',`${s.time||''}${s.time&&s.room?' | ':''}${s.room||''}`])];
     const wsSched=XLSX.utils.aoa_to_sheet(schedData);
     wsSched['!cols']=[{wch:14},{wch:14},{wch:22},{wch:14},{wch:30}];
+    formatHeader(wsSched,5);
     XLSX.utils.book_append_sheet(wb,wsSched,'Ref - Schedules');
 
-    XLSX.writeFile(wb,'PLV_SmartTemplate_'+new Date().toISOString().slice(0,10)+'.xlsx');
-    window.showToast('Smart template downloaded! Use the Reference sheets to find valid values.');
+    XLSX.writeFile(wb,'PLV_Student_Accounts_Bulk_Upload_'+new Date().toISOString().slice(0,10)+'.xlsx',{cellStyles:true});
+    window.showToast('Professional bulk-upload template downloaded with current database references.');
 };
 
 // ===================== BULK UPLOAD: parse =====================
@@ -1427,7 +1497,8 @@ window.triggerUpload=()=>{
                 await loadVendor('xlsx');
                 const buf=await file.arrayBuffer();
                 const wb=XLSX.read(buf);
-                rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
+                const uploadSheetName=wb.SheetNames.find(name=>/^(student upload|students?\s*\(fill here\))$/i.test(name.trim()))||wb.SheetNames[0];
+                rows=XLSX.utils.sheet_to_json(wb.Sheets[uploadSheetName],{defval:''});
             }
             processUploadData(rows);
         }catch(err){console.error(err);window.showToast('Error reading file.','err');}
@@ -1437,7 +1508,7 @@ window.triggerUpload=()=>{
 
 function processUploadData(rawRows){
     if(!rawRows.length){window.showToast('File is empty.','err');return;}
-    const enriched=prepareBulkUploadRows(rawRows,bulkReferenceIndex);
+    const enriched=validateBulkUploadRows(prepareBulkUploadRows(rawRows,bulkReferenceIndex));
     if(!enriched.length){window.showToast('No valid rows found. Ensure Student_No and Subject_Code columns exist.','err');return;}
     pendingUploadRows=enriched;
     renderUploadPreview(enriched);
@@ -1447,11 +1518,14 @@ function renderUploadPreview(rows){
     const okCount=rows.filter(r=>r._ok).length;
     const warnCount=rows.length-okCount;
     updateBulkUploadCount(document,rows.length);
-    document.getElementById('btnCommitUpload').style.display='inline-flex';
+    const commitButton=document.getElementById('btnCommitUpload');
+    commitButton.style.display='inline-flex';
+    commitButton.disabled=warnCount>0;
+    commitButton.title=warnCount?`Fix ${warnCount} invalid rows before uploading.`:'';
     document.getElementById('btnClearPreview').style.display='inline-flex';
 
     const previewRows=rows.slice(0,30).map(r=>{
-        const rowCls=r._ok?'':'style="background:var(--warn-bg);"';
+        const rowCls=r._ok&&!r._commitError?'':'style="background:var(--warn-bg);"';
         const check=(ok)=>ok?'<span style="color:var(--success);font-weight:800;">✓</span>':'<span style="color:var(--warn);font-weight:800;">⚠</span>';
         const statusHtml=r._commitError
             ?`<span style="color:var(--danger);font-size:11px;">Row ${r._sourceRow}: ${escapeHtml(r._commitError)}</span>`
@@ -1494,6 +1568,12 @@ window.clearPreview=()=>{
 // ===================== COMMIT UPLOAD =====================
 window.commitUpload=async()=>{
     if(!pendingUploadRows.length)return;
+    const invalidRows=pendingUploadRows.filter(r=>!r._ok);
+    if(invalidRows.length){
+        renderUploadPreview(pendingUploadRows);
+        window.showToast(`Fix ${invalidRows.length} invalid rows shown in the preview before uploading.`,'err');
+        return;
+    }
     const btn=document.getElementById('btnCommitUpload');
     const originalRows=[...pendingUploadRows];
     const uniqueStudents=uniqueBy(originalRows,r=>normalizeLookupValue(r.Student_No));
@@ -1504,7 +1584,7 @@ window.commitUpload=async()=>{
     try{
         btn.innerHTML=`<span class="spin" style="width:14px;height:14px;"></span> Saving ${uniqueStudents.length} students... <span id="commitCount" hidden>${originalRows.length}</span>`;
         const userResults=await runWithConcurrency(uniqueStudents,5,async r=>saveUserByStudentNo({
-            studentNo:r.Student_No,fullName:r.Full_Name,email:r.Email,
+            studentNo:r.Student_No,username:r.Student_No,fullName:r.Full_Name,email:r.Email||undefined,
             password:r.Password||'PLV12345',courseYear:r.Course_Year,
             section:r.Section,role:'student',status:'Active',isFirstLogin:true
         }));
@@ -1533,7 +1613,7 @@ window.commitUpload=async()=>{
             const error=studentError||enrollmentError;
             if(!error)return[];
             console.error('Bulk upload row error',r.Student_No,r.Subject_Code,error);
-            return[{...r,_commitError:error?.message||String(error)}];
+            return[{...r,_commitError:friendlyBulkUploadError(error)}];
         });
         const savedEnrollments=uniqueEnrollments.length-enrollmentErrors.size-
             uniqueEnrollments.filter(r=>studentErrors.has(normalizeLookupValue(r.Student_No))).length;
@@ -1543,7 +1623,8 @@ window.commitUpload=async()=>{
         if(failedRows.length){
             pendingUploadRows=failedRows;
             renderUploadPreview(failedRows);
-            window.showToast(`Saved ${savedStudents} students and ${savedEnrollments} enrollments. ${failedRows.length} rows need attention.`,'err');
+            const firstError=failedRows[0]._commitError;
+            window.showToast(`Saved ${savedStudents} students and ${savedEnrollments} enrollments. ${failedRows.length} rows need attention: ${firstError}`,'err');
         }else{
             window.clearPreview();
             window.showToast(`Saved ${savedStudents} students and ${savedEnrollments} enrollments!`);

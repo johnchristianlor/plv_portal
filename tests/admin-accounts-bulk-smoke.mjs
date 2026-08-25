@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
     createBulkReferenceIndex,
     findSchedule,
+    friendlyBulkUploadError,
     prepareBulkUploadRows,
     runWithConcurrency,
     scheduleLookupKey,
     uniqueBy,
-    updateBulkUploadCount
+    updateBulkUploadCount,
+    validateBulkUploadRows
 } from '../public/admin-accounts-bulk.js';
 
 const subjects = [
@@ -64,6 +67,42 @@ assert.equal(prepared[0].Schedule, '8:00 AM - 10:00 AM | LAB 2');
 assert.equal(prepared[0]._ok, true);
 assert.equal(prepared[1].Schedule, '1:00 PM - 3:00 PM | ROOM 4');
 
+const aliasPrepared = prepareBulkUploadRows([{
+    'Student ID': '2021-00004',
+    'Student Name': 'Student Four',
+    'Email Address': 'four@example.test',
+    'Course and Year': 'BSIT 3rd Year',
+    'Section Name': 'BLOCK A',
+    'Subject': 'IT312',
+    'Temporary Password': 'PLV12345'
+}], references);
+assert.equal(aliasPrepared[0].Student_No, '2021-00004');
+assert.equal(aliasPrepared[0].Email, 'four@example.test');
+
+const validatedDuplicates = validateBulkUploadRows(prepareBulkUploadRows([
+    { Student_No: '2021-00005', Full_Name: 'Student Five', Email: 'shared@example.test', Course_Year: 'BSIT 3rd Year', Section: 'BLOCK A', Subject_Code: 'IT312' },
+    { Student_No: '2021-00006', Full_Name: 'Student Six', Email: 'shared@example.test', Course_Year: 'BSIT 3rd Year', Section: 'BLOCK A', Subject_Code: 'IT312' }
+], references));
+assert.equal(validatedDuplicates.every(row => !row._ok), true, 'duplicate emails must be caught before any database writes');
+assert.match(validatedDuplicates[0]._validationErrors.join(' '), /more than one student/);
+assert.equal(friendlyBulkUploadError({ code: '23505', message: 'duplicate key violates unique constraint users_email_key' }), 'Email is already assigned to another account');
+
+const fortySevenRows = validateBulkUploadRows(prepareBulkUploadRows(
+    Array.from({ length: 47 }, (_, index) => ({
+        'Student ID': `2026-${String(index + 1).padStart(5, '0')}`,
+        'Student Name': `Student ${index + 1}`,
+        'Email Address': '',
+        'Course and Year': 'BSIT 3rd Year',
+        'Section Name': 'BLOCK A',
+        'Subject': 'IT312',
+        'Temporary Password': 'PLV12345'
+    })),
+    references
+));
+assert.equal(fortySevenRows.length, 47, 'all 47 spreadsheet rows must survive parsing');
+assert.equal(fortySevenRows.every(row => row._ok), true, 'blank optional emails must not reject otherwise valid students');
+assert.equal(uniqueBy(fortySevenRows, row => row.Student_No).length, 47, 'all 47 distinct student accounts must be retained');
+
 const duplicateStudents = uniqueBy([...prepared, { ...prepared[0], Subject_Code: 'IT313' }], row => row.Student_No);
 assert.equal(duplicateStudents.length, 3, 'one student account should be saved once even with multiple enrollment rows');
 
@@ -84,5 +123,15 @@ assert.equal(
 const fakeCount = { textContent: '' };
 assert.equal(updateBulkUploadCount({ getElementById: () => fakeCount }, 3), true);
 assert.equal(fakeCount.textContent, '3');
+
+assert.equal(
+    fs.existsSync(new URL('../public/outputs/student-accounts/PLV_Student_Accounts_Bulk_Upload.xlsx', import.meta.url)),
+    true,
+    'the verified professional Excel template must ship with the portal'
+);
+
+const accountsPage = fs.readFileSync(new URL('../public/admin-accounts.html', import.meta.url), 'utf8');
+assert.match(accountsPage, /username:r\.Student_No/, 'bulk-created accounts must receive a distinct username');
+assert.match(accountsPage, /if\(!insertPayload\.email\)insertPayload\.email=null/, 'blank emails must be stored as null instead of one repeated empty value');
 
 console.log('admin account bulk upload smoke checks passed');
