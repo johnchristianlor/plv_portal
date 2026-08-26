@@ -149,6 +149,10 @@
             .filter-control { flex:1; }
             .select-filter { width:100%; min-width:0; }
             .record-action { width:40px; padding:0; }
+            .bento-grid>.stat-card { min-height:154px !important; padding:18px 14px !important; flex-direction:column !important; justify-content:center !important; align-items:center !important; gap:12px !important; text-align:center; }
+            .bento-grid>.stat-card .stat-copy { width:100%; flex:0 0 auto; align-items:center; text-align:center; }
+            .bento-grid>.stat-card .stat-label,.bento-grid>.stat-card .stat-value { width:100%; text-align:center; }
+            .bento-grid>.stat-card .att-progress { width:min(100%,88px); margin:5px auto 0; }
             .history-legend { display:none; }
             .records-table-shell { margin:16px 14px 20px; overflow:hidden; border:1px solid var(--input-border); border-radius:16px; background:var(--input-bg); box-shadow:0 12px 28px rgba(15,23,42,.07); }
             .attendance-records-table { display:table; width:100%; table-layout:fixed; }
@@ -172,6 +176,8 @@
             .toast { left:16px; right:16px; bottom:86px; }
         }
         @media (max-width:520px) {
+            .bento-grid>.stat-card { min-height:140px !important; padding:16px 12px !important; gap:10px !important; }
+            .bento-grid>.stat-card .stat-icon { width:44px !important; height:44px !important; }
             .records-table-shell { margin:12px 10px 18px; border-radius:14px; }
             .attendance-records-table th { padding:11px 8px; font-size:8px; letter-spacing:.7px; }
             .attendance-records-table th:first-child { width:42%; }
@@ -186,6 +192,8 @@
             .status-badge i { font-size:12px; }
         }
         @media (max-width:360px) {
+            .bento-grid>.stat-card { min-height:126px !important; padding:13px 10px !important; gap:8px !important; }
+            .bento-grid>.stat-card .stat-icon { width:40px !important; height:40px !important; }
             .records-table-shell { margin-inline:8px; }
             .attendance-records-table th { padding:10px 6px; font-size:7.5px; letter-spacing:.55px; }
             .attendance-records-table th:first-child { width:43%; }
