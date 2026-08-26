@@ -60,7 +60,7 @@
         .stat-rate .stat-value { color:var(--accent-primary); }
         /* Card */
         .card { padding:32px; display:flex; flex-direction:column; position:relative; overflow:hidden; }
-        /* Attendance spreadsheet */
+        /* Attendance history */
         .records-card { min-width:0; padding:0; overflow:hidden; border-radius:28px; }
         .records-header { padding:28px 30px 22px; display:flex; justify-content:space-between; align-items:flex-end; gap:20px; border-bottom:1px solid var(--input-border); background:linear-gradient(135deg,rgba(0,61,165,.075),rgba(255,255,255,.24)); }
         .dark-theme .records-header { background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(255,255,255,.015)); }
@@ -77,53 +77,42 @@
         .record-action:hover { background:var(--accent-light); transform:translateY(-1px); }
         .refresh-records .ph-spin { animation:recordSpin .7s linear infinite; }
         @keyframes recordSpin { to { transform:rotate(360deg); } }
-        .matrix-legend { display:flex; gap:8px; flex-wrap:wrap; padding:16px 30px; align-items:center; border-bottom:1px solid var(--input-border); }
+        .history-legend { display:flex; gap:8px; flex-wrap:wrap; padding:16px 30px; align-items:center; border-bottom:1px solid var(--input-border); }
         .legend-title { color:var(--text-muted); font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1.1px; margin-right:2px; }
         .ml-item { display:inline-flex; align-items:center; gap:7px; padding:6px 10px 6px 7px; border:1px solid var(--input-border); border-radius:999px; background:rgba(255,255,255,.34); color:var(--text-muted); font-size:11px; font-weight:700; }
         .dark-theme .ml-item { background:rgba(255,255,255,.025); }
         .ml-dot { width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; }
-        .legend-empty { margin-left:auto; }
-        .matrix-wrap { width:calc(100% - 36px); margin:18px; overflow:auto; border-radius:16px; border:1px solid var(--input-border); max-height:clamp(520px,62vh,720px); background:var(--input-bg); box-shadow:0 10px 30px rgba(15,23,42,.045); scrollbar-width:thin; scrollbar-color:rgba(0,61,165,.35) transparent; }
-        .matrix-wrap::-webkit-scrollbar { width:10px; height:10px; }
-        .matrix-wrap::-webkit-scrollbar-thumb { background:rgba(0,61,165,.25); border:3px solid transparent; background-clip:padding-box; border-radius:99px; }
-        .matrix-table { width:100%; border-collapse:separate; border-spacing:0; font-size:12px; }
-        .matrix-table th { height:70px; padding:10px 14px; background:#063b8f; color:#fff; border-right:1px solid rgba(255,255,255,.12); border-bottom:1px solid rgba(255,255,255,.14); white-space:nowrap; position:sticky; top:0; z-index:5; text-align:center; }
-        .matrix-table th.session-heading { min-width:90px; }
-        .date-primary { display:block; font-size:13px; font-weight:800; letter-spacing:-.1px; }
-        .date-secondary { display:block; margin-top:4px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.9px; color:rgba(255,255,255,.65); }
-        .matrix-table th.mth-subject { position:sticky; left:0; z-index:10; min-width:230px; text-align:left; background:#052b68; }
-        .matrix-table th.mth-rate { position:sticky; right:0; z-index:10; min-width:110px; background:#052b68; }
-        .matrix-table tbody tr:nth-child(even) td:not(.mtd-subject):not(.mtd-rate) { background-color:rgba(100,116,139,.035); }
-        .matrix-table tbody tr:hover td { box-shadow:inset 0 0 0 999px rgba(0,61,165,.035); }
-        .matrix-table td { height:66px; border-right:1px solid var(--input-border); border-bottom:1px solid var(--input-border); background-color:var(--input-bg); }
-        .matrix-table tbody tr:last-child td { border-bottom:0; }
-        .mtd-subject { position:sticky; left:0; z-index:4; min-width:230px; padding:12px 16px; font-weight:800; background:#fff !important; box-shadow:5px 0 14px -13px rgba(15,23,42,.7); }
-        .subject-cell { display:flex; align-items:center; gap:10px; white-space:nowrap; }
-        .subject-cell i { width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:9px; background:var(--accent-light); color:var(--accent-primary); font-size:15px; }
-        .subject-details { display:flex; min-width:0; flex-direction:column; gap:3px; }
-        .subject-code { font-size:13px; color:var(--text-main); overflow:hidden; text-overflow:ellipsis; }
-        .subject-meta { color:var(--text-muted); font-size:10px; font-weight:700; }
-        .mtd-rate { position:sticky; right:0; z-index:4; min-width:110px; padding:8px 12px; text-align:center; background:#fff !important; box-shadow:-5px 0 14px -13px rgba(15,23,42,.7); }
-        .dark-theme .mtd-subject,.dark-theme .mtd-rate { background:#101827 !important; }
-        .rate-chip { display:inline-flex; align-items:center; justify-content:center; min-width:64px; padding:8px 10px; border-radius:10px; font-size:12px; font-weight:800; background:var(--accent-light); }
-        .mtd-cell { min-width:90px; padding:8px; text-align:center; vertical-align:middle; }
-        .status-mark { width:52px; height:38px; margin:auto; border-radius:11px; display:flex; align-items:center; justify-content:center; gap:5px; font-size:16px; border:1px solid transparent; }
-        .status-letter { font-size:10px; font-weight:900; }
-        .mc-P .status-mark, .ml-dot.mc-P { background:var(--success-bg); color:var(--success); border-color:rgba(16,185,129,.16); }
-        .mc-A .status-mark, .ml-dot.mc-A { background:var(--danger-bg); color:var(--danger); border-color:rgba(225,29,72,.15); }
-        .mc-L .status-mark, .ml-dot.mc-L { background:var(--warning-bg); color:var(--warning); border-color:rgba(245,158,11,.17); }
-        .mc-E .status-mark, .ml-dot.mc-E { background:var(--accent-light); color:var(--accent-primary); border-color:rgba(0,61,165,.13); }
-        .mc-empty { color:var(--text-muted); }
-        .mc-empty .status-mark { color:rgba(100,116,139,.45); font-size:14px; }
-        .matrix-footer { padding:0 30px 23px; display:flex; align-items:center; justify-content:space-between; gap:16px; color:var(--text-muted); font-size:11px; font-weight:700; }
-        .matrix-footer span { display:flex; align-items:center; gap:7px; }
-        .matrix-footer i { color:var(--accent-primary); font-size:15px; }
-        .sheet-empty { padding:52px 24px !important; text-align:center; color:var(--text-muted); }
-        .sheet-empty i { display:block; font-size:28px; margin-bottom:8px; color:var(--accent-primary); }
-        body.matrix-focus { overflow:hidden; }
-        body.matrix-focus .records-card { position:fixed; inset:18px; z-index:1000; border-radius:24px; display:flex; height:calc(100vh - 36px); background:var(--bg-body); }
-        body.matrix-focus .matrix-wrap { flex:1; min-height:0; max-height:none; }
-        body.matrix-focus .focus-records { background:var(--accent-primary); color:#fff; border-color:var(--accent-primary); }
+        .ml-dot.status-P,.status-badge.status-P { background:var(--success-bg); color:var(--success); border-color:rgba(16,185,129,.2); }
+        .ml-dot.status-A,.status-badge.status-A { background:var(--danger-bg); color:var(--danger); border-color:rgba(225,29,72,.18); }
+        .ml-dot.status-L,.status-badge.status-L { background:var(--warning-bg); color:var(--warning); border-color:rgba(245,158,11,.2); }
+        .ml-dot.status-E,.status-badge.status-E { background:var(--accent-light); color:var(--accent-primary); border-color:rgba(0,61,165,.16); }
+        .status-badge.status-pending { background:rgba(100,116,139,.09); color:var(--text-muted); border-color:var(--input-border); }
+        .attendance-history { padding:24px 30px 30px; display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr)); align-items:start; gap:18px; }
+        .subject-history-card { min-width:0; padding:20px; border:1px solid var(--input-border); border-radius:20px; background:var(--input-bg); box-shadow:0 12px 30px rgba(15,23,42,.045); }
+        .subject-history-head { display:flex; align-items:center; justify-content:space-between; gap:16px; padding-bottom:16px; border-bottom:1px solid var(--input-border); }
+        .subject-history-title { min-width:0; display:flex; align-items:center; gap:11px; }
+        .subject-history-icon { width:40px; height:40px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; border-radius:12px; background:var(--accent-light); color:var(--accent-primary); font-size:19px; }
+        .subject-history-copy { min-width:0; }
+        .subject-history-copy h4 { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:15px; font-weight:800; letter-spacing:-.2px; }
+        .subject-history-copy p { margin-top:4px; color:var(--text-muted); font-size:10px; font-weight:700; }
+        .subject-rate { flex:0 0 auto; min-width:68px; padding:8px 10px; border-radius:12px; background:var(--accent-light); text-align:center; }
+        .subject-rate strong { display:block; font-size:16px; font-weight:900; line-height:1; }
+        .subject-rate span { display:block; margin-top:4px; color:var(--text-muted); font-size:8px; font-weight:800; text-transform:uppercase; letter-spacing:.7px; }
+        .session-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:10px; padding-top:16px; }
+        .session-record { min-width:0; min-height:64px; padding:10px 11px; display:flex; align-items:center; justify-content:space-between; gap:10px; border:1px solid var(--input-border); border-radius:14px; background:rgba(255,255,255,.42); }
+        .dark-theme .session-record { background:rgba(255,255,255,.025); }
+        .session-date { min-width:0; display:flex; align-items:center; gap:9px; }
+        .session-date > i { width:30px; height:30px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; border-radius:9px; background:var(--accent-light); color:var(--accent-primary); font-size:14px; }
+        .session-date-copy { min-width:0; }
+        .session-date-copy time { display:block; color:var(--text-main); font-size:12px; font-weight:800; white-space:nowrap; }
+        .session-date-copy span { display:block; margin-top:3px; color:var(--text-muted); font-size:9px; font-weight:700; }
+        .status-badge { min-width:78px; padding:7px 9px; display:inline-flex; align-items:center; justify-content:center; gap:5px; border:1px solid transparent; border-radius:999px; font-size:10px; font-weight:800; white-space:nowrap; }
+        .status-badge i { font-size:13px; }
+        .history-footer { padding:0 30px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; color:var(--text-muted); font-size:11px; font-weight:700; }
+        .history-footer span { display:flex; align-items:center; gap:7px; }
+        .history-footer i { color:var(--accent-primary); font-size:15px; }
+        .history-empty { grid-column:1/-1; padding:52px 24px; text-align:center; color:var(--text-muted); }
+        .history-empty i { display:block; font-size:30px; margin-bottom:9px; color:var(--accent-primary); }
         /* Progress bar */
         .att-progress { width:100%; height:10px; border-radius:100px; background:rgba(0,0,0,0.06); overflow:hidden; margin-top:8px; }
         .att-progress-inner { height:100%; border-radius:100px; transition:width 1s ease; }
@@ -157,7 +146,8 @@
         .toast { position:fixed; bottom:32px; right:32px; background:var(--success); color:#fff; padding:14px 20px; border-radius:12px; font-weight:700; box-shadow:0 12px 24px rgba(16,185,129,0.25); transform:translateX(150%); transition:transform 0.3s ease; z-index:1000; }
         .toast.show { transform:translateX(0); }
         .toast.error { background:var(--danger); }
-        @media (max-width:768px) { .qr-scan-layout { grid-template-columns:1fr; } .records-header { padding:22px 20px 18px; align-items:stretch; flex-direction:column; } .records-tools { width:100%; } .filter-control { flex:1; } .select-filter { width:100%; min-width:0; } .record-action-label { display:none; } .record-action { width:40px; padding:0; } .matrix-legend { padding:12px 20px; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; } .matrix-legend::-webkit-scrollbar { display:none; } .matrix-legend>* { flex:0 0 auto; } .legend-empty { margin-left:0; } .matrix-wrap { width:calc(100% - 24px); margin:12px; max-height:62vh; } .matrix-table th.session-heading,.mtd-cell { min-width:82px; } .matrix-table th.mth-subject,.mtd-subject { min-width:168px; } .matrix-table th.mth-rate,.mtd-rate { min-width:88px; } .subject-cell { gap:8px; } .subject-cell i { display:none; } .matrix-footer { padding:2px 20px 20px; align-items:flex-start; flex-direction:column; gap:7px; } body.matrix-focus .records-card { inset:6px; height:calc(100vh - 12px); border-radius:18px; } body.matrix-focus .records-description,body.matrix-focus .matrix-legend { display:none; } .toast { left:16px; right:16px; bottom:86px; } }
+        @media (max-width:768px) { .qr-scan-layout { grid-template-columns:1fr; } .records-header { padding:22px 20px 18px; align-items:stretch; flex-direction:column; } .records-tools { width:100%; } .filter-control { flex:1; } .select-filter { width:100%; min-width:0; } .record-action { width:40px; padding:0; } .history-legend { padding:12px 20px; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; } .history-legend::-webkit-scrollbar { display:none; } .history-legend>* { flex:0 0 auto; } .attendance-history { padding:16px 14px 22px; grid-template-columns:1fr; gap:14px; } .subject-history-card { padding:16px; } .session-list { grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); } .history-footer { padding:0 20px 20px; align-items:flex-start; flex-direction:column; gap:7px; } .toast { left:16px; right:16px; bottom:86px; } }
+        @media (max-width:460px) { .session-list { grid-template-columns:1fr 1fr; gap:8px; } .session-record { min-height:92px; padding:10px 8px; align-items:flex-start; flex-direction:column; } .status-badge { width:100%; min-width:0; } }
         /* Mobile nav */
         .mobile-nav-bar { display:none; position:fixed; bottom:0; left:0; right:0; background:var(--glass-bg); backdrop-filter:blur(32px); border-top:1px solid var(--glass-border); z-index:200; padding:6px 0 max(6px,env(safe-area-inset-bottom)); }
         .mobile-nav-bar ul { display:flex; list-style:none; align-items:center; padding:0 8px; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; scroll-snap-type:x mandatory; scrollbar-width:none; -ms-overflow-style:none; gap:2px; }
@@ -261,44 +251,37 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             </div>
         </div>
 
-        <!-- Attendance spreadsheet -->
+        <!-- Attendance history -->
         <section class="card glass records-card" aria-labelledby="attendanceLedgerTitle">
             <div class="records-header">
                 <div>
-                    <div class="records-eyebrow"><i class="ph-fill ph-table"></i> Spreadsheet view</div>
-                    <h3 class="records-title" id="attendanceLedgerTitle">Attendance Ledger</h3>
-                    <p class="records-description">Review every recorded class session by subject and date. The final column calculates your attendance rate per subject.</p>
+                    <div class="records-eyebrow"><i class="ph-fill ph-calendar-check"></i> Complete history</div>
+                    <h3 class="records-title" id="attendanceLedgerTitle">Attendance Records</h3>
+                    <p class="records-description">All recorded sessions are shown below as easy-to-read dates and status labels. No spreadsheet scrolling needed.</p>
                 </div>
                 <div class="records-tools">
                     <div class="filter-control">
                         <label for="filterSubject">Subject</label>
-                        <select id="filterSubject" class="select-filter" onchange="window.applyMatrixFilter()">
+                        <select id="filterSubject" class="select-filter" onchange="window.applyAttendanceFilter()">
                             <option value="">All subjects</option>
                         </select>
                     </div>
                     <button class="record-action refresh-records" type="button" onclick="window.refreshAttendance()" title="Refresh attendance records" aria-label="Refresh attendance records"><i class="ph-bold ph-arrow-clockwise"></i></button>
-                    <button class="record-action focus-records" id="focusRecordsButton" type="button" onclick="window.toggleAttendanceFocus()" aria-label="Open attendance focus view" aria-pressed="false">
-                        <i class="ph-bold ph-arrows-out" id="focusRecordsIcon"></i><span class="record-action-label" id="focusRecordsLabel">Focus view</span>
-                    </button>
                 </div>
             </div>
-            <div class="matrix-legend" aria-label="Attendance status legend">
+            <div class="history-legend" aria-label="Attendance status legend">
                 <span class="legend-title">Status legend</span>
-                <div class="ml-item"><span class="ml-dot mc-P"><i class="ph-fill ph-check-circle"></i></span> Present</div>
-                <div class="ml-item"><span class="ml-dot mc-A"><i class="ph-fill ph-x-circle"></i></span> Absent</div>
-                <div class="ml-item"><span class="ml-dot mc-L"><i class="ph-fill ph-clock-countdown"></i></span> Late</div>
-                <div class="ml-item"><span class="ml-dot mc-E"><i class="ph-fill ph-note"></i></span> Excused</div>
-                <div class="ml-item legend-empty"><span class="ml-dot mc-empty"><i class="ph-bold ph-minus"></i></span> No record</div>
+                <div class="ml-item"><span class="ml-dot status-P"><i class="ph-fill ph-check-circle"></i></span> Present</div>
+                <div class="ml-item"><span class="ml-dot status-A"><i class="ph-fill ph-x-circle"></i></span> Absent</div>
+                <div class="ml-item"><span class="ml-dot status-L"><i class="ph-fill ph-clock-countdown"></i></span> Late</div>
+                <div class="ml-item"><span class="ml-dot status-E"><i class="ph-fill ph-note"></i></span> Excused</div>
             </div>
-            <div class="matrix-wrap" tabindex="0" aria-label="Scrollable attendance spreadsheet">
-                <table class="matrix-table" id="matrixTable">
-                    <thead id="matrixHead"></thead>
-                    <tbody id="matrixBody"><tr><td class="sheet-empty"><i class="ph-bold ph-spinner-gap"></i>Loading attendance records…</td></tr></tbody>
-                </table>
+            <div class="attendance-history" id="attendanceHistory" aria-live="polite">
+                <div class="history-empty"><i class="ph-bold ph-spinner-gap"></i>Loading attendance records…</div>
             </div>
-            <div class="matrix-footer">
-                <span id="matrixInfo"><i class="ph-bold ph-table"></i> Preparing spreadsheet…</span>
-                <span><i class="ph-bold ph-clock-counter-clockwise"></i> Most recent sessions appear first</span>
+            <div class="history-footer">
+                <span id="historyInfo"><i class="ph-bold ph-calendar-dots"></i> Preparing attendance history…</span>
+                <span><i class="ph-bold ph-eye"></i> All records are displayed automatically</span>
             </div>
         </section>
 
@@ -406,13 +389,12 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
                 // Compute stats
                 computeStats(allRecords);
-                window.applyMatrixFilter();
+                window.applyAttendanceFilter();
 
             } catch(e) {
                 console.error(e);
-                document.getElementById('matrixHead').innerHTML = '';
-                document.getElementById('matrixBody').innerHTML = '<tr><td class="sheet-empty"><i class="ph-fill ph-warning-circle"></i>Attendance records could not be loaded.</td></tr>';
-                document.getElementById('matrixInfo').innerHTML = '<i class="ph-bold ph-warning"></i> Unable to prepare spreadsheet';
+                document.getElementById('attendanceHistory').innerHTML = '<div class="history-empty"><i class="ph-fill ph-warning-circle"></i>Attendance records could not be loaded.</div>';
+                document.getElementById('historyInfo').innerHTML = '<i class="ph-bold ph-warning"></i> Unable to prepare attendance history';
             }
         }
 
@@ -447,70 +429,63 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             return String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
         }
 
-        function renderMatrix(records) {
-            // Group by subject and show the newest class sessions first.
-            const subjectMap = {}; // subject -> { date -> {status} }
-            const dateSet = new Set();
-            records.forEach(r => {
-                const subjectCode = String(r.subjectCode || '').trim();
-                const date = String(r.date || '').trim();
+        function renderAttendanceHistory(records) {
+            const subjectMap = new Map();
+            records.forEach(record => {
+                const subjectCode = String(record.subjectCode || '').trim();
+                const date = String(record.date || '').trim();
                 if(!subjectCode || !date) return;
-                if(!subjectMap[subjectCode]) subjectMap[subjectCode] = {};
-                subjectMap[subjectCode][date] = normalizeAttendanceStatus(r.status);
-                dateSet.add(date);
+                if(!subjectMap.has(subjectCode)) subjectMap.set(subjectCode, []);
+                subjectMap.get(subjectCode).push({ ...record, date, status: normalizeAttendanceStatus(record.status) });
             });
-            const dates = Array.from(dateSet).sort((a,b) => b.localeCompare(a));
-            const subjects = Object.keys(subjectMap).sort();
-            const statusIcon = {
-                P:'<i class="ph-fill ph-check-circle"></i>',
-                A:'<i class="ph-fill ph-x-circle"></i>',
-                L:'<i class="ph-fill ph-clock-countdown"></i>',
-                E:'<i class="ph-fill ph-note"></i>'
-            };
-            const shortDate = d => new Date(`${d}T00:00:00`).toLocaleDateString('en-PH',{month:'short',day:'numeric'});
 
+            const subjects = Array.from(subjectMap.keys()).sort();
+            const history = document.getElementById('attendanceHistory');
             if(subjects.length === 0) {
-                document.getElementById('matrixHead').innerHTML = '';
-                document.getElementById('matrixBody').innerHTML = '<tr><td class="sheet-empty"><i class="ph-fill ph-calendar-x"></i>No attendance records found.</td></tr>';
-                document.getElementById('matrixInfo').innerHTML = '<i class="ph-bold ph-table"></i> 0 subjects · 0 sessions';
+                history.innerHTML = '<div class="history-empty"><i class="ph-fill ph-calendar-x"></i>No attendance records found.</div>';
+                document.getElementById('historyInfo').innerHTML = '<i class="ph-bold ph-calendar-dots"></i> 0 subjects · 0 records';
                 return;
             }
 
-            // Header
-            document.getElementById('matrixHead').innerHTML = `<tr>
-                <th class="mth-subject"><span class="date-primary">Subject</span><span class="date-secondary">Course code</span></th>
-                ${dates.map(d=>`<th class="session-heading" title="${escapeHtml(d)}"><span class="date-primary">${escapeHtml(shortDate(d))}</span><span class="date-secondary">${new Date(`${d}T00:00:00`).toLocaleDateString('en-PH',{weekday:'short'})}</span></th>`).join('')}
-                <th class="mth-rate"><span class="date-primary">Rate</span><span class="date-secondary">Per subject</span></th>
-            </tr>`;
+            const statusDetails = {
+                P: { label:'Present', icon:'ph-fill ph-check-circle' },
+                A: { label:'Absent', icon:'ph-fill ph-x-circle' },
+                L: { label:'Late', icon:'ph-fill ph-clock-countdown' },
+                E: { label:'Excused', icon:'ph-fill ph-note' },
+                pending: { label:'Pending', icon:'ph-bold ph-minus-circle' }
+            };
 
-            // Body
-            let html = '';
-            subjects.forEach(sub => {
-                const dateMap = subjectMap[sub];
-                const summary = summarizeAttendance(Object.values(dateMap).map(status => ({ status })));
-                const cells = dates.map(d => {
-                    const s = dateMap[d];
-                    if(s) {
-                        const labels = {P:'Present',A:'Absent',L:'Late',E:'Excused'};
-                        return `<td class="mtd-cell mc-${s}" title="${escapeHtml(d)} · ${labels[s]}"><span class="status-mark" aria-label="${labels[s]}">${statusIcon[s]}<span class="status-letter" aria-hidden="true">${s}</span></span></td>`;
-                    }
-                    return '<td class="mtd-cell mc-empty" title="No record"><span class="status-mark" aria-label="No record"><i class="ph-bold ph-minus"></i></span></td>';
+            history.innerHTML = subjects.map(subjectCode => {
+                const subjectRecords = subjectMap.get(subjectCode).sort((a,b) => b.date.localeCompare(a.date));
+                const summary = summarizeAttendance(subjectRecords);
+                const rateColor = summary.rate >= 80 ? 'var(--success)' : summary.rate >= 60 ? 'var(--warning)' : 'var(--danger)';
+                const sessions = subjectRecords.map(record => {
+                    const statusKey = statusDetails[record.status] ? record.status : 'pending';
+                    const status = statusDetails[statusKey];
+                    const dateValue = new Date(`${record.date}T00:00:00`);
+                    const primaryDate = Number.isNaN(dateValue.getTime()) ? record.date : dateValue.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});
+                    const weekday = Number.isNaN(dateValue.getTime()) ? 'Recorded session' : dateValue.toLocaleDateString('en-PH',{weekday:'long'});
+                    return `<div class="session-record">
+                        <div class="session-date"><i class="ph-fill ph-calendar-blank"></i><div class="session-date-copy"><time datetime="${escapeHtml(record.date)}">${escapeHtml(primaryDate)}</time><span>${escapeHtml(weekday)}</span></div></div>
+                        <span class="status-badge status-${statusKey}" aria-label="Attendance status: ${status.label}"><i class="${status.icon}"></i>${status.label}</span>
+                    </div>`;
                 }).join('');
-                const rate = summary.rate;
-                const rateColor = rate >= 80 ? 'var(--success)' : rate >= 60 ? 'var(--warning)' : 'var(--danger)';
-                html += `<tr>
-                    <td class="mtd-subject"><div class="subject-cell"><i class="ph-fill ph-book-open-text"></i><span class="subject-details"><span class="subject-code">${escapeHtml(sub)}</span><span class="subject-meta">${summary.attended} of ${summary.rateDenominator} attended</span></span></div></td>
-                    ${cells}
-                    <td class="mtd-rate"><span class="rate-chip" style="color:${rateColor};">${rate}%</span></td>
-                </tr>`;
-            });
-            document.getElementById('matrixBody').innerHTML = html;
-            document.getElementById('matrixInfo').innerHTML = `<i class="ph-bold ph-table"></i> ${subjects.length} subject${subjects.length!==1?'s':''} · ${dates.length} class session${dates.length!==1?'s':''}`;
+
+                return `<article class="subject-history-card" aria-label="${escapeHtml(subjectCode)} attendance records">
+                    <div class="subject-history-head">
+                        <div class="subject-history-title"><span class="subject-history-icon"><i class="ph-fill ph-book-open-text"></i></span><div class="subject-history-copy"><h4>${escapeHtml(subjectCode)}</h4><p>${subjectRecords.length} recorded session${subjectRecords.length !== 1 ? 's' : ''} · ${summary.attended} attended</p></div></div>
+                        <div class="subject-rate" style="color:${rateColor};"><strong>${summary.rate}%</strong><span>Rate</span></div>
+                    </div>
+                    <div class="session-list">${sessions}</div>
+                </article>`;
+            }).join('');
+
+            document.getElementById('historyInfo').innerHTML = `<i class="ph-bold ph-calendar-dots"></i> ${subjects.length} subject${subjects.length!==1?'s':''} · ${records.length} record${records.length!==1?'s':''}`;
         }
 
-        window.applyMatrixFilter = function() {
+        window.applyAttendanceFilter = function() {
             const subjectCode = document.getElementById('filterSubject').value;
-            renderMatrix(subjectCode ? allRecords.filter(record => record.subjectCode === subjectCode) : allRecords);
+            renderAttendanceHistory(subjectCode ? allRecords.filter(record => String(record.subjectCode || '') === subjectCode) : allRecords);
         }
 
         window.refreshAttendance = async function() {
@@ -519,26 +494,6 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             await loadData();
             icon?.classList.remove('ph-spin');
         }
-
-        window.toggleAttendanceFocus = function(forceClose = false) {
-            const shouldOpen = forceClose ? false : !document.body.classList.contains('matrix-focus');
-            document.body.classList.toggle('matrix-focus', shouldOpen);
-            const button = document.getElementById('focusRecordsButton');
-            const icon = document.getElementById('focusRecordsIcon');
-            const label = document.getElementById('focusRecordsLabel');
-            button?.setAttribute('aria-pressed', String(shouldOpen));
-            button?.setAttribute('aria-label', shouldOpen ? 'Close attendance focus view' : 'Open attendance focus view');
-            if(icon) icon.className = shouldOpen ? 'ph-bold ph-arrows-in' : 'ph-bold ph-arrows-out';
-            if(label) label.textContent = shouldOpen ? 'Exit focus' : 'Focus view';
-            if(shouldOpen) document.querySelector('.matrix-wrap')?.focus();
-        }
-
-        document.addEventListener('keydown', event => {
-            if(event.key === 'Escape' && document.body.classList.contains('matrix-focus')) {
-                window.toggleAttendanceFocus(true);
-                document.getElementById('focusRecordsButton')?.focus();
-            }
-        });
 
         let qrStream = null;
         let qrScanTimer = null;
