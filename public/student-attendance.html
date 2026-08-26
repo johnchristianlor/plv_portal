@@ -142,8 +142,62 @@
         .toast { position:fixed; bottom:32px; right:32px; background:var(--success); color:#fff; padding:14px 20px; border-radius:12px; font-weight:700; box-shadow:0 12px 24px rgba(16,185,129,0.25); transform:translateX(150%); transition:transform 0.3s ease; z-index:1000; }
         .toast.show { transform:translateX(0); }
         .toast.error { background:var(--danger); }
-        @media (max-width:768px) { .qr-scan-layout { grid-template-columns:1fr; } .records-header { padding:22px 20px 18px; align-items:stretch; flex-direction:column; } .records-tools { width:100%; } .filter-control { flex:1; } .select-filter { width:100%; min-width:0; } .record-action { width:40px; padding:0; } .history-legend { padding:12px 20px; flex-wrap:wrap; } .history-legend>* { flex:0 0 auto; } .records-table-shell { margin:16px 14px 20px; overflow:visible; border:0; border-radius:0; background:transparent; box-shadow:none; } .attendance-records-table,.attendance-records-table tbody { display:block; } .attendance-records-table thead { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; } .attendance-records-table tbody { display:grid; gap:10px; } .attendance-records-table tbody tr { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-areas:'date status' 'subject status'; align-items:center; gap:10px 14px; padding:14px; border:1px solid var(--input-border); border-radius:16px; background:var(--input-bg); box-shadow:0 8px 20px rgba(15,23,42,.035); } .attendance-records-table tbody tr:nth-child(even),.attendance-records-table tbody tr:hover { background:var(--input-bg); } .attendance-records-table tbody tr.empty-record-row { display:block; } .attendance-records-table td { padding:0; border:0; } .record-date-column { grid-area:date; } .record-subject-column { grid-area:subject; } .record-status-column { grid-area:status; } .record-cell-icon { width:32px; height:32px; border-radius:9px; font-size:14px; } .record-cell-copy strong,.record-cell-copy time { font-size:12px; } .record-cell-copy span { font-size:9px; } .history-footer { padding:0 20px 20px; align-items:flex-start; flex-direction:column; gap:7px; } .history-empty { display:block !important; } .toast { left:16px; right:16px; bottom:86px; } }
-        @media (max-width:420px) { .attendance-records-table tbody tr { grid-template-columns:1fr; grid-template-areas:'date' 'subject' 'status'; } .status-badge { width:100%; min-width:0; } }
+        @media (max-width:768px) {
+            .qr-scan-layout { grid-template-columns:1fr; }
+            .records-header { padding:22px 20px 18px; align-items:stretch; flex-direction:column; }
+            .records-tools { width:100%; }
+            .filter-control { flex:1; }
+            .select-filter { width:100%; min-width:0; }
+            .record-action { width:40px; padding:0; }
+            .history-legend { display:none; }
+            .records-table-shell { margin:16px 14px 20px; overflow:hidden; border:1px solid var(--input-border); border-radius:16px; background:var(--input-bg); box-shadow:0 12px 28px rgba(15,23,42,.07); }
+            .attendance-records-table { display:table; width:100%; table-layout:fixed; }
+            .attendance-records-table thead { position:static; width:auto; height:auto; overflow:visible; clip:auto; white-space:normal; }
+            .attendance-records-table tbody { display:table-row-group; }
+            .attendance-records-table th { padding:13px 10px; font-size:9px; letter-spacing:.85px; }
+            .attendance-records-table th:first-child { width:40%; }
+            .attendance-records-table th:nth-child(2) { width:34%; }
+            .attendance-records-table th:last-child { width:26%; }
+            .attendance-records-table tbody tr { display:table-row; background:transparent; box-shadow:none; }
+            .attendance-records-table tbody tr:nth-child(even) { background:rgba(100,116,139,.04); }
+            .attendance-records-table tbody tr:hover { background:var(--accent-light); }
+            .attendance-records-table td { display:table-cell; padding:15px 10px; border-bottom:1px solid var(--input-border); }
+            .record-date-cell,.record-subject-cell { gap:9px; }
+            .record-cell-icon { width:34px; height:34px; border-radius:10px; font-size:15px; }
+            .record-cell-copy strong,.record-cell-copy time { font-size:12px; }
+            .record-cell-copy span { margin-top:3px; font-size:9px; }
+            .status-badge { min-width:72px; padding:7px 8px; font-size:9.5px; }
+            .history-footer { padding:0 20px 20px; align-items:flex-start; flex-direction:column; gap:7px; }
+            .history-empty { display:table-cell !important; }
+            .toast { left:16px; right:16px; bottom:86px; }
+        }
+        @media (max-width:520px) {
+            .records-table-shell { margin:12px 10px 18px; border-radius:14px; }
+            .attendance-records-table th { padding:11px 8px; font-size:8px; letter-spacing:.7px; }
+            .attendance-records-table th:first-child { width:42%; }
+            .attendance-records-table th:nth-child(2) { width:33%; }
+            .attendance-records-table th:last-child { width:25%; }
+            .attendance-records-table td { padding:13px 8px; }
+            .record-date-cell,.record-subject-cell { gap:7px; }
+            .record-cell-icon { width:30px; height:30px; border-radius:9px; font-size:13px; }
+            .record-cell-copy strong,.record-cell-copy time { font-size:11px; }
+            .record-cell-copy span { font-size:8.5px; }
+            .status-badge { min-width:64px; padding:6px; gap:4px; font-size:9px; }
+            .status-badge i { font-size:12px; }
+        }
+        @media (max-width:360px) {
+            .records-table-shell { margin-inline:8px; }
+            .attendance-records-table th { padding:10px 6px; font-size:7.5px; letter-spacing:.55px; }
+            .attendance-records-table th:first-child { width:43%; }
+            .attendance-records-table th:nth-child(2) { width:31%; }
+            .attendance-records-table th:last-child { width:26%; }
+            .attendance-records-table td { padding:11px 6px; }
+            .record-date-cell,.record-subject-cell { gap:6px; }
+            .record-cell-icon { width:28px; height:28px; border-radius:8px; font-size:12px; }
+            .record-cell-copy strong,.record-cell-copy time { font-size:10.5px; }
+            .record-cell-copy span { font-size:8px; }
+            .status-badge { min-width:58px; padding:5px 4px; font-size:8.5px; }
+        }
         /* Mobile nav */
         .mobile-nav-bar { display:none; position:fixed; bottom:0; left:0; right:0; background:var(--glass-bg); backdrop-filter:blur(32px); border-top:1px solid var(--glass-border); z-index:200; padding:6px 0 max(6px,env(safe-area-inset-bottom)); }
         .mobile-nav-bar ul { display:flex; list-style:none; align-items:center; padding:0 8px; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; scroll-snap-type:x mandatory; scrollbar-width:none; -ms-overflow-style:none; gap:2px; }

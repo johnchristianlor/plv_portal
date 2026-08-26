@@ -71,7 +71,11 @@ test('student attendance shows a responsive professional records table', () => {
     assert.match(attendance, /class="status-badge status-/);
     assert.match(attendance, /ph-fill ph-check-circle/);
     assert.match(attendance, /ph-fill ph-clock-countdown/);
+    assert.match(attendance, /@media \(max-width:768px\)[\s\S]*\.attendance-records-table thead \{ position:static;/);
+    assert.match(attendance, /@media \(max-width:360px\)[\s\S]*\.status-badge \{ min-width:58px;/);
+    assert.match(attendance, /\.history-legend \{ display:none; \}/);
     assert.doesNotMatch(attendance, /id="matrixTable"|matrix-wrap|applyMatrixFilter|attendanceHistory/);
+    assert.doesNotMatch(attendance, /grid-template-areas:'date status'/);
 });
 
 test('inline and shared browser modules remain syntactically valid', () => {
