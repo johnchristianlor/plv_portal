@@ -38,6 +38,21 @@ test('performance-sensitive assets and counts use the optimized paths', () => {
     assert.match(headers, /\/\*\.html\s+[\s\S]*Cache-Control:\s*public, max-age=0, must-revalidate/);
 });
 
+test('every portal page uses the global responsive application system', () => {
+    for (const file of htmlFiles) {
+        const source = read(file);
+        assert.match(source, /plv-responsive\.css\?v=20260826global1/, `${file} must load the current responsive stylesheet`);
+        assert.match(source, /<meta name="viewport" content="[^"]*viewport-fit=cover[^"]*">/, `${file} must support mobile safe areas`);
+        assert.doesNotMatch(source, /user-scalable=no|maximum-scale=1/, `${file} must allow accessible pinch zoom`);
+    }
+    const responsive = read('plv-responsive.css');
+    for (const expected of [
+        '--plv-touch-target', ':focus-visible', '@media (pointer:coarse)',
+        '@media (max-width:360px)', 'orientation:landscape',
+        'env(safe-area-inset-bottom)', 'ul:not(:has(>li:nth-child(7)))'
+    ]) assert.match(responsive, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+});
+
 test('shared-file queries retain the fields needed by upload and legacy download flows', () => {
     const adminSettings = read('admin-settings.html');
     const studentSettings = read('student-settings.html');
