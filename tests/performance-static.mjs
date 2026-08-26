@@ -74,7 +74,9 @@ test('student attendance shows a responsive professional records table', () => {
     assert.match(attendance, /@media \(max-width:768px\)[\s\S]*\.attendance-records-table thead \{ position:static;/);
     assert.match(attendance, /@media \(max-width:360px\)[\s\S]*\.status-badge \{ min-width:58px;/);
     assert.match(attendance, /\.history-legend \{ display:none; \}/);
-    assert.match(attendance, /\.bento-grid>\.stat-card \.stat-label,\.bento-grid>\.stat-card \.stat-value \{ width:100%; text-align:center; \}/);
+    assert.match(attendance, /\.bento-grid>\.stat-card \.stat-copy \{ width:min\(100%,88px\) !important;[\s\S]*align-items:stretch !important;/);
+    assert.match(attendance, /\.bento-grid>\.stat-card \.stat-label,\.bento-grid>\.stat-card \.stat-value \{ display:flex !important; width:100% !important;[\s\S]*justify-content:center !important;/);
+    assert.match(attendance, /\.bento-grid>\.stat-card \.att-progress \{ width:100%; margin:5px auto 0; \}/);
     assert.match(attendance, /\.bento-grid>\.stat-card \{ min-height:154px !important;[\s\S]*flex-direction:column !important;/);
     assert.doesNotMatch(attendance, /id="matrixTable"|matrix-wrap|applyMatrixFilter|attendanceHistory/);
     assert.doesNotMatch(attendance, /grid-template-areas:'date status'/);

@@ -150,9 +150,10 @@
             .select-filter { width:100%; min-width:0; }
             .record-action { width:40px; padding:0; }
             .bento-grid>.stat-card { min-height:154px !important; padding:18px 14px !important; flex-direction:column !important; justify-content:center !important; align-items:center !important; gap:12px !important; text-align:center; }
-            .bento-grid>.stat-card .stat-copy { width:100%; flex:0 0 auto; align-items:center; text-align:center; }
-            .bento-grid>.stat-card .stat-label,.bento-grid>.stat-card .stat-value { width:100%; text-align:center; }
-            .bento-grid>.stat-card .att-progress { width:min(100%,88px); margin:5px auto 0; }
+            .bento-grid>.stat-card .stat-copy { width:min(100%,88px) !important; flex:0 0 auto; align-items:stretch !important; margin-inline:auto; text-align:center; }
+            .bento-grid>.stat-card .stat-label,.bento-grid>.stat-card .stat-value { display:flex !important; width:100% !important; align-items:center; justify-content:center !important; align-self:stretch; margin-inline:auto; text-align:center !important; }
+            .bento-grid>.stat-card .stat-value { font-variant-numeric:tabular-nums; }
+            .bento-grid>.stat-card .att-progress { width:100%; margin:5px auto 0; }
             .history-legend { display:none; }
             .records-table-shell { margin:16px 14px 20px; overflow:hidden; border:1px solid var(--input-border); border-radius:16px; background:var(--input-bg); box-shadow:0 12px 28px rgba(15,23,42,.07); }
             .attendance-records-table { display:table; width:100%; table-layout:fixed; }
