@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#003da5">
+  <title>My Recitation | PLV Grades Portal</title>
+  <link rel="icon" type="image/png" href="https://res.cloudinary.com/dfdlqf6ng/image/upload/v1772078917/PamantasanNgLungsodNgValenzuelaLogo_t53djy.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/fill/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/bold/style.css">
+  <link rel="stylesheet" href="./recitation.css?v=20260826rec1">
+  <link rel="stylesheet" href="./plv-responsive.css?v=20260826global1">
+  <script src="./plv-navigation.v1.js" defer></script>
+</head>
+<body>
+  <div class="ambient-mesh"><div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div></div>
+  <aside class="sidebar">
+    <div class="logo-container">
+      <img src="https://res.cloudinary.com/dfdlqf6ng/image/upload/v1772078917/PamantasanNgLungsodNgValenzuelaLogo_t53djy.png" alt="PLV" class="logo-img">
+      <div class="logo-text"><h2>PLV Portal</h2><p>Student Access</p></div>
+    </div>
+    <ul class="nav-menu">
+      <li class="nav-item"><a href="student-dashboard.html"><i class="ph-fill ph-squares-four"></i> Dashboard</a></li>
+      <li class="nav-item"><a href="student-scores.html"><i class="ph-fill ph-chart-bar"></i> Scores</a></li>
+      <li class="nav-item"><a href="student-grades.html"><i class="ph ph-exam"></i> Grades</a></li>
+      <li class="nav-item"><a href="student-attendance.html"><i class="ph-fill ph-calendar-dots"></i> Attendance</a></li>
+      <li class="nav-item"><a href="student-recitation.html" class="active"><i class="ph-fill ph-coin-vertical"></i> Recitation</a></li>
+      <li class="nav-item"><a href="student-settings.html"><i class="ph-fill ph-gear"></i> Settings</a></li>
+      <li class="nav-item" style="margin-top:auto"><a onclick="window.logout()"><i class="ph ph-sign-out"></i> Logout</a></li>
+    </ul>
+  </aside>
+
+  <main class="main-wrapper">
+    <header class="header">
+      <div><h1>My Recitation</h1><p id="studentLine">Your earned participation, all in one secure wallet.</p></div>
+      <div class="header-actions"><button class="icon-btn" id="themeToggle" aria-label="Change theme"><i class="ph-fill ph-sun" id="themeIcon"></i></button></div>
+    </header>
+
+    <section class="hero" aria-labelledby="walletTitle">
+      <div class="hero-copy">
+        <span class="eyebrow"><i class="ph-fill ph-shield-check"></i> Secure Recitation Wallet</span>
+        <div class="balance-line"><strong id="balance">0</strong><span>chips available</span></div>
+        <p id="walletTitle">Earn chips when you participate in class, then keep them or share with a classmate from your section.</p>
+        <div class="hero-stats">
+          <div class="hero-stat"><span>Total received</span><b id="totalEarned">0</b></div>
+          <div class="hero-stat"><span>Total shared</span><b id="totalShared">0</b></div>
+          <div class="hero-stat"><span>Section</span><b id="walletSection">—</b></div>
+        </div>
+      </div>
+      <div class="token-stage"><div class="token-glow"></div><img src="./recitation-token.png" alt="Blue and gold Recitation token" width="640" height="640"></div>
+    </section>
+
+    <section class="content-grid">
+      <article class="card glass">
+        <div class="card-head"><div><h2>Share Recitation</h2><p>Send chips securely to a classmate in your section.</p></div><div class="card-icon"><i class="ph-fill ph-paper-plane-tilt"></i></div></div>
+        <div class="pin-banner" id="pinBanner">
+          <i class="ph-fill ph-lock-key"></i>
+          <div><b id="pinTitle">Set your 4-digit PIN first</b><span id="pinMessage">Your PIN protects every transfer and is never displayed.</span></div>
+        </div>
+        <button class="btn btn-soft full" id="pinAction" type="button"><i class="ph-bold ph-password"></i> Set up PIN</button>
+        <form class="form-stack" id="transferForm" style="margin-top:18px">
+          <div class="field">
+            <label for="recipientSearch">Choose a classmate</label>
+            <div class="input-wrap"><i class="ph ph-magnifying-glass"></i><input class="input" id="recipientSearch" autocomplete="off" placeholder="Search name or student number"></div>
+            <div class="recipient-results" id="recipientResults"><div class="empty"><span>Start typing to find classmates.</span></div></div>
+          </div>
+          <div class="field"><label for="transferAmount">Number of chips</label><input class="input" id="transferAmount" type="number" inputmode="numeric" min="1" max="100000" step="1" placeholder="0" required><span class="input-hint">You can share up to your current balance.</span></div>
+          <div class="field"><label for="transferNote">Message <span style="text-transform:none;font-weight:600">(optional)</span></label><textarea class="textarea" id="transferNote" maxlength="240" placeholder="Add a short message for your classmate"></textarea></div>
+          <button class="btn btn-primary full" id="shareButton" type="submit"><i class="ph-bold ph-lock-key-open"></i> Review secure transfer</button>
+        </form>
+      </article>
+
+      <article class="card glass">
+        <div class="card-head"><div><h2>Wallet Activity</h2><p>A clear record of every earned, received, and shared chip.</p></div><div class="card-icon"><i class="ph-fill ph-clock-counter-clockwise"></i></div></div>
+        <div class="activity-list" id="activityList"><div class="empty"><span class="loading"></span><b>Loading activity</b></div></div>
+      </article>
+    </section>
+  </main>
+
+  <nav class="mobile-nav-bar" aria-label="Student navigation"><ul>
+    <li><a href="student-dashboard.html" id="mnav-dash"><i class="ph-fill ph-squares-four"></i>Dashboard</a></li>
+    <li><a href="student-scores.html" id="mnav-sco"><i class="ph-fill ph-chart-bar"></i>Scores</a></li>
+    <li><a href="student-grades.html" id="mnav-grd"><i class="ph ph-exam"></i>Grades</a></li>
+    <li><a href="student-attendance.html" id="mnav-att"><i class="ph ph-calendar-dots"></i>Attendance</a></li>
+    <li><a href="student-recitation.html" id="mnav-rct" class="active"><i class="ph-fill ph-coin-vertical"></i>Recitation</a></li>
+    <li><a href="student-settings.html" id="mnav-set"><i class="ph-fill ph-gear"></i>Settings</a></li>
+    <li><a href="#" onclick="window.logout()" id="mnav-out"><i class="ph ph-sign-out"></i>Logout</a></li>
+  </ul></nav>
+
+  <div class="modal-backdrop" id="setupPinModal" role="dialog" aria-modal="true" aria-labelledby="setupPinTitle">
+    <div class="modal glass">
+      <div class="modal-head"><div><h2 id="setupPinTitle">Create your secure PIN</h2><p>Choose four digits you can remember. Never share your PIN with anyone.</p></div><button class="modal-close" data-close="setupPinModal" aria-label="Close"><i class="ph ph-x"></i></button></div>
+      <form class="form-stack" id="setupPinForm">
+        <div class="field"><label>New 4-digit PIN</label><div class="pin-inputs" data-pin-group="new"></div></div>
+        <div class="field"><label>Confirm PIN</label><div class="pin-inputs" data-pin-group="confirm"></div></div>
+        <button class="btn btn-primary full" type="submit"><i class="ph-bold ph-shield-check"></i> Protect my wallet</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="changePinModal" role="dialog" aria-modal="true" aria-labelledby="changePinTitle">
+    <div class="modal glass">
+      <div class="modal-head"><div><h2 id="changePinTitle">Change wallet PIN</h2><p>Enter your current PIN, then choose a new four-digit PIN.</p></div><button class="modal-close" data-close="changePinModal" aria-label="Close"><i class="ph ph-x"></i></button></div>
+      <form class="form-stack" id="changePinForm">
+        <div class="field"><label for="currentPin">Current PIN</label><input class="input" id="currentPin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="current-password" required></div>
+        <div class="field"><label for="newPin">New 4-digit PIN</label><input class="input" id="newPin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="new-password" required></div>
+        <button class="btn btn-primary full" type="submit"><i class="ph-bold ph-password"></i> Update PIN</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="confirmTransferModal" role="dialog" aria-modal="true" aria-labelledby="confirmTransferTitle">
+    <div class="modal glass">
+      <div class="modal-head"><div><h2 id="confirmTransferTitle">Confirm your transfer</h2><p id="transferSummary">Review the transfer, then enter your PIN to authorize it.</p></div><button class="modal-close" data-close="confirmTransferModal" aria-label="Close"><i class="ph ph-x"></i></button></div>
+      <form class="form-stack" id="confirmTransferForm">
+        <div class="pin-banner good"><i class="ph-fill ph-shield-check"></i><div><b>Protected transfer</b><span>Balance and section checks happen securely before the transfer completes.</span></div></div>
+        <div class="field"><label for="transferPin">Your 4-digit PIN</label><input class="input" id="transferPin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="current-password" required></div>
+        <button class="btn btn-gold full" id="confirmTransferButton" type="submit"><i class="ph-bold ph-check-circle"></i> Confirm and send</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"><i class="ph-fill ph-check-circle"></i><span id="toastMessage"></span></div>
+  <script type="module" src="./student-recitation.js?v=20260826rec2"></script>
+</body>
+</html>

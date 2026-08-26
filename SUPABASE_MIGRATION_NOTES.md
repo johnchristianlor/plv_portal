@@ -18,6 +18,8 @@ Create/migrate these tables in Supabase with the same field names used by the ap
 - `deadlines`
 - `announcements`
 - `sharedFiles`
+- `recitation_wallets` (created by the Recitation migration)
+- `recitation_transactions` (created by the Recitation migration)
 
 Each table should include a text `id` column. Rows that used old document IDs should keep that value in `id`.
 
@@ -37,3 +39,9 @@ Student login still uses the existing portal flow by checking `users.studentNo` 
 ## Row Level Security
 
 If Row Level Security is enabled, add policies that allow the anonymous publishable key to perform the reads/writes this static portal needs, or move writes behind server-side functions.
+
+## Recitation wallet
+
+Apply `supabase_migrations/20260826_recitation_wallet.sql` before opening the new Admin or Student Recitation pages. It creates the wallet and immutable transaction ledger, enables Row Level Security, blocks direct browser access to both tables, and exposes only session-validated database functions.
+
+Student PINs are stored only as bcrypt hashes. Student transfers are atomic, limited to active classmates in the same section, and protected by a five-attempt lockout. Instructor awards require an authenticated admin session and a subject in which the student is enrolled.

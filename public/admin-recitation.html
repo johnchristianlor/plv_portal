@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#003da5">
+  <title>Recitation Center | PLV Grades Portal</title>
+  <link rel="icon" type="image/png" href="https://res.cloudinary.com/dfdlqf6ng/image/upload/v1772078917/PamantasanNgLungsodNgValenzuelaLogo_t53djy.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/fill/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/bold/style.css">
+  <link rel="stylesheet" href="./recitation.css?v=20260826rec1">
+  <link rel="stylesheet" href="./plv-responsive.css?v=20260826global1">
+  <script src="./plv-navigation.v1.js" defer></script>
+</head>
+<body>
+  <div class="ambient-mesh"><div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div></div>
+  <aside class="sidebar">
+    <div class="logo-container">
+      <img src="https://res.cloudinary.com/dfdlqf6ng/image/upload/v1772078917/PamantasanNgLungsodNgValenzuelaLogo_t53djy.png" alt="PLV" class="logo-img">
+      <div class="logo-text"><h2>PLV Admin</h2><p>System Management</p></div>
+    </div>
+    <ul class="nav-menu">
+      <li class="nav-item"><a href="admin-dashboard.html"><i class="ph-fill ph-squares-four"></i> Dashboard Overview</a></li>
+      <li class="nav-item"><a href="admin-records.html"><i class="ph ph-pen"></i> Student Records</a></li>
+      <li class="nav-item"><a href="admin-sections.html"><i class="ph-fill ph-users-three"></i> Manage Sections</a></li>
+      <li class="nav-item"><a href="admin-subjects.html"><i class="ph ph-notebook"></i> Manage Subjects</a></li>
+      <li class="nav-item"><a href="admin-schedule.html"><i class="ph-fill ph-clock"></i> Manage Schedules</a></li>
+      <li class="nav-item"><a href="admin-accounts.html"><i class="ph-fill ph-users"></i> Student Accounts</a></li>
+      <li class="nav-item"><a href="admin-activities.html"><i class="ph-fill ph-list-checks"></i> Activities Setup</a></li>
+      <li class="nav-item"><a href="admin-grades.html"><i class="ph-fill ph-exam"></i> Input Grades</a></li>
+      <li class="nav-item"><a href="admin-attendance.html"><i class="ph-fill ph-calendar-check"></i> Attendance</a></li>
+      <li class="nav-item"><a href="admin-recitation.html" class="active"><i class="ph-fill ph-coin-vertical"></i> Recitation</a></li>
+      <li class="nav-item"><a href="admin-settings.html"><i class="ph-fill ph-gear"></i> System Settings</a></li>
+      <li class="nav-item" style="margin-top:auto"><a onclick="window.logout()"><i class="ph ph-sign-out"></i> Logout</a></li>
+    </ul>
+  </aside>
+
+  <main class="main-wrapper">
+    <header class="header">
+      <div><h1>Recitation Center</h1><p>Award participation, monitor balances, and review every chip movement.</p></div>
+      <div class="header-actions"><button class="icon-btn" id="themeToggle" aria-label="Change theme"><i class="ph-fill ph-sun" id="themeIcon"></i></button></div>
+    </header>
+
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow"><i class="ph-fill ph-seal-check"></i> Instructor Control Center</span>
+        <div class="balance-line"><strong id="issuedTotal">0</strong><span>chips in circulation</span></div>
+        <p>Recognize active participation instantly. Every award and student transfer is protected, validated, and recorded for accountability.</p>
+        <div class="hero-stats">
+          <div class="hero-stat"><span>Student wallets</span><b id="walletCount">0</b></div>
+          <div class="hero-stat"><span>PIN protected</span><b id="pinCount">0</b></div>
+          <div class="hero-stat"><span>Sections</span><b id="sectionCount">0</b></div>
+        </div>
+      </div>
+      <div class="token-stage"><div class="token-glow"></div><img src="./recitation-token.png" alt="Blue and gold Recitation token" width="640" height="640"></div>
+    </section>
+
+    <section class="content-grid">
+      <article class="card glass">
+        <div class="card-head"><div><h2>Award Recitation</h2><p>Add earned chips to a student enrolled in your subject.</p></div><div class="card-icon"><i class="ph-fill ph-star"></i></div></div>
+        <form class="form-stack" id="awardForm">
+          <div class="field"><label for="awardStudent">Student</label><select class="select" id="awardStudent" required><option value="">Choose a student</option></select></div>
+          <div class="row-fields">
+            <div class="field"><label for="awardSubject">Subject</label><select class="select" id="awardSubject" required><option value="">Choose subject</option></select></div>
+            <div class="field"><label for="awardAmount">Chips earned</label><input class="input" id="awardAmount" type="number" inputmode="numeric" min="1" max="100000" step="1" placeholder="1" required></div>
+          </div>
+          <div class="field"><label for="awardNote">Reason <span style="text-transform:none;font-weight:600">(optional)</span></label><textarea class="textarea" id="awardNote" maxlength="240" placeholder="Example: Excellent explanation during recitation"></textarea><span class="input-hint">The student will see this note in their wallet activity.</span></div>
+          <button class="btn btn-gold full" id="awardButton" type="submit"><i class="ph-bold ph-plus-circle"></i> Award chips</button>
+        </form>
+      </article>
+
+      <article class="card glass">
+        <div class="card-head"><div><h2>Student Wallets</h2><p>Current totals and security status for every active student.</p></div><div class="card-icon"><i class="ph-fill ph-wallet"></i></div></div>
+        <div class="toolbar">
+          <div class="input-wrap"><i class="ph ph-magnifying-glass"></i><input class="input" id="studentSearch" placeholder="Search name or student number"></div>
+          <select class="select filter-select" id="sectionFilter"><option value="">All sections</option></select>
+        </div>
+        <div class="table-wrap"><table class="data-table">
+          <thead><tr><th>Student</th><th>Section</th><th>Balance</th><th>PIN</th><th>Action</th></tr></thead>
+          <tbody id="walletRows"><tr><td colspan="5"><div class="empty"><span class="loading"></span><b>Loading wallets</b></div></td></tr></tbody>
+        </table></div>
+      </article>
+    </section>
+
+    <section class="card glass">
+      <div class="card-head"><div><h2>Recitation Ledger</h2><p>A complete, read-only audit trail of instructor awards and student transfers.</p></div><div class="card-icon"><i class="ph-fill ph-receipt"></i></div></div>
+      <div class="table-wrap"><table class="data-table">
+        <thead><tr><th>Activity</th><th>From</th><th>To</th><th>Section</th><th>Subject</th><th>Amount</th><th>Date</th></tr></thead>
+        <tbody id="ledgerRows"><tr><td colspan="7"><div class="empty"><span class="loading"></span><b>Loading ledger</b></div></td></tr></tbody>
+      </table></div>
+    </section>
+  </main>
+
+  <nav class="mobile-nav-bar" aria-label="Admin navigation"><ul>
+    <li><a href="admin-dashboard.html" id="mnav-dash"><i class="ph-fill ph-squares-four"></i>Dashboard</a></li>
+    <li><a href="admin-records.html" id="mnav-rec"><i class="ph ph-pen"></i>Records</a></li>
+    <li><a href="admin-sections.html" id="mnav-sec"><i class="ph-fill ph-users-three"></i>Sections</a></li>
+    <li><a href="admin-subjects.html" id="mnav-sub"><i class="ph ph-notebook"></i>Subjects</a></li>
+    <li><a href="admin-schedule.html" id="mnav-sch"><i class="ph-fill ph-clock"></i>Schedules</a></li>
+    <li><a href="admin-accounts.html" id="mnav-acc"><i class="ph-fill ph-users"></i>Accounts</a></li>
+    <li><a href="admin-activities.html" id="mnav-act"><i class="ph-fill ph-list-checks"></i>Activities</a></li>
+    <li><a href="admin-grades.html" id="mnav-grd"><i class="ph-fill ph-exam"></i>Grades</a></li>
+    <li><a href="admin-attendance.html" id="mnav-att"><i class="ph-fill ph-calendar-check"></i>Attendance</a></li>
+    <li><a href="admin-recitation.html" id="mnav-rct" class="active"><i class="ph-fill ph-coin-vertical"></i>Recitation</a></li>
+    <li><a href="admin-settings.html" id="mnav-set"><i class="ph-fill ph-gear"></i>Settings</a></li>
+    <li><a href="#" onclick="window.logout()" id="mnav-out"><i class="ph ph-sign-out"></i>Logout</a></li>
+  </ul></nav>
+
+  <div class="modal-backdrop" id="resetPinModal" role="dialog" aria-modal="true" aria-labelledby="resetPinTitle">
+    <div class="modal glass">
+      <div class="modal-head"><div><h2 id="resetPinTitle">Reset wallet PIN?</h2><p id="resetPinText">The current PIN will be removed. The balance and ledger will not change.</p></div><button class="modal-close" data-close="resetPinModal" aria-label="Close"><i class="ph ph-x"></i></button></div>
+      <div class="pin-banner"><i class="ph-fill ph-warning"></i><div><b>Use only after verifying the student</b><span>The student must create a new four-digit PIN before sharing again.</span></div></div>
+      <div class="row-fields"><button class="btn btn-soft" type="button" data-close="resetPinModal">Cancel</button><button class="btn btn-danger-soft" id="confirmResetPin" type="button"><i class="ph-bold ph-arrow-counter-clockwise"></i> Reset PIN</button></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"><i class="ph-fill ph-check-circle"></i><span id="toastMessage"></span></div>
+  <script type="module" src="./admin-recitation.js?v=20260826rec2"></script>
+</body>
+</html>

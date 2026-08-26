@@ -97,7 +97,10 @@ test('portal logout closes the shared Supabase Auth session', () => {
   );
   const incomplete = portalPages.filter((file) => {
     const source = read(file);
-    return !source.includes('supabase.auth.signOut()');
+    if (source.includes('supabase.auth.signOut()')) return false;
+    const localModules = [...source.matchAll(/<script[^>]+src=["']\.\/([^"']+\.js)(?:\?[^"']*)?["'][^>]*>/gi)]
+      .map((match) => match[1]);
+    return !localModules.some((moduleName) => read(moduleName).includes('supabase.auth.signOut()'));
   });
   assert.deepEqual(incomplete, []);
 });
