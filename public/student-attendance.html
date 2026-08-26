@@ -87,31 +87,27 @@
         .ml-dot.status-L,.status-badge.status-L { background:var(--warning-bg); color:var(--warning); border-color:rgba(245,158,11,.2); }
         .ml-dot.status-E,.status-badge.status-E { background:var(--accent-light); color:var(--accent-primary); border-color:rgba(0,61,165,.16); }
         .status-badge.status-pending { background:rgba(100,116,139,.09); color:var(--text-muted); border-color:var(--input-border); }
-        .attendance-history { padding:24px 30px 30px; display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr)); align-items:start; gap:18px; }
-        .subject-history-card { min-width:0; padding:20px; border:1px solid var(--input-border); border-radius:20px; background:var(--input-bg); box-shadow:0 12px 30px rgba(15,23,42,.045); }
-        .subject-history-head { display:flex; align-items:center; justify-content:space-between; gap:16px; padding-bottom:16px; border-bottom:1px solid var(--input-border); }
-        .subject-history-title { min-width:0; display:flex; align-items:center; gap:11px; }
-        .subject-history-icon { width:40px; height:40px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; border-radius:12px; background:var(--accent-light); color:var(--accent-primary); font-size:19px; }
-        .subject-history-copy { min-width:0; }
-        .subject-history-copy h4 { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:15px; font-weight:800; letter-spacing:-.2px; }
-        .subject-history-copy p { margin-top:4px; color:var(--text-muted); font-size:10px; font-weight:700; }
-        .subject-rate { flex:0 0 auto; min-width:68px; padding:8px 10px; border-radius:12px; background:var(--accent-light); text-align:center; }
-        .subject-rate strong { display:block; font-size:16px; font-weight:900; line-height:1; }
-        .subject-rate span { display:block; margin-top:4px; color:var(--text-muted); font-size:8px; font-weight:800; text-transform:uppercase; letter-spacing:.7px; }
-        .session-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:10px; padding-top:16px; }
-        .session-record { min-width:0; min-height:64px; padding:10px 11px; display:flex; align-items:center; justify-content:space-between; gap:10px; border:1px solid var(--input-border); border-radius:14px; background:rgba(255,255,255,.42); }
-        .dark-theme .session-record { background:rgba(255,255,255,.025); }
-        .session-date { min-width:0; display:flex; align-items:center; gap:9px; }
-        .session-date > i { width:30px; height:30px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; border-radius:9px; background:var(--accent-light); color:var(--accent-primary); font-size:14px; }
-        .session-date-copy { min-width:0; }
-        .session-date-copy time { display:block; color:var(--text-main); font-size:12px; font-weight:800; white-space:nowrap; }
-        .session-date-copy span { display:block; margin-top:3px; color:var(--text-muted); font-size:9px; font-weight:700; }
+        .records-table-shell { margin:24px 30px 26px; overflow:hidden; border:1px solid var(--input-border); border-radius:18px; background:var(--input-bg); box-shadow:0 12px 30px rgba(15,23,42,.045); }
+        .attendance-records-table { width:100%; border-collapse:collapse; table-layout:fixed; }
+        .attendance-records-table th { padding:15px 20px; background:#063b8f; color:rgba(255,255,255,.78); font-size:10px; font-weight:800; text-align:left; text-transform:uppercase; letter-spacing:1.1px; }
+        .attendance-records-table th:first-child { width:34%; }
+        .attendance-records-table th:nth-child(2) { width:40%; }
+        .attendance-records-table th:last-child { width:26%; }
+        .attendance-records-table td { padding:15px 20px; border-bottom:1px solid var(--input-border); color:var(--text-main); vertical-align:middle; }
+        .attendance-records-table tbody tr:last-child td { border-bottom:0; }
+        .attendance-records-table tbody tr:nth-child(even) { background:rgba(100,116,139,.035); }
+        .attendance-records-table tbody tr:hover { background:var(--accent-light); }
+        .record-date-cell,.record-subject-cell { min-width:0; display:flex; align-items:center; gap:11px; }
+        .record-cell-icon { width:38px; height:38px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; border-radius:11px; background:var(--accent-light); color:var(--accent-primary); font-size:17px; }
+        .record-cell-copy { min-width:0; }
+        .record-cell-copy strong,.record-cell-copy time { display:block; overflow:hidden; color:var(--text-main); font-size:13px; font-weight:800; text-overflow:ellipsis; white-space:nowrap; }
+        .record-cell-copy span { display:block; margin-top:4px; color:var(--text-muted); font-size:10px; font-weight:700; }
         .status-badge { min-width:78px; padding:7px 9px; display:inline-flex; align-items:center; justify-content:center; gap:5px; border:1px solid transparent; border-radius:999px; font-size:10px; font-weight:800; white-space:nowrap; }
         .status-badge i { font-size:13px; }
         .history-footer { padding:0 30px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; color:var(--text-muted); font-size:11px; font-weight:700; }
         .history-footer span { display:flex; align-items:center; gap:7px; }
         .history-footer i { color:var(--accent-primary); font-size:15px; }
-        .history-empty { grid-column:1/-1; padding:52px 24px; text-align:center; color:var(--text-muted); }
+        .history-empty { padding:52px 24px !important; text-align:center; color:var(--text-muted) !important; }
         .history-empty i { display:block; font-size:30px; margin-bottom:9px; color:var(--accent-primary); }
         /* Progress bar */
         .att-progress { width:100%; height:10px; border-radius:100px; background:rgba(0,0,0,0.06); overflow:hidden; margin-top:8px; }
@@ -146,8 +142,8 @@
         .toast { position:fixed; bottom:32px; right:32px; background:var(--success); color:#fff; padding:14px 20px; border-radius:12px; font-weight:700; box-shadow:0 12px 24px rgba(16,185,129,0.25); transform:translateX(150%); transition:transform 0.3s ease; z-index:1000; }
         .toast.show { transform:translateX(0); }
         .toast.error { background:var(--danger); }
-        @media (max-width:768px) { .qr-scan-layout { grid-template-columns:1fr; } .records-header { padding:22px 20px 18px; align-items:stretch; flex-direction:column; } .records-tools { width:100%; } .filter-control { flex:1; } .select-filter { width:100%; min-width:0; } .record-action { width:40px; padding:0; } .history-legend { padding:12px 20px; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; } .history-legend::-webkit-scrollbar { display:none; } .history-legend>* { flex:0 0 auto; } .attendance-history { padding:16px 14px 22px; grid-template-columns:1fr; gap:14px; } .subject-history-card { padding:16px; } .session-list { grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); } .history-footer { padding:0 20px 20px; align-items:flex-start; flex-direction:column; gap:7px; } .toast { left:16px; right:16px; bottom:86px; } }
-        @media (max-width:460px) { .session-list { grid-template-columns:1fr 1fr; gap:8px; } .session-record { min-height:92px; padding:10px 8px; align-items:flex-start; flex-direction:column; } .status-badge { width:100%; min-width:0; } }
+        @media (max-width:768px) { .qr-scan-layout { grid-template-columns:1fr; } .records-header { padding:22px 20px 18px; align-items:stretch; flex-direction:column; } .records-tools { width:100%; } .filter-control { flex:1; } .select-filter { width:100%; min-width:0; } .record-action { width:40px; padding:0; } .history-legend { padding:12px 20px; flex-wrap:wrap; } .history-legend>* { flex:0 0 auto; } .records-table-shell { margin:16px 14px 20px; overflow:visible; border:0; border-radius:0; background:transparent; box-shadow:none; } .attendance-records-table,.attendance-records-table tbody { display:block; } .attendance-records-table thead { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; } .attendance-records-table tbody { display:grid; gap:10px; } .attendance-records-table tbody tr { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-areas:'date status' 'subject status'; align-items:center; gap:10px 14px; padding:14px; border:1px solid var(--input-border); border-radius:16px; background:var(--input-bg); box-shadow:0 8px 20px rgba(15,23,42,.035); } .attendance-records-table tbody tr:nth-child(even),.attendance-records-table tbody tr:hover { background:var(--input-bg); } .attendance-records-table tbody tr.empty-record-row { display:block; } .attendance-records-table td { padding:0; border:0; } .record-date-column { grid-area:date; } .record-subject-column { grid-area:subject; } .record-status-column { grid-area:status; } .record-cell-icon { width:32px; height:32px; border-radius:9px; font-size:14px; } .record-cell-copy strong,.record-cell-copy time { font-size:12px; } .record-cell-copy span { font-size:9px; } .history-footer { padding:0 20px 20px; align-items:flex-start; flex-direction:column; gap:7px; } .history-empty { display:block !important; } .toast { left:16px; right:16px; bottom:86px; } }
+        @media (max-width:420px) { .attendance-records-table tbody tr { grid-template-columns:1fr; grid-template-areas:'date' 'subject' 'status'; } .status-badge { width:100%; min-width:0; } }
         /* Mobile nav */
         .mobile-nav-bar { display:none; position:fixed; bottom:0; left:0; right:0; background:var(--glass-bg); backdrop-filter:blur(32px); border-top:1px solid var(--glass-border); z-index:200; padding:6px 0 max(6px,env(safe-area-inset-bottom)); }
         .mobile-nav-bar ul { display:flex; list-style:none; align-items:center; padding:0 8px; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; scroll-snap-type:x mandatory; scrollbar-width:none; -ms-overflow-style:none; gap:2px; }
@@ -257,7 +253,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 <div>
                     <div class="records-eyebrow"><i class="ph-fill ph-calendar-check"></i> Complete history</div>
                     <h3 class="records-title" id="attendanceLedgerTitle">Attendance Records</h3>
-                    <p class="records-description">All recorded sessions are shown below as easy-to-read dates and status labels. No spreadsheet scrolling needed.</p>
+                    <p class="records-description">Every recorded session is organized in a clear, easy-to-scan table with the newest attendance first.</p>
                 </div>
                 <div class="records-tools">
                     <div class="filter-control">
@@ -276,8 +272,13 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 <div class="ml-item"><span class="ml-dot status-L"><i class="ph-fill ph-clock-countdown"></i></span> Late</div>
                 <div class="ml-item"><span class="ml-dot status-E"><i class="ph-fill ph-note"></i></span> Excused</div>
             </div>
-            <div class="attendance-history" id="attendanceHistory" aria-live="polite">
-                <div class="history-empty"><i class="ph-bold ph-spinner-gap"></i>Loading attendance records…</div>
+            <div class="records-table-shell">
+                <table class="attendance-records-table" id="attendanceRecordsTable">
+                    <thead><tr><th scope="col">Date</th><th scope="col">Subject</th><th scope="col">Status</th></tr></thead>
+                    <tbody id="attendanceTableBody" aria-live="polite">
+                        <tr class="empty-record-row"><td colspan="3" class="history-empty"><i class="ph-bold ph-spinner-gap"></i>Loading attendance records…</td></tr>
+                    </tbody>
+                </table>
             </div>
             <div class="history-footer">
                 <span id="historyInfo"><i class="ph-bold ph-calendar-dots"></i> Preparing attendance history…</span>
@@ -393,7 +394,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
             } catch(e) {
                 console.error(e);
-                document.getElementById('attendanceHistory').innerHTML = '<div class="history-empty"><i class="ph-fill ph-warning-circle"></i>Attendance records could not be loaded.</div>';
+                document.getElementById('attendanceTableBody').innerHTML = '<tr class="empty-record-row"><td colspan="3" class="history-empty"><i class="ph-fill ph-warning-circle"></i>Attendance records could not be loaded.</td></tr>';
                 document.getElementById('historyInfo').innerHTML = '<i class="ph-bold ph-warning"></i> Unable to prepare attendance history';
             }
         }
@@ -430,19 +431,13 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         }
 
         function renderAttendanceHistory(records) {
-            const subjectMap = new Map();
-            records.forEach(record => {
-                const subjectCode = String(record.subjectCode || '').trim();
-                const date = String(record.date || '').trim();
-                if(!subjectCode || !date) return;
-                if(!subjectMap.has(subjectCode)) subjectMap.set(subjectCode, []);
-                subjectMap.get(subjectCode).push({ ...record, date, status: normalizeAttendanceStatus(record.status) });
-            });
-
-            const subjects = Array.from(subjectMap.keys()).sort();
-            const history = document.getElementById('attendanceHistory');
-            if(subjects.length === 0) {
-                history.innerHTML = '<div class="history-empty"><i class="ph-fill ph-calendar-x"></i>No attendance records found.</div>';
+            const validRecords = records
+                .map(record => ({ ...record, subjectCode:String(record.subjectCode || '').trim(), date:String(record.date || '').trim(), status:normalizeAttendanceStatus(record.status) }))
+                .filter(record => record.subjectCode && record.date)
+                .sort((a,b) => b.date.localeCompare(a.date) || a.subjectCode.localeCompare(b.subjectCode));
+            const tableBody = document.getElementById('attendanceTableBody');
+            if(validRecords.length === 0) {
+                tableBody.innerHTML = '<tr class="empty-record-row"><td colspan="3" class="history-empty"><i class="ph-fill ph-calendar-x"></i>No attendance records found.</td></tr>';
                 document.getElementById('historyInfo').innerHTML = '<i class="ph-bold ph-calendar-dots"></i> 0 subjects · 0 records';
                 return;
             }
@@ -455,32 +450,21 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 pending: { label:'Pending', icon:'ph-bold ph-minus-circle' }
             };
 
-            history.innerHTML = subjects.map(subjectCode => {
-                const subjectRecords = subjectMap.get(subjectCode).sort((a,b) => b.date.localeCompare(a.date));
-                const summary = summarizeAttendance(subjectRecords);
-                const rateColor = summary.rate >= 80 ? 'var(--success)' : summary.rate >= 60 ? 'var(--warning)' : 'var(--danger)';
-                const sessions = subjectRecords.map(record => {
-                    const statusKey = statusDetails[record.status] ? record.status : 'pending';
-                    const status = statusDetails[statusKey];
-                    const dateValue = new Date(`${record.date}T00:00:00`);
-                    const primaryDate = Number.isNaN(dateValue.getTime()) ? record.date : dateValue.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});
-                    const weekday = Number.isNaN(dateValue.getTime()) ? 'Recorded session' : dateValue.toLocaleDateString('en-PH',{weekday:'long'});
-                    return `<div class="session-record">
-                        <div class="session-date"><i class="ph-fill ph-calendar-blank"></i><div class="session-date-copy"><time datetime="${escapeHtml(record.date)}">${escapeHtml(primaryDate)}</time><span>${escapeHtml(weekday)}</span></div></div>
-                        <span class="status-badge status-${statusKey}" aria-label="Attendance status: ${status.label}"><i class="${status.icon}"></i>${status.label}</span>
-                    </div>`;
-                }).join('');
-
-                return `<article class="subject-history-card" aria-label="${escapeHtml(subjectCode)} attendance records">
-                    <div class="subject-history-head">
-                        <div class="subject-history-title"><span class="subject-history-icon"><i class="ph-fill ph-book-open-text"></i></span><div class="subject-history-copy"><h4>${escapeHtml(subjectCode)}</h4><p>${subjectRecords.length} recorded session${subjectRecords.length !== 1 ? 's' : ''} · ${summary.attended} attended</p></div></div>
-                        <div class="subject-rate" style="color:${rateColor};"><strong>${summary.rate}%</strong><span>Rate</span></div>
-                    </div>
-                    <div class="session-list">${sessions}</div>
-                </article>`;
+            tableBody.innerHTML = validRecords.map(record => {
+                const statusKey = statusDetails[record.status] ? record.status : 'pending';
+                const status = statusDetails[statusKey];
+                const dateValue = new Date(`${record.date}T00:00:00`);
+                const primaryDate = Number.isNaN(dateValue.getTime()) ? record.date : dateValue.toLocaleDateString('en-PH',{month:'long',day:'numeric',year:'numeric'});
+                const weekday = Number.isNaN(dateValue.getTime()) ? 'Recorded session' : dateValue.toLocaleDateString('en-PH',{weekday:'long'});
+                return `<tr class="attendance-record-row">
+                    <td class="record-date-column"><div class="record-date-cell"><span class="record-cell-icon"><i class="ph-fill ph-calendar-blank"></i></span><div class="record-cell-copy"><time datetime="${escapeHtml(record.date)}">${escapeHtml(primaryDate)}</time><span>${escapeHtml(weekday)}</span></div></div></td>
+                    <td class="record-subject-column"><div class="record-subject-cell"><span class="record-cell-icon"><i class="ph-fill ph-book-open-text"></i></span><div class="record-cell-copy"><strong>${escapeHtml(record.subjectCode)}</strong><span>Course subject</span></div></div></td>
+                    <td class="record-status-column"><span class="status-badge status-${statusKey}" aria-label="Attendance status: ${status.label}"><i class="${status.icon}"></i>${status.label}</span></td>
+                </tr>`;
             }).join('');
 
-            document.getElementById('historyInfo').innerHTML = `<i class="ph-bold ph-calendar-dots"></i> ${subjects.length} subject${subjects.length!==1?'s':''} · ${records.length} record${records.length!==1?'s':''}`;
+            const subjectCount = new Set(validRecords.map(record => record.subjectCode)).size;
+            document.getElementById('historyInfo').innerHTML = `<i class="ph-bold ph-calendar-dots"></i> ${subjectCount} subject${subjectCount!==1?'s':''} · ${validRecords.length} record${validRecords.length!==1?'s':''}`;
         }
 
         window.applyAttendanceFilter = function() {
