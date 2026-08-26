@@ -42,6 +42,6 @@ If Row Level Security is enabled, add policies that allow the anonymous publisha
 
 ## Recitation wallet
 
-Apply `supabase_migrations/20260826_recitation_wallet.sql` before opening the new Admin or Student Recitation pages. It creates the wallet and immutable transaction ledger, enables Row Level Security, blocks direct browser access to both tables, and exposes only session-validated database functions.
+Apply `supabase_migrations/20260826_recitation_wallet.sql`, followed by `supabase_migrations/20260827_recitation_admin_adjustments.sql`, before opening the Admin or Student Recitation pages. They create the wallet and immutable transaction ledger, enable Row Level Security, block direct browser access to both tables, and expose only session-validated database functions.
 
-Student PINs are stored only as bcrypt hashes. Student transfers are atomic, limited to active classmates in the same section, and protected by a five-attempt lockout. Instructor awards require an authenticated admin session and a subject in which the student is enrolled.
+Student PINs are stored only as bcrypt hashes. Student transfers are atomic, limited to active classmates in the same section, protected by a five-attempt lockout, and rejected whenever the available balance is zero, negative, or lower than the requested transfer. Authenticated administrators can add or reduce chips, including creating a negative balance, and every adjustment is recorded separately in the ledger.

@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/style.css">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/fill/style.css">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/bold/style.css">
-  <link rel="stylesheet" href="./recitation.css?v=20260826rec1">
+  <link rel="stylesheet" href="./recitation.css?v=20260827rec2">
   <link rel="stylesheet" href="./plv-responsive.css?v=20260826global1">
   <script src="./plv-navigation.v1.js" defer></script>
 </head>
@@ -124,7 +124,16 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="insufficientBalanceModal" role="dialog" aria-modal="true" aria-labelledby="insufficientBalanceTitle">
+    <div class="modal glass balance-alert-modal">
+      <div class="modal-head"><div><h2 id="insufficientBalanceTitle">Insufficient balance</h2><p>You cannot send more Recitation chips than your available balance.</p></div><button class="modal-close" data-close="insufficientBalanceModal" aria-label="Close"><i class="ph ph-x"></i></button></div>
+      <div class="balance-alert-visual"><div class="balance-alert-icon"><i class="ph-fill ph-wallet"></i></div><div><span>Available balance</span><strong id="insufficientAvailable">0 chips</strong></div></div>
+      <p class="balance-alert-message" id="insufficientMessage">Earn more Recitation chips before trying this transfer again.</p>
+      <button class="btn btn-primary full" type="button" data-close="insufficientBalanceModal"><i class="ph-bold ph-check"></i> I understand</button>
+    </div>
+  </div>
+
   <div class="toast" id="toast"><i class="ph-fill ph-check-circle"></i><span id="toastMessage"></span></div>
-  <script type="module" src="./student-recitation.js?v=20260826rec2"></script>
+  <script type="module" src="./student-recitation.js?v=20260827rec3"></script>
 </body>
 </html>

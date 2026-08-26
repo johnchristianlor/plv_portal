@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/style.css">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/fill/style.css">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/bold/style.css">
-  <link rel="stylesheet" href="./recitation.css?v=20260826rec1">
+  <link rel="stylesheet" href="./recitation.css?v=20260827rec2">
   <link rel="stylesheet" href="./plv-responsive.css?v=20260826global1">
   <script src="./plv-navigation.v1.js" defer></script>
 </head>
@@ -49,7 +49,7 @@
       <div class="hero-copy">
         <span class="eyebrow"><i class="ph-fill ph-seal-check"></i> Instructor Control Center</span>
         <div class="balance-line"><strong id="issuedTotal">0</strong><span>chips in circulation</span></div>
-        <p>Recognize active participation instantly. Every award and student transfer is protected, validated, and recorded for accountability.</p>
+        <p>Recognize participation and correct balances instantly. Every administrator adjustment and student transfer is validated and recorded for accountability.</p>
         <div class="hero-stats">
           <div class="hero-stat"><span>Student wallets</span><b id="walletCount">0</b></div>
           <div class="hero-stat"><span>PIN protected</span><b id="pinCount">0</b></div>
@@ -61,15 +61,23 @@
 
     <section class="content-grid">
       <article class="card glass">
-        <div class="card-head"><div><h2>Award Recitation</h2><p>Add earned chips to a student enrolled in your subject.</p></div><div class="card-icon"><i class="ph-fill ph-star"></i></div></div>
+        <div class="card-head"><div><h2 id="adjustmentTitle">Adjust Recitation</h2><p id="adjustmentSubtitle">Add earned chips or reduce a student's balance.</p></div><div class="card-icon" id="adjustmentIcon"><i class="ph-fill ph-sliders-horizontal"></i></div></div>
         <form class="form-stack" id="awardForm">
+          <div class="field">
+            <label>Adjustment type</label>
+            <div class="mode-switch" role="group" aria-label="Choose adjustment type">
+              <button class="mode-btn active" id="modeAdd" type="button" data-mode="add"><i class="ph-bold ph-plus-circle"></i> Add chips</button>
+              <button class="mode-btn" id="modeReduce" type="button" data-mode="reduce"><i class="ph-bold ph-minus-circle"></i> Reduce chips</button>
+            </div>
+          </div>
           <div class="field"><label for="awardStudent">Student</label><select class="select" id="awardStudent" required><option value="">Choose a student</option></select></div>
           <div class="row-fields">
             <div class="field"><label for="awardSubject">Subject</label><select class="select" id="awardSubject" required><option value="">Choose subject</option></select></div>
-            <div class="field"><label for="awardAmount">Chips earned</label><input class="input" id="awardAmount" type="number" inputmode="numeric" min="1" max="100000" step="1" placeholder="1" required></div>
+            <div class="field"><label for="awardAmount" id="amountLabel">Chips to add</label><input class="input" id="awardAmount" type="number" inputmode="numeric" min="1" max="100000" step="1" placeholder="1" required></div>
           </div>
-          <div class="field"><label for="awardNote">Reason <span style="text-transform:none;font-weight:600">(optional)</span></label><textarea class="textarea" id="awardNote" maxlength="240" placeholder="Example: Excellent explanation during recitation"></textarea><span class="input-hint">The student will see this note in their wallet activity.</span></div>
-          <button class="btn btn-gold full" id="awardButton" type="submit"><i class="ph-bold ph-plus-circle"></i> Award chips</button>
+          <div class="adjustment-notice" id="adjustmentNotice"><i class="ph-fill ph-info"></i><span>Adding chips increases the student's available balance.</span></div>
+          <div class="field"><label for="awardNote">Reason <span style="text-transform:none;font-weight:600">(optional)</span></label><textarea class="textarea" id="awardNote" maxlength="240" placeholder="Example: Excellent explanation during recitation"></textarea><span class="input-hint">The student will see this reason in their wallet activity.</span></div>
+          <button class="btn btn-gold full" id="awardButton" type="submit"><i class="ph-bold ph-plus-circle"></i> Add chips</button>
         </form>
       </article>
 
@@ -87,7 +95,7 @@
     </section>
 
     <section class="card glass">
-      <div class="card-head"><div><h2>Recitation Ledger</h2><p>A complete, read-only audit trail of instructor awards and student transfers.</p></div><div class="card-icon"><i class="ph-fill ph-receipt"></i></div></div>
+        <div class="card-head"><div><h2>Recitation Ledger</h2><p>A complete, read-only audit trail of additions, reductions, and student transfers.</p></div><div class="card-icon"><i class="ph-fill ph-receipt"></i></div></div>
       <div class="table-wrap"><table class="data-table">
         <thead><tr><th>Activity</th><th>From</th><th>To</th><th>Section</th><th>Subject</th><th>Amount</th><th>Date</th></tr></thead>
         <tbody id="ledgerRows"><tr><td colspan="7"><div class="empty"><span class="loading"></span><b>Loading ledger</b></div></td></tr></tbody>
@@ -119,6 +127,6 @@
   </div>
 
   <div class="toast" id="toast"><i class="ph-fill ph-check-circle"></i><span id="toastMessage"></span></div>
-  <script type="module" src="./admin-recitation.js?v=20260826rec2"></script>
+  <script type="module" src="./admin-recitation.js?v=20260827rec3"></script>
 </body>
 </html>

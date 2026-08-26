@@ -11,6 +11,7 @@ let subjects = [];
 let enrollments = [];
 let pendingResetStudent = null;
 let filterTimer = null;
+let adjustmentMode = 'add';
 
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
@@ -21,6 +22,7 @@ const dateTime = (value) => new Intl.DateTimeFormat('en-PH', { dateStyle: 'mediu
 const messages = {
   invalid_session: 'Your admin session has expired. Please sign in again.',
   invalid_amount: 'Enter a whole number of chips greater than zero.',
+  invalid_adjustment_type: 'Choose whether to add or reduce chips.',
   subject_required: 'Choose the subject where the student earned the recitation.',
   student_not_found: 'The selected student account is no longer active.',
   subject_not_enrolled: 'This student is not enrolled in the selected subject.',
@@ -79,9 +81,9 @@ function renderWallets() {
   body.innerHTML = walletRows.map((row) => `<tr>
     <td><div class="student-cell"><span class="recipient-avatar">${escapeHtml(initials(row.full_name))}</span><div><b>${escapeHtml(row.full_name)}</b><small>${escapeHtml(row.student_no)}</small></div></div></td>
     <td>${escapeHtml(row.section || 'Unassigned')}</td>
-    <td><span class="amount plus">${number(row.balance)}</span></td>
+    <td><span class="amount ${Number(row.balance) < 0 ? 'minus' : 'plus'}">${number(row.balance)}</span></td>
     <td><span class="status-pill ${row.pin_set ? 'earned' : ''}"><i class="ph-fill ${row.pin_set ? 'ph-shield-check' : 'ph-lock-simple-open'}"></i>${row.pin_set ? 'Protected' : 'Not set'}</span></td>
-    <td><div style="display:flex;gap:6px;white-space:nowrap"><button class="btn btn-soft" type="button" data-award="${escapeHtml(row.student_no)}" style="padding:8px 10px;min-height:34px"><i class="ph-bold ph-plus"></i> Award</button>${row.pin_set ? `<button class="btn btn-danger-soft" type="button" data-reset="${escapeHtml(row.student_no)}" data-name="${escapeHtml(row.full_name)}" aria-label="Reset ${escapeHtml(row.full_name)} PIN" style="padding:8px 10px;min-height:34px"><i class="ph-bold ph-password"></i></button>` : ''}</div></td>
+    <td><div style="display:flex;gap:6px;white-space:nowrap"><button class="btn btn-soft" type="button" data-award="${escapeHtml(row.student_no)}" style="padding:8px 10px;min-height:34px"><i class="ph-bold ph-sliders-horizontal"></i> Adjust</button>${row.pin_set ? `<button class="btn btn-danger-soft" type="button" data-reset="${escapeHtml(row.student_no)}" data-name="${escapeHtml(row.full_name)}" aria-label="Reset ${escapeHtml(row.full_name)} PIN" style="padding:8px 10px;min-height:34px"><i class="ph-bold ph-password"></i></button>` : ''}</div></td>
   </tr>`).join('');
   body.querySelectorAll('[data-award]').forEach((button) => button.addEventListener('click', () => {
     $('awardStudent').value = button.dataset.award; populateSubjects(button.dataset.award); $('awardAmount').focus(); window.scrollTo({ top: 360, behavior: 'smooth' });
@@ -98,11 +100,15 @@ function renderLedger(rows) {
     body.innerHTML = '<tr><td colspan="7"><div class="empty"><i class="ph ph-receipt"></i><b>No Recitation activity yet</b><span>Awards and transfers will appear here automatically.</span></div></td></tr>';
     return;
   }
-  body.innerHTML = rows.map((row) => `<tr>
-    <td><span class="status-pill ${row.transaction_type === 'award' ? 'earned' : ''}"><i class="ph-fill ${row.transaction_type === 'award' ? 'ph-star' : 'ph-arrows-left-right'}"></i>${escapeHtml(row.transaction_type)}</span></td>
+  body.innerHTML = rows.map((row) => {
+    const deduction = row.transaction_type === 'deduction';
+    const award = row.transaction_type === 'award';
+    return `<tr>
+    <td><span class="status-pill ${award ? 'earned' : deduction ? 'sent' : ''}"><i class="ph-fill ${award ? 'ph-star' : deduction ? 'ph-minus-circle' : 'ph-arrows-left-right'}"></i>${escapeHtml(row.transaction_type)}</span></td>
     <td>${escapeHtml(row.from_name || 'Instructor')}</td><td>${escapeHtml(row.to_name || '—')}</td><td>${escapeHtml(row.section || '—')}</td><td>${escapeHtml(row.subject_code || '—')}</td>
-    <td><span class="amount plus">+${number(row.amount)}</span></td><td>${escapeHtml(dateTime(row.created_at))}</td>
-  </tr>`).join('');
+    <td><span class="amount ${deduction ? 'minus' : 'plus'}">${deduction ? '−' : '+'}${number(row.amount)}</span></td><td>${escapeHtml(dateTime(row.created_at))}</td>
+  </tr>`;
+  }).join('');
 }
 
 async function loadReferenceData() {
@@ -137,25 +143,41 @@ async function loadLedger() {
   renderLedger(data || []);
 }
 
-async function awardRecitation(event) {
+async function adjustRecitation(event) {
   event.preventDefault();
   const amount = Number($('awardAmount').value);
   if (!Number.isInteger(amount) || amount < 1) return showToast(messages.invalid_amount, 'err');
-  const button = $('awardButton'); button.disabled = true; button.innerHTML = '<span class="loading"></span> Awarding securely';
+  const reducing = adjustmentMode === 'reduce';
+  const button = $('awardButton'); button.disabled = true; button.innerHTML = `<span class="loading"></span> ${reducing ? 'Reducing' : 'Adding'} securely`;
   try {
-    const { data, error } = await supabase.rpc('admin_award_recitation', {
+    const { data, error } = await supabase.rpc('admin_adjust_recitation', {
       p_admin_session_token: sessionToken,
       p_student_no: $('awardStudent').value,
       p_amount: amount,
+      p_adjustment_type: adjustmentMode,
       p_subject_code: $('awardSubject').value,
       p_note: $('awardNote').value.trim() || null
     });
     if (error || !data?.success) throw new Error(friendlyError(error, data));
-    showToast(`${number(amount)} chip${amount === 1 ? '' : 's'} awarded to ${data.studentName}.`);
+    showToast(`${number(amount)} chip${amount === 1 ? '' : 's'} ${reducing ? 'reduced from' : 'added to'} ${data.studentName}. New balance: ${number(data.balance)}.`);
     $('awardAmount').value = ''; $('awardNote').value = '';
     await Promise.all([loadWallets(), loadLedger()]);
   } catch (error) { showToast(error.message, 'err'); }
-  finally { button.disabled = false; button.innerHTML = '<i class="ph-bold ph-plus-circle"></i> Award chips'; }
+  finally { button.disabled = false; updateAdjustmentMode(adjustmentMode); }
+}
+
+function updateAdjustmentMode(mode) {
+  adjustmentMode = mode === 'reduce' ? 'reduce' : 'add';
+  const reducing = adjustmentMode === 'reduce';
+  document.querySelectorAll('.mode-btn').forEach((button) => button.classList.toggle('active', button.dataset.mode === adjustmentMode));
+  $('amountLabel').textContent = reducing ? 'Chips to reduce' : 'Chips to add';
+  $('awardNote').placeholder = reducing ? 'Example: Balance correction or classroom penalty' : 'Example: Excellent explanation during recitation';
+  $('adjustmentNotice').classList.toggle('reduce', reducing);
+  $('adjustmentNotice').innerHTML = reducing
+    ? '<i class="ph-fill ph-warning-circle"></i><span>Reductions can move a wallet below zero. Students with insufficient balance cannot send chips.</span>'
+    : '<i class="ph-fill ph-info"></i><span>Adding chips increases the student\'s available balance.</span>';
+  $('awardButton').className = `btn ${reducing ? 'btn-danger-soft' : 'btn-gold'} full`;
+  $('awardButton').innerHTML = reducing ? '<i class="ph-bold ph-minus-circle"></i> Reduce chips' : '<i class="ph-bold ph-plus-circle"></i> Add chips';
 }
 
 async function resetPin() {
@@ -179,7 +201,9 @@ window.logout = async () => { adminSessionGuard.stop(); try { await supabase.aut
 
 initTheme();
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => closeModal(button.dataset.close)));
-$('awardForm').addEventListener('submit', awardRecitation);
+$('awardForm').addEventListener('submit', adjustRecitation);
+$('modeAdd').addEventListener('click', () => updateAdjustmentMode('add'));
+$('modeReduce').addEventListener('click', () => updateAdjustmentMode('reduce'));
 $('awardStudent').addEventListener('change', (event) => populateSubjects(event.target.value));
 $('confirmResetPin').addEventListener('click', resetPin);
 $('sectionFilter').addEventListener('change', () => loadWallets().catch((error) => showToast(friendlyError(error), 'err')));
@@ -190,3 +214,5 @@ loadReferenceData().then(() => Promise.all([loadWallets(), loadLedger()])).catch
   $('walletRows').innerHTML = '<tr><td colspan="5"><div class="empty"><i class="ph ph-warning-circle"></i><b>Could not load Recitation</b><span>Apply the database migration, then refresh this page.</span></div></td></tr>';
   $('ledgerRows').innerHTML = '<tr><td colspan="7"><div class="empty"><span>Ledger unavailable.</span></div></td></tr>';
 });
+
+updateAdjustmentMode('add');

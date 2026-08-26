@@ -103,6 +103,7 @@ function createPinInputs(group) {
 
 function renderWallet() {
   $('balance').textContent = number(wallet.balance);
+  $('balance').classList.toggle('negative-balance', Number(wallet.balance) < 0);
   $('totalEarned').textContent = number(wallet.totalEarned);
   $('totalShared').textContent = number(wallet.totalShared);
   $('walletSection').textContent = wallet.section || 'Unassigned';
@@ -135,12 +136,14 @@ function renderActivity(rows) {
   list.innerHTML = rows.map((row) => {
     const direction = row.direction || 'earned';
     const sent = direction === 'sent';
-    const label = direction === 'earned' ? `Earned${row.subject_code ? ` in ${escapeHtml(row.subject_code)}` : ''}` : direction === 'sent' ? `Sent to ${escapeHtml(row.counterparty_name)}` : `Received from ${escapeHtml(row.counterparty_name)}`;
-    const icon = direction === 'earned' ? 'ph-fill ph-star' : sent ? 'ph-fill ph-arrow-up-right' : 'ph-fill ph-arrow-down-left';
+    const deducted = direction === 'deducted';
+    const outgoing = sent || deducted;
+    const label = direction === 'earned' ? `Earned${row.subject_code ? ` in ${escapeHtml(row.subject_code)}` : ''}` : deducted ? `Reduced by instructor${row.subject_code ? ` • ${escapeHtml(row.subject_code)}` : ''}` : sent ? `Sent to ${escapeHtml(row.counterparty_name)}` : `Received from ${escapeHtml(row.counterparty_name)}`;
+    const icon = direction === 'earned' ? 'ph-fill ph-star' : deducted ? 'ph-fill ph-minus-circle' : sent ? 'ph-fill ph-arrow-up-right' : 'ph-fill ph-arrow-down-left';
     return `<div class="activity-item">
-      <div class="activity-icon ${escapeHtml(direction)}"><i class="${icon}"></i></div>
+      <div class="activity-icon ${deducted ? 'sent' : escapeHtml(direction)}"><i class="${icon}"></i></div>
       <div class="activity-copy"><b>${label}</b><span>${escapeHtml(row.note || 'No message')} • ${escapeHtml(dateTime(row.created_at))}</span></div>
-      <div class="activity-amount ${sent ? 'negative' : 'positive'}">${sent ? '−' : '+'}${number(row.amount)}<small>chips</small></div>
+      <div class="activity-amount ${outgoing ? 'negative' : 'positive'}">${outgoing ? '−' : '+'}${number(row.amount)}<small>chips</small></div>
     </div>`;
   }).join('');
 }
@@ -219,10 +222,10 @@ async function submitChangePin(event) {
 function reviewTransfer(event) {
   event.preventDefault();
   const amount = Number($('transferAmount').value);
-  if (!wallet.pinSet) { openModal('setupPinModal'); return; }
   if (!selectedRecipient) return showToast('Choose a classmate first.', 'err');
   if (!Number.isInteger(amount) || amount < 1) return showToast(errorMessages.invalid_amount, 'err');
-  if (amount > Number(wallet.balance)) return showToast(errorMessages.insufficient_balance, 'err');
+  if (amount > Number(wallet.balance)) return showInsufficientBalance(amount);
+  if (!wallet.pinSet) { openModal('setupPinModal'); return; }
   $('transferSummary').textContent = `Send ${number(amount)} chip${amount === 1 ? '' : 's'} to ${selectedRecipient.full_name}. This cannot be undone.`;
   $('transferPin').value = '';
   openModal('confirmTransferModal');
@@ -242,6 +245,12 @@ async function confirmTransfer(event) {
       p_pin: pin,
       p_note: $('transferNote').value.trim() || null
     });
+    if (data?.code === 'insufficient_balance') {
+      closeModal('confirmTransferModal');
+      await loadWallet();
+      showInsufficientBalance(Number($('transferAmount').value));
+      return;
+    }
     if (error || !data?.success) throw new Error(friendlyError(error, data));
     closeModal('confirmTransferModal');
     showToast(`Recitation sent securely to ${data.recipientName || selectedRecipient.full_name}.`);
@@ -249,6 +258,15 @@ async function confirmTransfer(event) {
     await Promise.all([loadWallet(), loadActivity(), loadRecipients('')]);
   } catch (error) { showToast(error.message, 'err'); }
   finally { button.disabled = false; button.innerHTML = '<i class="ph-bold ph-check-circle"></i> Confirm and send'; $('transferPin').value = ''; }
+}
+
+function showInsufficientBalance(requestedAmount) {
+  const available = Number(wallet.balance) || 0;
+  $('insufficientAvailable').textContent = `${number(available)} chip${Math.abs(available) === 1 ? '' : 's'}`;
+  $('insufficientMessage').textContent = available <= 0
+    ? `Your current balance is ${number(available)}. Earn more Recitation chips before sending to another student.`
+    : `You need ${number(requestedAmount)} chips for this transfer, but only ${number(available)} ${available === 1 ? 'is' : 'are'} available.`;
+  openModal('insufficientBalanceModal');
 }
 
 function initTheme() {

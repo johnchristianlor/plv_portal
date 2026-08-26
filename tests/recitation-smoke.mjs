@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 const migration = read('supabase_migrations/20260826_recitation_wallet.sql');
+const adjustmentMigration = read('supabase_migrations/20260827_recitation_admin_adjustments.sql');
 const studentPage = read('public/student-recitation.html');
 const studentScript = read('public/student-recitation.js');
 const adminPage = read('public/admin-recitation.html');
@@ -33,12 +34,22 @@ test('student transfers are atomic, balance checked, and same-section only', () 
   assert.match(migration, /insert into public\.recitation_transactions/i);
 });
 
-test('admin awards require admin session and subject enrollment', () => {
+test('admin adjustments require admin session and subject enrollment', () => {
   assert.match(migration, /recitation_admin_is_valid\(p_admin_session_token\)/i);
   assert.match(migration, /from public\.enrollments e/i);
   assert.match(migration, /subject_not_enrolled/i);
-  assert.match(adminScript, /admin_award_recitation/);
+  assert.match(adminScript, /admin_adjust_recitation/);
   assert.match(adminScript, /admin_reset_recitation_pin/);
+});
+
+test('admins can reduce balances below zero while transfers remain balance-gated', () => {
+  assert.match(adjustmentMigration, /drop constraint if exists recitation_wallets_balance_check/i);
+  assert.match(adjustmentMigration, /transaction_type in \('award', 'deduction', 'transfer'\)/i);
+  assert.match(adjustmentMigration, /v_delta := case when v_transaction_type = 'deduction' then -p_amount else p_amount end/i);
+  assert.match(adjustmentMigration, /balance = public\.recitation_wallets\.balance \+ excluded\.balance/i);
+  assert.match(migration, /v_wallet\.balance < p_amount/i);
+  assert.match(studentPage, /id="insufficientBalanceModal"/i);
+  assert.match(studentScript, /showInsufficientBalance/);
 });
 
 test('student wallet uses secure RPCs and never stores a PIN locally', () => {
