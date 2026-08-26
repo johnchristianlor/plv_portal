@@ -34,7 +34,7 @@
         .nav-item a i { font-size:22px; }
         .nav-item a:hover { background:var(--accent-light); color:var(--accent-primary); }
         .nav-item a.active { background:var(--accent-primary); color:#fff; box-shadow:0 10px 24px -8px var(--accent-primary); }
-        .main-wrapper { flex:1; padding:40px 48px; display:flex; flex-direction:column; gap:32px; max-width:1500px; margin:0 auto; width:100%; }
+        .main-wrapper { flex:1; min-width:0; padding:36px 32px; display:flex; flex-direction:column; gap:28px; max-width:1760px; margin:0 auto; width:100%; }
         .header { display:flex; justify-content:space-between; align-items:center; }
         .header h1 { font-size:28px; font-weight:800; letter-spacing:-1px; }
         .header p { color:var(--text-muted); font-weight:600; font-size:15px; }
@@ -61,7 +61,7 @@
         /* Card */
         .card { padding:32px; display:flex; flex-direction:column; position:relative; overflow:hidden; }
         /* Attendance spreadsheet */
-        .records-card { padding:0; overflow:hidden; border-radius:28px; }
+        .records-card { min-width:0; padding:0; overflow:hidden; border-radius:28px; }
         .records-header { padding:28px 30px 22px; display:flex; justify-content:space-between; align-items:flex-end; gap:20px; border-bottom:1px solid var(--input-border); background:linear-gradient(135deg,rgba(0,61,165,.075),rgba(255,255,255,.24)); }
         .dark-theme .records-header { background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(255,255,255,.015)); }
         .records-eyebrow { display:flex; align-items:center; gap:8px; color:var(--accent-primary); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1.4px; margin-bottom:7px; }
@@ -72,8 +72,9 @@
         .filter-control label { color:var(--text-muted); font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1px; }
         .select-filter { min-width:180px; padding:10px 38px 10px 13px; border-radius:11px; border:1px solid var(--input-border); background:var(--input-bg); color:var(--text-main); font-size:13px; font-weight:700; outline:none; }
         .select-filter:focus { border-color:var(--accent-primary); box-shadow:0 0 0 3px var(--accent-light); }
-        .refresh-records { width:40px; height:40px; border-radius:11px; border:1px solid var(--input-border); background:var(--input-bg); color:var(--accent-primary); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:18px; }
-        .refresh-records:hover { background:var(--accent-light); transform:translateY(-1px); }
+        .record-action { height:40px; padding:0 13px; border-radius:11px; border:1px solid var(--input-border); background:var(--input-bg); color:var(--accent-primary); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:7px; font-size:12px; font-weight:800; white-space:nowrap; }
+        .record-action i { font-size:17px; }
+        .record-action:hover { background:var(--accent-light); transform:translateY(-1px); }
         .refresh-records .ph-spin { animation:recordSpin .7s linear infinite; }
         @keyframes recordSpin { to { transform:rotate(360deg); } }
         .matrix-legend { display:flex; gap:8px; flex-wrap:wrap; padding:16px 30px; align-items:center; border-bottom:1px solid var(--input-border); }
@@ -82,29 +83,32 @@
         .dark-theme .ml-item { background:rgba(255,255,255,.025); }
         .ml-dot { width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; }
         .legend-empty { margin-left:auto; }
-        .matrix-wrap { width:calc(100% - 36px); margin:18px; overflow:auto; border-radius:16px; border:1px solid var(--input-border); max-height:560px; background:var(--input-bg); box-shadow:0 10px 30px rgba(15,23,42,.045); scrollbar-width:thin; scrollbar-color:rgba(0,61,165,.35) transparent; }
+        .matrix-wrap { width:calc(100% - 36px); margin:18px; overflow:auto; border-radius:16px; border:1px solid var(--input-border); max-height:clamp(520px,62vh,720px); background:var(--input-bg); box-shadow:0 10px 30px rgba(15,23,42,.045); scrollbar-width:thin; scrollbar-color:rgba(0,61,165,.35) transparent; }
         .matrix-wrap::-webkit-scrollbar { width:10px; height:10px; }
         .matrix-wrap::-webkit-scrollbar-thumb { background:rgba(0,61,165,.25); border:3px solid transparent; background-clip:padding-box; border-radius:99px; }
         .matrix-table { width:100%; border-collapse:separate; border-spacing:0; font-size:12px; }
-        .matrix-table th { height:64px; padding:9px 13px; background:#063b8f; color:#fff; border-right:1px solid rgba(255,255,255,.12); border-bottom:1px solid rgba(255,255,255,.14); white-space:nowrap; position:sticky; top:0; z-index:5; text-align:center; }
-        .matrix-table th.session-heading { min-width:76px; }
+        .matrix-table th { height:70px; padding:10px 14px; background:#063b8f; color:#fff; border-right:1px solid rgba(255,255,255,.12); border-bottom:1px solid rgba(255,255,255,.14); white-space:nowrap; position:sticky; top:0; z-index:5; text-align:center; }
+        .matrix-table th.session-heading { min-width:90px; }
         .date-primary { display:block; font-size:13px; font-weight:800; letter-spacing:-.1px; }
         .date-secondary { display:block; margin-top:4px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.9px; color:rgba(255,255,255,.65); }
-        .matrix-table th.mth-subject { position:sticky; left:0; z-index:10; min-width:180px; text-align:left; background:#052b68; }
-        .matrix-table th.mth-rate { position:sticky; right:0; z-index:10; min-width:92px; background:#052b68; }
+        .matrix-table th.mth-subject { position:sticky; left:0; z-index:10; min-width:230px; text-align:left; background:#052b68; }
+        .matrix-table th.mth-rate { position:sticky; right:0; z-index:10; min-width:110px; background:#052b68; }
         .matrix-table tbody tr:nth-child(even) td:not(.mtd-subject):not(.mtd-rate) { background-color:rgba(100,116,139,.035); }
         .matrix-table tbody tr:hover td { box-shadow:inset 0 0 0 999px rgba(0,61,165,.035); }
-        .matrix-table td { height:58px; border-right:1px solid var(--input-border); border-bottom:1px solid var(--input-border); background-color:var(--input-bg); }
+        .matrix-table td { height:66px; border-right:1px solid var(--input-border); border-bottom:1px solid var(--input-border); background-color:var(--input-bg); }
         .matrix-table tbody tr:last-child td { border-bottom:0; }
-        .mtd-subject { position:sticky; left:0; z-index:4; min-width:180px; padding:11px 15px; font-weight:800; background:#fff !important; box-shadow:5px 0 14px -13px rgba(15,23,42,.7); }
+        .mtd-subject { position:sticky; left:0; z-index:4; min-width:230px; padding:12px 16px; font-weight:800; background:#fff !important; box-shadow:5px 0 14px -13px rgba(15,23,42,.7); }
         .subject-cell { display:flex; align-items:center; gap:10px; white-space:nowrap; }
         .subject-cell i { width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:9px; background:var(--accent-light); color:var(--accent-primary); font-size:15px; }
-        .subject-code { font-size:12px; color:var(--text-main); }
-        .mtd-rate { position:sticky; right:0; z-index:4; min-width:92px; padding:8px 12px; text-align:center; background:#fff !important; box-shadow:-5px 0 14px -13px rgba(15,23,42,.7); }
+        .subject-details { display:flex; min-width:0; flex-direction:column; gap:3px; }
+        .subject-code { font-size:13px; color:var(--text-main); overflow:hidden; text-overflow:ellipsis; }
+        .subject-meta { color:var(--text-muted); font-size:10px; font-weight:700; }
+        .mtd-rate { position:sticky; right:0; z-index:4; min-width:110px; padding:8px 12px; text-align:center; background:#fff !important; box-shadow:-5px 0 14px -13px rgba(15,23,42,.7); }
         .dark-theme .mtd-subject,.dark-theme .mtd-rate { background:#101827 !important; }
-        .rate-chip { display:inline-flex; align-items:center; justify-content:center; min-width:58px; padding:7px 9px; border-radius:9px; font-size:11px; font-weight:800; background:var(--accent-light); }
-        .mtd-cell { min-width:76px; padding:7px; text-align:center; vertical-align:middle; }
-        .status-mark { width:34px; height:34px; margin:auto; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; border:1px solid transparent; }
+        .rate-chip { display:inline-flex; align-items:center; justify-content:center; min-width:64px; padding:8px 10px; border-radius:10px; font-size:12px; font-weight:800; background:var(--accent-light); }
+        .mtd-cell { min-width:90px; padding:8px; text-align:center; vertical-align:middle; }
+        .status-mark { width:52px; height:38px; margin:auto; border-radius:11px; display:flex; align-items:center; justify-content:center; gap:5px; font-size:16px; border:1px solid transparent; }
+        .status-letter { font-size:10px; font-weight:900; }
         .mc-P .status-mark, .ml-dot.mc-P { background:var(--success-bg); color:var(--success); border-color:rgba(16,185,129,.16); }
         .mc-A .status-mark, .ml-dot.mc-A { background:var(--danger-bg); color:var(--danger); border-color:rgba(225,29,72,.15); }
         .mc-L .status-mark, .ml-dot.mc-L { background:var(--warning-bg); color:var(--warning); border-color:rgba(245,158,11,.17); }
@@ -116,6 +120,10 @@
         .matrix-footer i { color:var(--accent-primary); font-size:15px; }
         .sheet-empty { padding:52px 24px !important; text-align:center; color:var(--text-muted); }
         .sheet-empty i { display:block; font-size:28px; margin-bottom:8px; color:var(--accent-primary); }
+        body.matrix-focus { overflow:hidden; }
+        body.matrix-focus .records-card { position:fixed; inset:18px; z-index:1000; border-radius:24px; display:flex; height:calc(100vh - 36px); background:var(--bg-body); }
+        body.matrix-focus .matrix-wrap { flex:1; min-height:0; max-height:none; }
+        body.matrix-focus .focus-records { background:var(--accent-primary); color:#fff; border-color:var(--accent-primary); }
         /* Progress bar */
         .att-progress { width:100%; height:10px; border-radius:100px; background:rgba(0,0,0,0.06); overflow:hidden; margin-top:8px; }
         .att-progress-inner { height:100%; border-radius:100px; transition:width 1s ease; }
@@ -149,7 +157,7 @@
         .toast { position:fixed; bottom:32px; right:32px; background:var(--success); color:#fff; padding:14px 20px; border-radius:12px; font-weight:700; box-shadow:0 12px 24px rgba(16,185,129,0.25); transform:translateX(150%); transition:transform 0.3s ease; z-index:1000; }
         .toast.show { transform:translateX(0); }
         .toast.error { background:var(--danger); }
-        @media (max-width:768px) { .qr-scan-layout { grid-template-columns:1fr; } .records-header { padding:22px 20px 18px; align-items:stretch; flex-direction:column; } .records-tools { width:100%; } .filter-control { flex:1; } .select-filter { width:100%; min-width:0; } .matrix-legend { padding:12px 20px; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; } .matrix-legend::-webkit-scrollbar { display:none; } .matrix-legend>* { flex:0 0 auto; } .legend-empty { margin-left:0; } .matrix-wrap { width:calc(100% - 24px); margin:12px; max-height:500px; } .matrix-table th.mth-subject,.mtd-subject { min-width:145px; } .matrix-footer { padding:2px 20px 20px; align-items:flex-start; flex-direction:column; gap:7px; } .toast { left:16px; right:16px; bottom:86px; } }
+        @media (max-width:768px) { .qr-scan-layout { grid-template-columns:1fr; } .records-header { padding:22px 20px 18px; align-items:stretch; flex-direction:column; } .records-tools { width:100%; } .filter-control { flex:1; } .select-filter { width:100%; min-width:0; } .record-action-label { display:none; } .record-action { width:40px; padding:0; } .matrix-legend { padding:12px 20px; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; } .matrix-legend::-webkit-scrollbar { display:none; } .matrix-legend>* { flex:0 0 auto; } .legend-empty { margin-left:0; } .matrix-wrap { width:calc(100% - 24px); margin:12px; max-height:62vh; } .matrix-table th.session-heading,.mtd-cell { min-width:82px; } .matrix-table th.mth-subject,.mtd-subject { min-width:168px; } .matrix-table th.mth-rate,.mtd-rate { min-width:88px; } .subject-cell { gap:8px; } .subject-cell i { display:none; } .matrix-footer { padding:2px 20px 20px; align-items:flex-start; flex-direction:column; gap:7px; } body.matrix-focus .records-card { inset:6px; height:calc(100vh - 12px); border-radius:18px; } body.matrix-focus .records-description,body.matrix-focus .matrix-legend { display:none; } .toast { left:16px; right:16px; bottom:86px; } }
         /* Mobile nav */
         .mobile-nav-bar { display:none; position:fixed; bottom:0; left:0; right:0; background:var(--glass-bg); backdrop-filter:blur(32px); border-top:1px solid var(--glass-border); z-index:200; padding:6px 0 max(6px,env(safe-area-inset-bottom)); }
         .mobile-nav-bar ul { display:flex; list-style:none; align-items:center; padding:0 8px; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; scroll-snap-type:x mandatory; scrollbar-width:none; -ms-overflow-style:none; gap:2px; }
@@ -268,7 +276,10 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                             <option value="">All subjects</option>
                         </select>
                     </div>
-                    <button class="refresh-records" type="button" onclick="window.refreshAttendance()" title="Refresh attendance records" aria-label="Refresh attendance records"><i class="ph-bold ph-arrow-clockwise"></i></button>
+                    <button class="record-action refresh-records" type="button" onclick="window.refreshAttendance()" title="Refresh attendance records" aria-label="Refresh attendance records"><i class="ph-bold ph-arrow-clockwise"></i></button>
+                    <button class="record-action focus-records" id="focusRecordsButton" type="button" onclick="window.toggleAttendanceFocus()" aria-label="Open attendance focus view" aria-pressed="false">
+                        <i class="ph-bold ph-arrows-out" id="focusRecordsIcon"></i><span class="record-action-label" id="focusRecordsLabel">Focus view</span>
+                    </button>
                 </div>
             </div>
             <div class="matrix-legend" aria-label="Attendance status legend">
@@ -287,7 +298,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             </div>
             <div class="matrix-footer">
                 <span id="matrixInfo"><i class="ph-bold ph-table"></i> Preparing spreadsheet…</span>
-                <span><i class="ph-bold ph-arrows-left-right"></i> Scroll horizontally to review all sessions</span>
+                <span><i class="ph-bold ph-clock-counter-clockwise"></i> Most recent sessions appear first</span>
             </div>
         </section>
 
@@ -437,7 +448,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         }
 
         function renderMatrix(records) {
-            // Group by subject, get all unique dates sorted ASC
+            // Group by subject and show the newest class sessions first.
             const subjectMap = {}; // subject -> { date -> {status} }
             const dateSet = new Set();
             records.forEach(r => {
@@ -448,7 +459,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 subjectMap[subjectCode][date] = normalizeAttendanceStatus(r.status);
                 dateSet.add(date);
             });
-            const dates = Array.from(dateSet).sort();
+            const dates = Array.from(dateSet).sort((a,b) => b.localeCompare(a));
             const subjects = Object.keys(subjectMap).sort();
             const statusIcon = {
                 P:'<i class="ph-fill ph-check-circle"></i>',
@@ -456,7 +467,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 L:'<i class="ph-fill ph-clock-countdown"></i>',
                 E:'<i class="ph-fill ph-note"></i>'
             };
-            const shortDate = d => { const [y,m,day] = d.split('-'); return `${m}/${day}`; };
+            const shortDate = d => new Date(`${d}T00:00:00`).toLocaleDateString('en-PH',{month:'short',day:'numeric'});
 
             if(subjects.length === 0) {
                 document.getElementById('matrixHead').innerHTML = '';
@@ -476,19 +487,19 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             let html = '';
             subjects.forEach(sub => {
                 const dateMap = subjectMap[sub];
+                const summary = summarizeAttendance(Object.values(dateMap).map(status => ({ status })));
                 const cells = dates.map(d => {
                     const s = dateMap[d];
                     if(s) {
                         const labels = {P:'Present',A:'Absent',L:'Late',E:'Excused'};
-                        return `<td class="mtd-cell mc-${s}" title="${escapeHtml(d)} · ${labels[s]}"><span class="status-mark" aria-label="${labels[s]}">${statusIcon[s]}</span></td>`;
+                        return `<td class="mtd-cell mc-${s}" title="${escapeHtml(d)} · ${labels[s]}"><span class="status-mark" aria-label="${labels[s]}">${statusIcon[s]}<span class="status-letter" aria-hidden="true">${s}</span></span></td>`;
                     }
                     return '<td class="mtd-cell mc-empty" title="No record"><span class="status-mark" aria-label="No record"><i class="ph-bold ph-minus"></i></span></td>';
                 }).join('');
-                const summary = summarizeAttendance(Object.values(dateMap).map(status => ({ status })));
                 const rate = summary.rate;
                 const rateColor = rate >= 80 ? 'var(--success)' : rate >= 60 ? 'var(--warning)' : 'var(--danger)';
                 html += `<tr>
-                    <td class="mtd-subject"><div class="subject-cell"><i class="ph-fill ph-book-open-text"></i><span class="subject-code">${escapeHtml(sub)}</span></div></td>
+                    <td class="mtd-subject"><div class="subject-cell"><i class="ph-fill ph-book-open-text"></i><span class="subject-details"><span class="subject-code">${escapeHtml(sub)}</span><span class="subject-meta">${summary.attended} of ${summary.rateDenominator} attended</span></span></div></td>
                     ${cells}
                     <td class="mtd-rate"><span class="rate-chip" style="color:${rateColor};">${rate}%</span></td>
                 </tr>`;
@@ -508,6 +519,26 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             await loadData();
             icon?.classList.remove('ph-spin');
         }
+
+        window.toggleAttendanceFocus = function(forceClose = false) {
+            const shouldOpen = forceClose ? false : !document.body.classList.contains('matrix-focus');
+            document.body.classList.toggle('matrix-focus', shouldOpen);
+            const button = document.getElementById('focusRecordsButton');
+            const icon = document.getElementById('focusRecordsIcon');
+            const label = document.getElementById('focusRecordsLabel');
+            button?.setAttribute('aria-pressed', String(shouldOpen));
+            button?.setAttribute('aria-label', shouldOpen ? 'Close attendance focus view' : 'Open attendance focus view');
+            if(icon) icon.className = shouldOpen ? 'ph-bold ph-arrows-in' : 'ph-bold ph-arrows-out';
+            if(label) label.textContent = shouldOpen ? 'Exit focus' : 'Focus view';
+            if(shouldOpen) document.querySelector('.matrix-wrap')?.focus();
+        }
+
+        document.addEventListener('keydown', event => {
+            if(event.key === 'Escape' && document.body.classList.contains('matrix-focus')) {
+                window.toggleAttendanceFocus(true);
+                document.getElementById('focusRecordsButton')?.focus();
+            }
+        });
 
         let qrStream = null;
         let qrScanTimer = null;
