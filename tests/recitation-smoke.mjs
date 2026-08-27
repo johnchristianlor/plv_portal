@@ -8,6 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 const migration = read('supabase_migrations/20260826_recitation_wallet.sql');
 const adjustmentMigration = read('supabase_migrations/20260827_recitation_admin_adjustments.sql');
+const ledgerFilterMigration = read('supabase_migrations/20260827_recitation_ledger_filters.sql');
 const studentPage = read('public/student-recitation.html');
 const studentScript = read('public/student-recitation.js');
 const adminPage = read('public/admin-recitation.html');
@@ -84,4 +85,22 @@ test('Recitation client modules have the expected session guards', () => {
   assert.match(adminScript, /startAdminSessionGuard/);
   assert.match(studentScript, /p_session_token: sessionToken/);
   assert.match(adminScript, /p_admin_session_token: sessionToken/);
+});
+
+test('student Recitation matches portal branding and mounts the notification center', () => {
+  assert.match(studentPage, /<div class="logo-text"><h2>PLV<\/h2><p>Pamantasan ng<br>Lungsod ng Valenzuela<\/p><\/div>/);
+  assert.match(studentPage, /aria-label="Open notifications"/);
+  assert.match(studentPage, /src="\.\/student-notifications\.js"/);
+});
+
+test('admin Recitation offers a guided adjustment workflow and filtered ledger', () => {
+  assert.match(adminPage, /id="selectedStudentCard"/);
+  assert.match(adminPage, /class="quick-amounts"/);
+  assert.match(adminPage, /id="balanceImpact"/);
+  assert.match(adminPage, /id="ledgerSectionFilter"/);
+  assert.match(adminPage, /id="ledgerTypeFilter"/);
+  assert.match(adminScript, /p_section: \$\('ledgerSectionFilter'\)\.value/);
+  assert.match(adminScript, /p_transaction_type: \$\('ledgerTypeFilter'\)\.value/);
+  assert.match(ledgerFilterMigration, /t\.section = p_section/i);
+  assert.match(ledgerFilterMigration, /t\.transaction_type = p_transaction_type/i);
 });

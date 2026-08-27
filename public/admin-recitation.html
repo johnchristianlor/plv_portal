@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/style.css">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/fill/style.css">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/bold/style.css">
-  <link rel="stylesheet" href="./recitation.css?v=20260827rec2">
+  <link rel="stylesheet" href="./recitation.css?v=20260827rec3">
   <link rel="stylesheet" href="./plv-responsive.css?v=20260826global1">
   <script src="./plv-navigation.v1.js" defer></script>
 </head>
@@ -60,8 +60,9 @@
     </section>
 
     <section class="content-grid">
-      <article class="card glass">
-        <div class="card-head"><div><h2 id="adjustmentTitle">Adjust Recitation</h2><p id="adjustmentSubtitle">Add earned chips or reduce a student's balance.</p></div><div class="card-icon" id="adjustmentIcon"><i class="ph-fill ph-sliders-horizontal"></i></div></div>
+      <article class="card glass adjustment-card">
+        <div class="adjustment-accent"></div>
+        <div class="card-head"><div><span class="section-kicker"><i class="ph-fill ph-sparkle"></i> Quick balance control</span><h2 id="adjustmentTitle">Adjust Recitation</h2><p id="adjustmentSubtitle">A guided way to add earned chips or correct a balance.</p></div><div class="card-icon" id="adjustmentIcon"><i class="ph-fill ph-sliders-horizontal"></i></div></div>
         <form class="form-stack" id="awardForm">
           <div class="field">
             <label>Adjustment type</label>
@@ -70,13 +71,22 @@
               <button class="mode-btn" id="modeReduce" type="button" data-mode="reduce"><i class="ph-bold ph-minus-circle"></i> Reduce chips</button>
             </div>
           </div>
-          <div class="field"><label for="awardStudent">Student</label><select class="select" id="awardStudent" required><option value="">Choose a student</option></select></div>
+          <div class="field"><label for="awardStudent"><span class="field-step">1</span> Choose student</label><select class="select select-emphasis" id="awardStudent" required><option value="">Choose a student</option></select></div>
+          <div class="selected-student-card" id="selectedStudentCard" hidden>
+            <span class="recipient-avatar" id="selectedStudentAvatar">ST</span>
+            <div class="selected-student-copy"><b id="selectedStudentName">Student name</b><span id="selectedStudentMeta">Student no. • Section</span></div>
+            <div class="selected-student-balance"><span>Current balance</span><b id="selectedStudentBalance">0</b></div>
+          </div>
           <div class="row-fields">
-            <div class="field"><label for="awardSubject">Subject</label><select class="select" id="awardSubject" required><option value="">Choose subject</option></select></div>
-            <div class="field"><label for="awardAmount" id="amountLabel">Chips to add</label><input class="input" id="awardAmount" type="number" inputmode="numeric" min="1" max="100000" step="1" placeholder="1" required></div>
+            <div class="field"><label for="awardSubject"><span class="field-step">2</span> Subject</label><select class="select" id="awardSubject" required><option value="">Choose subject</option></select></div>
+            <div class="field"><label for="awardAmount" id="amountLabel"><span class="field-step">3</span> Chips to add</label><div class="amount-input-wrap"><input class="input" id="awardAmount" type="number" inputmode="numeric" min="1" max="100000" step="1" placeholder="1" required><span>chips</span></div></div>
+          </div>
+          <div class="quick-amounts" aria-label="Quick chip amounts"><span>Quick amount</span><button type="button" data-amount="1">+1</button><button type="button" data-amount="2">+2</button><button type="button" data-amount="3">+3</button><button type="button" data-amount="5">+5</button><button type="button" data-amount="10">+10</button></div>
+          <div class="balance-impact" id="balanceImpact" hidden>
+            <div><span>Current</span><b id="impactCurrent">0</b></div><i class="ph-bold ph-arrow-right"></i><div><span>New balance</span><b id="impactNext">0</b></div>
           </div>
           <div class="adjustment-notice" id="adjustmentNotice"><i class="ph-fill ph-info"></i><span>Adding chips increases the student's available balance.</span></div>
-          <div class="field"><label for="awardNote">Reason <span style="text-transform:none;font-weight:600">(optional)</span></label><textarea class="textarea" id="awardNote" maxlength="240" placeholder="Example: Excellent explanation during recitation"></textarea><span class="input-hint">The student will see this reason in their wallet activity.</span></div>
+          <div class="field"><label for="awardNote"><span class="field-step">4</span> Reason <span style="text-transform:none;font-weight:600">(optional)</span></label><textarea class="textarea" id="awardNote" maxlength="240" placeholder="Example: Excellent explanation during recitation"></textarea><span class="input-hint">The student will see this reason in their wallet activity.</span></div>
           <button class="btn btn-gold full" id="awardButton" type="submit"><i class="ph-bold ph-plus-circle"></i> Add chips</button>
         </form>
       </article>
@@ -96,6 +106,12 @@
 
     <section class="card glass">
         <div class="card-head"><div><h2>Recitation Ledger</h2><p>A complete, read-only audit trail of additions, reductions, and student transfers.</p></div><div class="card-icon"><i class="ph-fill ph-receipt"></i></div></div>
+      <div class="ledger-toolbar">
+        <div class="ledger-filter"><label for="ledgerSectionFilter">Section</label><select class="select" id="ledgerSectionFilter"><option value="">All sections</option></select></div>
+        <div class="ledger-filter"><label for="ledgerTypeFilter">Activity</label><select class="select" id="ledgerTypeFilter"><option value="">All activity</option><option value="award">Added chips</option><option value="deduction">Reduced chips</option><option value="transfer">Student transfers</option></select></div>
+        <button class="btn btn-soft ledger-reset" id="resetLedgerFilters" type="button"><i class="ph-bold ph-funnel-x"></i> Clear filters</button>
+        <span class="ledger-count" id="ledgerCount"><i class="ph-bold ph-list-bullets"></i> Loading activity…</span>
+      </div>
       <div class="table-wrap"><table class="data-table">
         <thead><tr><th>Activity</th><th>From</th><th>To</th><th>Section</th><th>Subject</th><th>Amount</th><th>Date</th></tr></thead>
         <tbody id="ledgerRows"><tr><td colspan="7"><div class="empty"><span class="loading"></span><b>Loading ledger</b></div></td></tr></tbody>
@@ -127,6 +143,6 @@
   </div>
 
   <div class="toast" id="toast"><i class="ph-fill ph-check-circle"></i><span id="toastMessage"></span></div>
-  <script type="module" src="./admin-recitation.js?v=20260827rec3"></script>
+  <script type="module" src="./admin-recitation.js?v=20260827rec4"></script>
 </body>
 </html>

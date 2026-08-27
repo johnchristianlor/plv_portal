@@ -236,7 +236,9 @@ $$;
 
 create or replace function public.admin_get_recitation_transactions(
   p_admin_session_token text,
-  p_limit integer default 100
+  p_limit integer default 100,
+  p_section text default null,
+  p_transaction_type text default null
 )
 returns table(
   id uuid,
@@ -263,6 +265,8 @@ begin
   from public.recitation_transactions t
   left join public.users sender on sender."studentNo" = t.from_student_no
   left join public.users receiver on receiver."studentNo" = t.to_student_no
+  where (nullif(btrim(coalesce(p_section, '')), '') is null or t.section = p_section)
+    and (nullif(btrim(coalesce(p_transaction_type, '')), '') is null or t.transaction_type = p_transaction_type)
   order by t.created_at desc
   limit least(greatest(coalesce(p_limit, 100), 1), 250);
 end;
@@ -270,3 +274,5 @@ $$;
 
 revoke all on function public.admin_adjust_recitation(text, text, bigint, text, text, text) from public;
 grant execute on function public.admin_adjust_recitation(text, text, bigint, text, text, text) to authenticated;
+revoke all on function public.admin_get_recitation_transactions(text, integer, text, text) from public;
+grant execute on function public.admin_get_recitation_transactions(text, integer, text, text) to authenticated;

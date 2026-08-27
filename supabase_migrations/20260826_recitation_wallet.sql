@@ -596,7 +596,9 @@ $$;
 
 create or replace function public.admin_get_recitation_transactions(
   p_admin_session_token text,
-  p_limit integer default 100
+  p_limit integer default 100,
+  p_section text default null,
+  p_transaction_type text default null
 )
 returns table(
   id uuid,
@@ -623,6 +625,8 @@ begin
   from public.recitation_transactions t
   left join public.users sender on sender."studentNo" = t.from_student_no
   left join public.users receiver on receiver."studentNo" = t.to_student_no
+  where (nullif(btrim(coalesce(p_section, '')), '') is null or t.section = p_section)
+    and (nullif(btrim(coalesce(p_transaction_type, '')), '') is null or t.transaction_type = p_transaction_type)
   order by t.created_at desc
   limit least(greatest(coalesce(p_limit, 100), 1), 250);
 end;
@@ -657,7 +661,7 @@ revoke all on function public.get_recitation_transactions(text, text, integer) f
 revoke all on function public.admin_get_recitation_overview(text, text, text) from public;
 revoke all on function public.admin_award_recitation(text, text, bigint, text, text) from public;
 revoke all on function public.admin_adjust_recitation(text, text, bigint, text, text, text) from public;
-revoke all on function public.admin_get_recitation_transactions(text, integer) from public;
+revoke all on function public.admin_get_recitation_transactions(text, integer, text, text) from public;
 revoke all on function public.admin_reset_recitation_pin(text, text) from public;
 
 grant execute on function public.get_recitation_wallet(text, text) to anon, authenticated;
@@ -669,5 +673,5 @@ grant execute on function public.get_recitation_transactions(text, text, integer
 grant execute on function public.admin_get_recitation_overview(text, text, text) to authenticated;
 grant execute on function public.admin_award_recitation(text, text, bigint, text, text) to authenticated;
 grant execute on function public.admin_adjust_recitation(text, text, bigint, text, text, text) to authenticated;
-grant execute on function public.admin_get_recitation_transactions(text, integer) to authenticated;
+grant execute on function public.admin_get_recitation_transactions(text, integer, text, text) to authenticated;
 grant execute on function public.admin_reset_recitation_pin(text, text) to authenticated;

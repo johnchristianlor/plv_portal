@@ -59,8 +59,15 @@ function renderStats() {
 function populateStudents() {
   const select = $('awardStudent');
   const current = select.value;
-  select.innerHTML = '<option value="">Choose a student</option>' + walletRows.map((row) => `<option value="${escapeHtml(row.student_no)}">${escapeHtml(row.full_name)} • ${escapeHtml(row.section || 'No section')}</option>`).join('');
+  const grouped = new Map();
+  walletRows.forEach((row) => {
+    const section = row.section || 'Unassigned';
+    if (!grouped.has(section)) grouped.set(section, []);
+    grouped.get(section).push(row);
+  });
+  select.innerHTML = '<option value="">Choose a student</option>' + [...grouped.entries()].map(([section, rows]) => `<optgroup label="${escapeHtml(section)}">${rows.map((row) => `<option value="${escapeHtml(row.student_no)}">${escapeHtml(row.full_name)} • ${escapeHtml(row.student_no)}</option>`).join('')}</optgroup>`).join('');
   if (walletRows.some((row) => row.student_no === current)) select.value = current;
+  updateSelectedStudent();
 }
 
 function populateSubjects(studentNo = '') {
@@ -86,7 +93,7 @@ function renderWallets() {
     <td><div style="display:flex;gap:6px;white-space:nowrap"><button class="btn btn-soft" type="button" data-award="${escapeHtml(row.student_no)}" style="padding:8px 10px;min-height:34px"><i class="ph-bold ph-sliders-horizontal"></i> Adjust</button>${row.pin_set ? `<button class="btn btn-danger-soft" type="button" data-reset="${escapeHtml(row.student_no)}" data-name="${escapeHtml(row.full_name)}" aria-label="Reset ${escapeHtml(row.full_name)} PIN" style="padding:8px 10px;min-height:34px"><i class="ph-bold ph-password"></i></button>` : ''}</div></td>
   </tr>`).join('');
   body.querySelectorAll('[data-award]').forEach((button) => button.addEventListener('click', () => {
-    $('awardStudent').value = button.dataset.award; populateSubjects(button.dataset.award); $('awardAmount').focus(); window.scrollTo({ top: 360, behavior: 'smooth' });
+    $('awardStudent').value = button.dataset.award; populateSubjects(button.dataset.award); updateSelectedStudent(); $('awardAmount').focus(); window.scrollTo({ top: 360, behavior: 'smooth' });
   }));
   body.querySelectorAll('[data-reset]').forEach((button) => button.addEventListener('click', () => {
     pendingResetStudent = button.dataset.reset; $('resetPinText').textContent = `Remove the current PIN for ${button.dataset.name}? The balance and ledger will not change.`; openModal('resetPinModal');
@@ -96,6 +103,7 @@ function renderWallets() {
 
 function renderLedger(rows) {
   const body = $('ledgerRows');
+  $('ledgerCount').innerHTML = `<i class="ph-bold ph-list-bullets"></i> ${number(rows.length)} ${rows.length === 1 ? 'entry' : 'entries'} shown`;
   if (!rows.length) {
     body.innerHTML = '<tr><td colspan="7"><div class="empty"><i class="ph ph-receipt"></i><b>No Recitation activity yet</b><span>Awards and transfers will appear here automatically.</span></div></td></tr>';
     return;
@@ -123,6 +131,7 @@ async function loadReferenceData() {
   subjects = subjectsResult.data || [];
   enrollments = enrollmentsResult.data || [];
   $('sectionFilter').innerHTML = '<option value="">All sections</option>' + (sectionsResult.data || []).map((row) => `<option value="${escapeHtml(row.sectionName)}">${escapeHtml(row.sectionName)}</option>`).join('');
+  $('ledgerSectionFilter').innerHTML = '<option value="">All sections</option>' + (sectionsResult.data || []).map((row) => `<option value="${escapeHtml(row.sectionName)}">${escapeHtml(row.sectionName)}</option>`).join('');
   populateSubjects();
 }
 
@@ -138,7 +147,13 @@ async function loadWallets() {
 }
 
 async function loadLedger() {
-  const { data, error } = await supabase.rpc('admin_get_recitation_transactions', { p_admin_session_token: sessionToken, p_limit: 150 });
+  $('ledgerCount').innerHTML = '<span class="loading"></span> Updating ledger…';
+  const { data, error } = await supabase.rpc('admin_get_recitation_transactions', {
+    p_admin_session_token: sessionToken,
+    p_limit: 150,
+    p_section: $('ledgerSectionFilter').value || null,
+    p_transaction_type: $('ledgerTypeFilter').value || null
+  });
   if (error) throw error;
   renderLedger(data || []);
 }
@@ -170,7 +185,7 @@ function updateAdjustmentMode(mode) {
   adjustmentMode = mode === 'reduce' ? 'reduce' : 'add';
   const reducing = adjustmentMode === 'reduce';
   document.querySelectorAll('.mode-btn').forEach((button) => button.classList.toggle('active', button.dataset.mode === adjustmentMode));
-  $('amountLabel').textContent = reducing ? 'Chips to reduce' : 'Chips to add';
+  $('amountLabel').innerHTML = `<span class="field-step">3</span> ${reducing ? 'Chips to reduce' : 'Chips to add'}`;
   $('awardNote').placeholder = reducing ? 'Example: Balance correction or classroom penalty' : 'Example: Excellent explanation during recitation';
   $('adjustmentNotice').classList.toggle('reduce', reducing);
   $('adjustmentNotice').innerHTML = reducing
@@ -178,6 +193,35 @@ function updateAdjustmentMode(mode) {
     : '<i class="ph-fill ph-info"></i><span>Adding chips increases the student\'s available balance.</span>';
   $('awardButton').className = `btn ${reducing ? 'btn-danger-soft' : 'btn-gold'} full`;
   $('awardButton').innerHTML = reducing ? '<i class="ph-bold ph-minus-circle"></i> Reduce chips' : '<i class="ph-bold ph-plus-circle"></i> Add chips';
+  document.querySelectorAll('.quick-amounts button[data-amount]').forEach((button) => { button.textContent = `${reducing ? '−' : '+'}${button.dataset.amount}`; });
+  updateBalanceImpact();
+}
+
+function updateSelectedStudent() {
+  const row = walletRows.find((item) => item.student_no === $('awardStudent').value);
+  const card = $('selectedStudentCard');
+  card.hidden = !row;
+  if (!row) { updateBalanceImpact(); return; }
+  $('selectedStudentAvatar').textContent = initials(row.full_name);
+  $('selectedStudentName').textContent = row.full_name;
+  $('selectedStudentMeta').textContent = `${row.student_no} • ${row.section || 'Unassigned'}`;
+  $('selectedStudentBalance').textContent = number(row.balance);
+  $('selectedStudentBalance').classList.toggle('negative', Number(row.balance) < 0);
+  updateBalanceImpact();
+}
+
+function updateBalanceImpact() {
+  const row = walletRows.find((item) => item.student_no === $('awardStudent').value);
+  const amount = Number($('awardAmount').value);
+  const valid = row && Number.isInteger(amount) && amount > 0;
+  $('balanceImpact').hidden = !valid;
+  document.querySelectorAll('.quick-amounts button[data-amount]').forEach((button) => button.classList.toggle('active', Number(button.dataset.amount) === amount));
+  if (!valid) return;
+  const current = Number(row.balance) || 0;
+  const next = current + (adjustmentMode === 'reduce' ? -amount : amount);
+  $('impactCurrent').textContent = number(current);
+  $('impactNext').textContent = number(next);
+  $('impactNext').style.color = next < 0 ? 'var(--danger)' : 'var(--success)';
 }
 
 async function resetPin() {
@@ -204,9 +248,14 @@ document.querySelectorAll('[data-close]').forEach((button) => button.addEventLis
 $('awardForm').addEventListener('submit', adjustRecitation);
 $('modeAdd').addEventListener('click', () => updateAdjustmentMode('add'));
 $('modeReduce').addEventListener('click', () => updateAdjustmentMode('reduce'));
-$('awardStudent').addEventListener('change', (event) => populateSubjects(event.target.value));
+$('awardStudent').addEventListener('change', (event) => { populateSubjects(event.target.value); updateSelectedStudent(); });
+$('awardAmount').addEventListener('input', updateBalanceImpact);
+document.querySelectorAll('.quick-amounts button[data-amount]').forEach((button) => button.addEventListener('click', () => { $('awardAmount').value = button.dataset.amount; updateBalanceImpact(); }));
 $('confirmResetPin').addEventListener('click', resetPin);
 $('sectionFilter').addEventListener('change', () => loadWallets().catch((error) => showToast(friendlyError(error), 'err')));
+$('ledgerSectionFilter').addEventListener('change', () => loadLedger().catch((error) => showToast(friendlyError(error), 'err')));
+$('ledgerTypeFilter').addEventListener('change', () => loadLedger().catch((error) => showToast(friendlyError(error), 'err')));
+$('resetLedgerFilters').addEventListener('click', () => { $('ledgerSectionFilter').value = ''; $('ledgerTypeFilter').value = ''; loadLedger().catch((error) => showToast(friendlyError(error), 'err')); });
 $('studentSearch').addEventListener('input', () => { clearTimeout(filterTimer); filterTimer = setTimeout(() => loadWallets().catch((error) => showToast(friendlyError(error), 'err')), 240); });
 
 loadReferenceData().then(() => Promise.all([loadWallets(), loadLedger()])).catch((error) => {
