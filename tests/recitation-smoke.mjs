@@ -99,8 +99,16 @@ test('admin Recitation offers a guided adjustment workflow and filtered ledger',
   assert.match(adminPage, /id="balanceImpact"/);
   assert.match(adminPage, /id="ledgerSectionFilter"/);
   assert.match(adminPage, /id="ledgerTypeFilter"/);
-  assert.match(adminScript, /p_section: \$\('ledgerSectionFilter'\)\.value/);
-  assert.match(adminScript, /p_transaction_type: \$\('ledgerTypeFilter'\)\.value/);
+  assert.match(adminScript, /const section = \$\('ledgerSectionFilter'\)\.value/);
+  assert.match(adminScript, /const transactionType = \$\('ledgerTypeFilter'\)\.value/);
+  assert.match(adminScript, /p_section: section/);
+  assert.match(adminScript, /p_transaction_type: transactionType/);
+  assert.match(adminScript, /isMissingRpc\(error, 'admin_get_recitation_transactions'\)/);
+  assert.match(adminScript, /p_limit: 250/);
+  assert.match(adminScript, /isMissingRpc\(error, 'admin_adjust_recitation'\)/);
+  assert.match(adminScript, /admin_award_recitation/);
   assert.match(ledgerFilterMigration, /t\.section = p_section/i);
   assert.match(ledgerFilterMigration, /t\.transaction_type = p_transaction_type/i);
+  assert.match(adjustmentMigration, /notify pgrst, 'reload schema'/i);
+  assert.match(ledgerFilterMigration, /notify pgrst, 'reload schema'/i);
 });

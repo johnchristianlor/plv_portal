@@ -276,3 +276,5 @@ revoke all on function public.admin_adjust_recitation(text, text, bigint, text, 
 grant execute on function public.admin_adjust_recitation(text, text, bigint, text, text, text) to authenticated;
 revoke all on function public.admin_get_recitation_transactions(text, integer, text, text) from public;
 grant execute on function public.admin_get_recitation_transactions(text, integer, text, text) to authenticated;
+
+notify pgrst, 'reload schema';

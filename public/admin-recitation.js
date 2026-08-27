@@ -42,8 +42,13 @@ function showToast(message, type = 'ok') {
 function friendlyError(error, result) {
   if (result?.code && messages[result.code]) return messages[result.code];
   const message = String(error?.message || 'Something went wrong. Please try again.');
-  if (message.toLowerCase().includes('could not find the function')) return 'Recitation is waiting for its database migration to be applied.';
+  if (message.toLowerCase().includes('could not find the function')) return 'This Recitation action needs the latest database update.';
   return message;
+}
+
+function isMissingRpc(error, functionName) {
+  const message = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
+  return error?.code === 'PGRST202' && message.includes(functionName.toLowerCase());
 }
 
 function openModal(id) { $(id).classList.add('show'); document.body.style.overflow = 'hidden'; }
@@ -148,12 +153,23 @@ async function loadWallets() {
 
 async function loadLedger() {
   $('ledgerCount').innerHTML = '<span class="loading"></span> Updating ledger…';
-  const { data, error } = await supabase.rpc('admin_get_recitation_transactions', {
+  const section = $('ledgerSectionFilter').value || null;
+  const transactionType = $('ledgerTypeFilter').value || null;
+  let { data, error } = await supabase.rpc('admin_get_recitation_transactions', {
     p_admin_session_token: sessionToken,
     p_limit: 150,
-    p_section: $('ledgerSectionFilter').value || null,
-    p_transaction_type: $('ledgerTypeFilter').value || null
+    p_section: section,
+    p_transaction_type: transactionType
   });
+  if (isMissingRpc(error, 'admin_get_recitation_transactions')) {
+    ({ data, error } = await supabase.rpc('admin_get_recitation_transactions', {
+      p_admin_session_token: sessionToken,
+      p_limit: 250
+    }));
+    if (!error) {
+      data = (data || []).filter((row) => (!section || row.section === section) && (!transactionType || row.transaction_type === transactionType));
+    }
+  }
   if (error) throw error;
   renderLedger(data || []);
 }
@@ -165,7 +181,7 @@ async function adjustRecitation(event) {
   const reducing = adjustmentMode === 'reduce';
   const button = $('awardButton'); button.disabled = true; button.innerHTML = `<span class="loading"></span> ${reducing ? 'Reducing' : 'Adding'} securely`;
   try {
-    const { data, error } = await supabase.rpc('admin_adjust_recitation', {
+    let { data, error } = await supabase.rpc('admin_adjust_recitation', {
       p_admin_session_token: sessionToken,
       p_student_no: $('awardStudent').value,
       p_amount: amount,
@@ -173,6 +189,15 @@ async function adjustRecitation(event) {
       p_subject_code: $('awardSubject').value,
       p_note: $('awardNote').value.trim() || null
     });
+    if (!reducing && isMissingRpc(error, 'admin_adjust_recitation')) {
+      ({ data, error } = await supabase.rpc('admin_award_recitation', {
+        p_admin_session_token: sessionToken,
+        p_student_no: $('awardStudent').value,
+        p_amount: amount,
+        p_subject_code: $('awardSubject').value,
+        p_note: $('awardNote').value.trim() || null
+      }));
+    }
     if (error || !data?.success) throw new Error(friendlyError(error, data));
     showToast(`${number(amount)} chip${amount === 1 ? '' : 's'} ${reducing ? 'reduced from' : 'added to'} ${data.studentName}. New balance: ${number(data.balance)}.`);
     $('awardAmount').value = ''; $('awardNote').value = '';
@@ -260,7 +285,7 @@ $('studentSearch').addEventListener('input', () => { clearTimeout(filterTimer); 
 
 loadReferenceData().then(() => Promise.all([loadWallets(), loadLedger()])).catch((error) => {
   showToast(friendlyError(error), 'err');
-  $('walletRows').innerHTML = '<tr><td colspan="5"><div class="empty"><i class="ph ph-warning-circle"></i><b>Could not load Recitation</b><span>Apply the database migration, then refresh this page.</span></div></td></tr>';
+  $('walletRows').innerHTML = '<tr><td colspan="5"><div class="empty"><i class="ph ph-warning-circle"></i><b>Could not load Recitation</b><span>Refresh the page or try again in a moment.</span></div></td></tr>';
   $('ledgerRows').innerHTML = '<tr><td colspan="7"><div class="empty"><span>Ledger unavailable.</span></div></td></tr>';
 });
 
