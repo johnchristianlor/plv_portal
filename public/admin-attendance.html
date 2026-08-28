@@ -283,7 +283,11 @@
         .dark-theme .sheet-class-toolbar { background:rgba(255,255,255,.02); }
         .sheet-class-toolbar .search-wrapper { width:100%; }
         .sheet-class-toolbar .select-filter { width:100%; min-width:0; }
-        .sheet-date-control { display:grid; grid-template-columns:minmax(140px,1fr) auto; gap:7px; }
+        .sheet-date-control { display:grid; grid-template-columns:minmax(140px,1fr) auto auto; gap:7px; }
+        .sheet-view-all-btn.is-active { border-color:var(--accent-primary); background:var(--accent-primary); color:#fff; box-shadow:0 7px 16px rgba(0,61,165,.16); }
+        .sheet-view-all-btn.is-active:hover { color:#fff; }
+        .sheet-view-count { min-width:20px; height:20px; padding:0 6px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; background:rgba(0,61,165,.1); color:var(--accent-primary); font-size:9px; font-weight:900; }
+        .sheet-view-all-btn.is-active .sheet-view-count { background:rgba(255,255,255,.18); color:#fff; }
         .sheet-toolbar-secondary { min-height:56px; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid var(--input-border); }
         .sheet-toolbar-secondary .status-legend { margin:0; padding:0; border:none; background:transparent; }
         .sheet-summary { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid var(--input-border); background:var(--input-border); gap:1px; }
@@ -363,7 +367,9 @@
             .records-toolbar-actions { padding:0 12px 12px; }
             .records-footer { align-items:flex-start; flex-direction:column; }
             .sheet-class-toolbar { grid-template-columns:1fr; padding:12px; }
-            .sheet-date-control { grid-template-columns:1fr auto; }
+            .sheet-date-control { grid-template-columns:1fr 1fr; }
+            .sheet-date-control .select-filter { grid-column:1 / -1; }
+            .sheet-date-control .bulk-status-btn { justify-content:center; }
             .sheet-toolbar-secondary { align-items:stretch; flex-direction:column; padding:10px 12px; }
             .sheet-toolbar-secondary .status-legend { overflow-x:auto; flex-wrap:nowrap; white-space:nowrap; padding-bottom:3px; }
             .sheet-toolbar-secondary .status-legend-label { display:none; }
@@ -648,7 +654,8 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                         <select id="filterSubject" class="select-filter" onchange="window.loadRecords()" disabled><option value="">Select subject</option></select>
                         <div class="sheet-date-control">
                             <input type="date" id="recordSessionDate" class="select-filter" aria-label="Attendance session date">
-                            <button class="bulk-status-btn" onclick="window.showRecordDate()"><i class="ph-bold ph-calendar-plus"></i> Show date</button>
+                            <button class="bulk-status-btn" onclick="window.showRecordDate()"><i class="ph-bold ph-calendar"></i> View date</button>
+                            <button class="bulk-status-btn sheet-view-all-btn is-active" id="viewAllDatesBtn" aria-pressed="true" onclick="window.viewAllRecordDates()"><i class="ph-bold ph-calendar-dots"></i> View all <span class="sheet-view-count" id="viewAllDatesCount">0</span></button>
                         </div>
                     </div>
                     <div class="sheet-toolbar-secondary">
@@ -867,6 +874,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         let filteredAttendanceData = [];
         let recordEnrollments = [];
         let visibleRecordDates = new Set();
+        let recordDateView = 'all';
         let activeSheetCell = null;
         let pendingDateDeletion = null;
         let dateDeleteInProgress = false;
@@ -1424,12 +1432,30 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             document.getElementById('pivotInfo').innerHTML = `<i class="ph-bold ph-table"></i> ${students.length} students × ${dates.length} sessions — ${sec} / ${sub} &nbsp;|&nbsp; Click a cell to edit status`;
         }
 
+        function getRecordedDateSet() {
+            return new Set(allAttendanceData.map(record => record.date).filter(Boolean));
+        }
+
+        function updateRecordDateViewControls() {
+            const button = document.getElementById('viewAllDatesBtn');
+            const count = getRecordedDateSet().size;
+            document.getElementById('viewAllDatesCount').textContent = count;
+            const showingAll = recordDateView === 'all';
+            button.classList.toggle('is-active', showingAll);
+            button.setAttribute('aria-pressed', String(showingAll));
+            button.title = count
+                ? `Show all ${count} recorded attendance date${count === 1 ? '' : 's'}`
+                : 'No recorded attendance dates yet';
+        }
+
         window.loadRecordSubjects = async function() {
             const section = document.getElementById('filterSection').value;
             const subjectSelect = document.getElementById('filterSubject');
             recordEnrollments = [];
             allAttendanceData = [];
             visibleRecordDates = new Set();
+            recordDateView = 'all';
+            updateRecordDateViewControls();
             window.closeRecordStatusPopover();
             document.getElementById('recordSheetContainer').hidden = true;
             document.getElementById('recordSheetHint').style.display = 'flex';
@@ -1477,9 +1503,10 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 });
                 recordEnrollments = [...uniqueStudents.values()].sort((a,b) => String(a.studentName || a.studentNo).localeCompare(String(b.studentName || b.studentNo)));
                 allAttendanceData = attendanceRows.sort((a,b) => String(b.date).localeCompare(String(a.date)));
-                visibleRecordDates = new Set(attendanceRows.map(row => row.date).filter(Boolean));
-                if(visibleRecordDates.size === 0) visibleRecordDates.add(formatLocalDateInput());
                 document.getElementById('recordSessionDate').value = formatLocalDateInput();
+                recordDateView = 'all';
+                visibleRecordDates = getRecordedDateSet();
+                if(visibleRecordDates.size === 0) visibleRecordDates.add(formatLocalDateInput());
                 populateDelDropdowns(new Set([subjectCode]));
                 window.renderAttendanceSheet();
             } catch(error) {
@@ -1495,8 +1522,25 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             const date = document.getElementById('recordSessionDate').value;
             if(!section || !subject) return window.showToast('Select a section and subject first.', 'error');
             if(!date) return window.showToast('Choose a session date to show.', 'error');
-            visibleRecordDates.add(date);
+            recordDateView = 'single';
+            visibleRecordDates = new Set([date]);
             window.renderAttendanceSheet();
+        }
+
+        window.viewAllRecordDates = function() {
+            const section = document.getElementById('filterSection').value;
+            const subject = document.getElementById('filterSubject').value;
+            if(!section || !subject) return window.showToast('Select a section and subject first.', 'error');
+            visibleRecordDates = getRecordedDateSet();
+            const recordedCount = visibleRecordDates.size;
+            if(!recordedCount) visibleRecordDates.add(document.getElementById('recordSessionDate').value || formatLocalDateInput());
+            recordDateView = 'all';
+            window.renderAttendanceSheet();
+            const scroll = document.getElementById('recordSheetScroll');
+            if(scroll) scroll.scrollLeft = 0;
+            window.showToast(recordedCount
+                ? `Showing all ${recordedCount} recorded attendance date${recordedCount === 1 ? '' : 's'}.`
+                : 'No saved attendance dates yet. Showing the selected date so you can start recording.');
         }
 
         window.filterRecords = function() {
@@ -1512,6 +1556,8 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             recordEnrollments = [];
             allAttendanceData = [];
             visibleRecordDates = new Set();
+            recordDateView = 'all';
+            updateRecordDateViewControls();
             resetSheetSummary();
             showSheetMessage('Select a section and subject', 'The complete enrolled roster and its attendance history will appear here.', 'ph-users-three');
         }
@@ -1550,6 +1596,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             const statusRecords = allAttendanceData.filter(record => dates.includes(record.date));
             const classSummary = summarizeAttendance(statusRecords);
 
+            updateRecordDateViewControls();
             document.getElementById('sheetStudentCount').textContent = recordEnrollments.length;
             document.getElementById('sheetSessionCount').textContent = dates.length;
             document.getElementById('sheetRecordCount').textContent = statusRecords.length;
@@ -1579,7 +1626,10 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             const container = document.getElementById('recordSheetContainer');
             container.hidden = false;
             document.getElementById('recordSheetScroll').innerHTML = table;
-            document.getElementById('sheetFooterInfo').innerHTML = `<i class="ph-bold ph-users"></i> ${students.length} of ${recordEnrollments.length} enrolled students · newest session first`;
+            const dateViewLabel = recordDateView === 'all'
+                ? `${dates.length} date${dates.length === 1 ? '' : 's'} shown · newest first`
+                : `focused on ${escapeHtml(formatAttendanceDate(dates[0]).primary)}`;
+            document.getElementById('sheetFooterInfo').innerHTML = `<i class="ph-bold ph-users"></i> ${students.length} of ${recordEnrollments.length} enrolled students · ${dateViewLabel}`;
         }
 
         window.openDeleteDateModal = function(date, trigger) {
@@ -1631,7 +1681,12 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             try {
                 if(target.recordCount) await deleteAttendanceSession(target.section, target.subjectCode, target.date);
                 allAttendanceData = allAttendanceData.filter(record => record.date !== target.date);
-                visibleRecordDates.delete(target.date);
+                if(recordDateView === 'single') {
+                    recordDateView = 'all';
+                    visibleRecordDates = getRecordedDateSet();
+                } else {
+                    visibleRecordDates.delete(target.date);
+                }
                 window.renderAttendanceSheet();
                 setSheetAutosaveState('ready', 'Date deleted');
                 const formatted = formatAttendanceDate(target.date);

@@ -106,6 +106,16 @@ test('admin attendance can safely delete one class date from the spreadsheet', (
     assert.match(attendance, /Student enrollments and all other dates stay unchanged/);
 });
 
+test('admin attendance can focus one date and restore all recorded dates', () => {
+    const attendance = read('admin-attendance.html');
+    assert.match(attendance, /id="viewAllDatesBtn"[^>]+aria-pressed="true"[^>]+window\.viewAllRecordDates/);
+    assert.match(attendance, /id="viewAllDatesCount"/);
+    assert.match(attendance, /recordDateView = 'single';\s*visibleRecordDates = new Set\(\[date\]\)/);
+    assert.match(attendance, /window\.viewAllRecordDates = function\(\)[\s\S]{0,450}visibleRecordDates = getRecordedDateSet\(\)/);
+    assert.match(attendance, /recordDateView = 'all';\s*visibleRecordDates = getRecordedDateSet\(\)/);
+    assert.match(attendance, /Showing all \$\{recordedCount\} recorded attendance date/);
+});
+
 test('inline and shared browser modules remain syntactically valid', () => {
     const failures = [];
     for (const file of htmlFiles) {
