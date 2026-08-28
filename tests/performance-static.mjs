@@ -95,6 +95,17 @@ test('admin attendance uses an enrolled-student spreadsheet with autosaved statu
     assert.doesNotMatch(attendance, /id="editModal"|id="btnListView"|id="btnSheetView"|id="recordsBody"|class="records-table"/);
 });
 
+test('admin attendance can safely delete one class date from the spreadsheet', () => {
+    const attendance = read('admin-attendance.html');
+    assert.match(attendance, /class="sheet-date-delete"/);
+    assert.match(attendance, /id="deleteDateModal"[^>]+role="dialog"[^>]+aria-modal="true"/);
+    assert.match(attendance, /window\.openDeleteDateModal/);
+    assert.match(attendance, /window\.confirmDeleteDate/);
+    assert.match(attendance, /deleteAttendanceSession\(section, subjectCode, date\)/);
+    assert.match(attendance, /from\('attendance'\)\.delete\(\)[\s\S]{0,180}\.eq\('section', section\)[\s\S]{0,180}\.eq\('subjectCode', subjectCode\)[\s\S]{0,180}\.eq\('date', date\)/);
+    assert.match(attendance, /Student enrollments and all other dates stay unchanged/);
+});
+
 test('inline and shared browser modules remain syntactically valid', () => {
     const failures = [];
     for (const file of htmlFiles) {

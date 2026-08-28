@@ -300,6 +300,10 @@
         .attendance-history-table th { position:sticky; top:0; z-index:8; height:52px; padding:9px 11px; background:#102a56; color:#fff; border-right:1px solid rgba(255,255,255,.11); border-bottom:1px solid rgba(255,255,255,.12); text-align:center; font-size:9px; font-weight:850; letter-spacing:.65px; text-transform:uppercase; white-space:nowrap; }
         .attendance-history-table th .date-day { display:block; font-size:13px; letter-spacing:0; text-transform:none; }
         .attendance-history-table th .date-weekday { display:block; margin-top:2px; color:rgba(255,255,255,.65); font-size:8px; }
+        .sheet-date-header { display:flex; align-items:center; justify-content:center; gap:7px; }
+        .sheet-date-copy { min-width:0; }
+        .sheet-date-delete { width:25px; height:25px; flex:0 0 25px; display:inline-flex; align-items:center; justify-content:center; border:1px solid rgba(255,255,255,.16); border-radius:7px; background:rgba(255,255,255,.08); color:rgba(255,255,255,.72); cursor:pointer; font-size:13px; transition:background .16s ease,color .16s ease,transform .16s ease; }
+        .sheet-date-delete:hover, .sheet-date-delete:focus-visible { outline:none; background:#fff; color:var(--danger); transform:translateY(-1px); }
         .attendance-history-table td { height:52px; padding:0; border-right:1px solid var(--input-border); border-bottom:1px solid var(--input-border); background:var(--input-bg); text-align:center; }
         .attendance-history-table tbody tr:nth-child(even) td { background:rgba(248,250,252,.76); }
         .dark-theme .attendance-history-table tbody tr:nth-child(even) td { background:rgba(255,255,255,.025); }
@@ -308,7 +312,7 @@
         .attendance-history-table .sheet-col-number { position:sticky; left:46px; z-index:5; width:116px; min-width:116px; padding:0 11px; text-align:left; color:var(--text-muted); font-family:monospace; font-size:10px; white-space:nowrap; }
         .attendance-history-table .sheet-col-name { position:sticky; left:162px; z-index:5; width:210px; min-width:210px; padding:0 13px; text-align:left; color:var(--text-main); font-weight:800; box-shadow:3px 0 0 rgba(0,61,165,.08); white-space:nowrap; }
         .attendance-history-table th.sheet-col-index, .attendance-history-table th.sheet-col-number, .attendance-history-table th.sheet-col-name { z-index:12; background:#102a56; color:#fff; }
-        .attendance-history-table .sheet-date-cell { width:76px; min-width:76px; }
+        .attendance-history-table .sheet-date-cell { width:104px; min-width:104px; }
         .attendance-history-table .sheet-rate-col { position:sticky; right:0; z-index:6; width:72px; min-width:72px; background:#f2f6fc; border-left:2px solid rgba(0,61,165,.15); color:var(--accent-primary); font-size:11px; font-weight:850; }
         .dark-theme .attendance-history-table .sheet-rate-col { background:#0d1930; }
         .attendance-history-table th.sheet-rate-col { z-index:12; background:#0a2148; color:#fff; }
@@ -715,6 +719,29 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         <div class="status-popover-save" id="statusPopoverSave"><i class="ph-bold ph-cloud-check"></i> Select a status to autosave</div>
     </div>
 
+    <div id="deleteDateModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteDateTitle" aria-describedby="deleteDateDescription">
+        <div class="del-modal-box glass">
+            <div class="del-header">
+                <div class="del-icon"><i class="ph-bold ph-calendar-x"></i></div>
+                <div>
+                    <div class="del-title" id="deleteDateTitle">Delete attendance date?</div>
+                    <div class="del-subtitle" id="deleteDateDescription">Review this class session before permanently removing it.</div>
+                </div>
+            </div>
+            <div class="del-summary">
+                <div class="del-summary-row"><span class="del-summary-label">Date</span><span class="del-summary-value" id="deleteDateValue">—</span></div>
+                <div class="del-summary-row"><span class="del-summary-label">Section</span><span class="del-summary-value" id="deleteDateSection">—</span></div>
+                <div class="del-summary-row"><span class="del-summary-label">Subject</span><span class="del-summary-value" id="deleteDateSubject">—</span></div>
+                <div class="del-summary-row"><span class="del-summary-label">Saved records</span><span class="del-count-badge" id="deleteDateRecordCount">0</span></div>
+            </div>
+            <div class="del-warning" id="deleteDateWarning"><i class="ph-bold ph-warning"></i><span>This removes every saved attendance status for this class date. Student enrollments and all other dates stay unchanged.</span></div>
+            <div class="del-actions">
+                <button class="btn-cancel-del" id="btnCancelDeleteDate" onclick="window.closeDeleteDateModal()">Keep date</button>
+                <button class="btn-confirm-del" id="btnConfirmDeleteDate" onclick="window.confirmDeleteDate()"><i class="ph-bold ph-trash"></i> Delete date</button>
+            </div>
+        </div>
+    </div>
+
     <!-- LARGE QR MODAL -->
     <div id="largeQrModal" class="modal-overlay">
         <div class="qr-large-modal-box glass">
@@ -841,6 +868,9 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         let recordEnrollments = [];
         let visibleRecordDates = new Set();
         let activeSheetCell = null;
+        let pendingDateDeletion = null;
+        let dateDeleteInProgress = false;
+        let deleteDateReturnFocus = null;
         let recordLoadToken = 0;
         let subjectsBySection = {};
         let currentQrPayload = '';
@@ -895,6 +925,14 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         async function deleteIds(table, ids) {
             if (!ids.length) return;
             const { error } = await supabase.from(table).delete().in('id', ids);
+            if (error) throw error;
+        }
+
+        async function deleteAttendanceSession(section, subjectCode, date) {
+            const { error } = await supabase.from('attendance').delete()
+                .eq('section', section)
+                .eq('subjectCode', subjectCode)
+                .eq('date', date);
             if (error) throw error;
         }
 
@@ -1528,7 +1566,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
             const headerDates = dates.map(date => {
                 const formatted = formatAttendanceDate(date);
-                return `<th class="sheet-date-cell" title="${escapeHtml(date)}"><span class="date-day">${escapeHtml(formatted.primary.replace(/, \d{4}$/, ''))}</span><span class="date-weekday">${escapeHtml(formatted.secondary)}</span></th>`;
+                return `<th class="sheet-date-cell" title="${escapeHtml(date)}"><div class="sheet-date-header"><span class="sheet-date-copy"><span class="date-day">${escapeHtml(formatted.primary.replace(/, \d{4}$/, ''))}</span><span class="date-weekday">${escapeHtml(formatted.secondary)}</span></span><button type="button" class="sheet-date-delete" data-date="${escapeHtml(date)}" onclick="window.openDeleteDateModal(this.dataset.date, this)" title="Delete this attendance date" aria-label="Delete attendance for ${escapeHtml(formatted.primary)}"><i class="ph-bold ph-trash-simple"></i></button></div></th>`;
             }).join('');
             const bodyRows = students.map((student, index) => {
                 const studentRecords = dates.map(date => lookup.get(`${student.studentNo}|${date}`)).filter(Boolean);
@@ -1542,6 +1580,78 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             container.hidden = false;
             document.getElementById('recordSheetScroll').innerHTML = table;
             document.getElementById('sheetFooterInfo').innerHTML = `<i class="ph-bold ph-users"></i> ${students.length} of ${recordEnrollments.length} enrolled students · newest session first`;
+        }
+
+        window.openDeleteDateModal = function(date, trigger) {
+            const section = document.getElementById('filterSection').value;
+            const subjectCode = document.getElementById('filterSubject').value;
+            if(!section || !subjectCode || !visibleRecordDates.has(date)) return;
+            const matchingRecords = allAttendanceData.filter(record => record.date === date);
+            const formatted = formatAttendanceDate(date);
+            pendingDateDeletion = { section, subjectCode, date, recordCount: matchingRecords.length };
+            deleteDateReturnFocus = trigger || document.activeElement;
+            document.getElementById('deleteDateValue').textContent = formatted.primary;
+            document.getElementById('deleteDateSection').textContent = section;
+            document.getElementById('deleteDateSubject').textContent = subjectCode;
+            document.getElementById('deleteDateRecordCount').textContent = matchingRecords.length;
+            document.getElementById('deleteDateDescription').textContent = matchingRecords.length
+                ? `This will permanently remove ${matchingRecords.length} saved attendance record${matchingRecords.length === 1 ? '' : 's'} from this session.`
+                : 'This date has no saved statuses and will only be removed from the spreadsheet.';
+            document.getElementById('deleteDateWarning').querySelector('span').textContent = matchingRecords.length
+                ? 'This removes every saved attendance status for this class date. Student enrollments and all other dates stay unchanged.'
+                : 'No database records will be deleted. The empty date column will be removed from this view.';
+            const confirmButton = document.getElementById('btnConfirmDeleteDate');
+            confirmButton.innerHTML = matchingRecords.length
+                ? '<i class="ph-bold ph-trash"></i> Delete date'
+                : '<i class="ph-bold ph-calendar-minus"></i> Remove date';
+            window.closeRecordStatusPopover();
+            document.getElementById('deleteDateModal').classList.add('open');
+            confirmButton.focus();
+        }
+
+        window.closeDeleteDateModal = function() {
+            if(dateDeleteInProgress) return;
+            document.getElementById('deleteDateModal').classList.remove('open');
+            pendingDateDeletion = null;
+            if(deleteDateReturnFocus?.isConnected) deleteDateReturnFocus.focus();
+            deleteDateReturnFocus = null;
+        }
+
+        window.confirmDeleteDate = async function() {
+            if(!pendingDateDeletion || dateDeleteInProgress) return;
+            const target = { ...pendingDateDeletion };
+            const confirmButton = document.getElementById('btnConfirmDeleteDate');
+            const cancelButton = document.getElementById('btnCancelDeleteDate');
+            dateDeleteInProgress = true;
+            confirmButton.disabled = true;
+            cancelButton.disabled = true;
+            confirmButton.innerHTML = '<i class="ph-bold ph-spinner-gap spin"></i> Deleting date…';
+            setSheetAutosaveState('saving', 'Deleting date…');
+            let deleted = false;
+            try {
+                if(target.recordCount) await deleteAttendanceSession(target.section, target.subjectCode, target.date);
+                allAttendanceData = allAttendanceData.filter(record => record.date !== target.date);
+                visibleRecordDates.delete(target.date);
+                window.renderAttendanceSheet();
+                setSheetAutosaveState('ready', 'Date deleted');
+                const formatted = formatAttendanceDate(target.date);
+                window.showToast(target.recordCount
+                    ? `${formatted.primary} deleted. ${target.recordCount} attendance record${target.recordCount === 1 ? '' : 's'} removed.`
+                    : `${formatted.primary} removed from the spreadsheet.`);
+                deleted = true;
+            } catch(error) {
+                console.error(error);
+                setSheetAutosaveState('error', 'Delete failed');
+                window.showToast('This attendance date could not be deleted. Please try again.', 'error');
+            } finally {
+                dateDeleteInProgress = false;
+                confirmButton.disabled = false;
+                cancelButton.disabled = false;
+                confirmButton.innerHTML = target.recordCount
+                    ? '<i class="ph-bold ph-trash"></i> Delete date'
+                    : '<i class="ph-bold ph-calendar-minus"></i> Remove date';
+                if(deleted) window.closeDeleteDateModal();
+            }
         }
 
         function setSheetAutosaveState(state, label) {
@@ -1636,7 +1746,12 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             if(!popover.hidden && !popover.contains(event.target) && !event.target.closest('.sheet-status-cell')) window.closeRecordStatusPopover();
         });
         document.addEventListener('keydown', event => {
-            if(event.key === 'Escape') window.closeRecordStatusPopover();
+            if(event.key !== 'Escape') return;
+            window.closeRecordStatusPopover();
+            if(document.getElementById('deleteDateModal').classList.contains('open')) window.closeDeleteDateModal();
+        });
+        document.getElementById('deleteDateModal').addEventListener('click', event => {
+            if(event.target === event.currentTarget) window.closeDeleteDateModal();
         });
 
         // ─── SELECTION LOGIC ─────────────────────────────────────────
