@@ -279,11 +279,15 @@
 
         /* Spreadsheet-only attendance history */
         .attendance-sheet-workspace { border:1px solid var(--input-border); border-radius:18px; overflow:hidden; background:var(--input-bg); }
-        .sheet-class-toolbar { display:grid; grid-template-columns:minmax(220px,1.3fr) minmax(160px,.8fr) minmax(160px,.8fr) minmax(250px,1fr); gap:10px; padding:16px; border-bottom:1px solid var(--input-border); background:rgba(248,250,252,.55); }
+        .sheet-class-toolbar { display:grid; grid-template-columns:minmax(220px,1.2fr) minmax(160px,.72fr) minmax(160px,.72fr) minmax(380px,1.45fr); gap:10px; align-items:stretch; padding:16px; border-bottom:1px solid var(--input-border); background:rgba(248,250,252,.55); }
         .dark-theme .sheet-class-toolbar { background:rgba(255,255,255,.02); }
         .sheet-class-toolbar .search-wrapper { width:100%; }
         .sheet-class-toolbar .select-filter { width:100%; min-width:0; }
-        .sheet-date-control { display:grid; grid-template-columns:minmax(140px,1fr) auto auto; gap:7px; }
+        .sheet-date-control { min-width:0; display:grid; grid-template-columns:minmax(150px,1fr) auto; gap:8px; align-items:stretch; }
+        .sheet-date-control > .select-filter { height:42px; min-height:42px; }
+        .sheet-date-actions { display:grid; grid-template-columns:repeat(2,minmax(108px,1fr)); gap:6px; align-items:stretch; }
+        .sheet-date-actions .bulk-status-btn { min-width:0; min-height:42px; height:42px; padding:0 12px; justify-content:center; border-radius:10px; line-height:1; white-space:nowrap; }
+        .sheet-date-actions .bulk-status-btn i { flex:0 0 auto; font-size:16px; }
         .sheet-view-all-btn.is-active { border-color:var(--accent-primary); background:var(--accent-primary); color:#fff; box-shadow:0 7px 16px rgba(0,61,165,.16); }
         .sheet-view-all-btn.is-active:hover { color:#fff; }
         .sheet-view-count { min-width:20px; height:20px; padding:0 6px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; background:rgba(0,61,165,.1); color:var(--accent-primary); font-size:9px; font-weight:900; }
@@ -353,7 +357,7 @@
         .status-popover-save.is-saving { background:var(--accent-light); color:var(--accent-primary); }
         .status-popover-save.is-error { background:rgba(225,29,72,.09); color:var(--danger); }
 
-        @media (max-width:1400px) and (min-width:769px) { .sheet-class-toolbar { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+        @media (max-width:1400px) and (min-width:769px) { .sheet-class-toolbar { grid-template-columns:repeat(2,minmax(0,1fr)); } .sheet-class-toolbar .search-wrapper, .sheet-date-control { grid-column:1 / -1; } }
         @media (max-width:1200px) { .records-toolbar { grid-template-columns:repeat(2,minmax(180px,1fr)); } .records-toolbar .search-wrapper { grid-column:span 2; } }
         @media (max-width:768px) {
             .attendance-panel-head { align-items:stretch; flex-direction:column; }
@@ -367,9 +371,8 @@
             .records-toolbar-actions { padding:0 12px 12px; }
             .records-footer { align-items:flex-start; flex-direction:column; }
             .sheet-class-toolbar { grid-template-columns:1fr; padding:12px; }
-            .sheet-date-control { grid-template-columns:1fr 1fr; }
-            .sheet-date-control .select-filter { grid-column:1 / -1; }
-            .sheet-date-control .bulk-status-btn { justify-content:center; }
+            .sheet-date-control { grid-template-columns:1fr; }
+            .sheet-date-actions { grid-template-columns:repeat(2,minmax(0,1fr)); }
             .sheet-toolbar-secondary { align-items:stretch; flex-direction:column; padding:10px 12px; }
             .sheet-toolbar-secondary .status-legend { overflow-x:auto; flex-wrap:nowrap; white-space:nowrap; padding-bottom:3px; }
             .sheet-toolbar-secondary .status-legend-label { display:none; }
@@ -654,8 +657,10 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                         <select id="filterSubject" class="select-filter" onchange="window.loadRecords()" disabled><option value="">Select subject</option></select>
                         <div class="sheet-date-control">
                             <input type="date" id="recordSessionDate" class="select-filter" aria-label="Attendance session date">
-                            <button class="bulk-status-btn" onclick="window.showRecordDate()"><i class="ph-bold ph-calendar"></i> View date</button>
-                            <button class="bulk-status-btn sheet-view-all-btn is-active" id="viewAllDatesBtn" aria-pressed="true" onclick="window.viewAllRecordDates()"><i class="ph-bold ph-calendar-dots"></i> View all <span class="sheet-view-count" id="viewAllDatesCount">0</span></button>
+                            <div class="sheet-date-actions" role="group" aria-label="Attendance date view">
+                                <button class="bulk-status-btn" onclick="window.showRecordDate()"><i class="ph-bold ph-calendar"></i> View date</button>
+                                <button class="bulk-status-btn sheet-view-all-btn is-active" id="viewAllDatesBtn" aria-pressed="true" onclick="window.viewAllRecordDates()"><i class="ph-bold ph-calendar-dots"></i> View all <span class="sheet-view-count" id="viewAllDatesCount">0</span></button>
+                            </div>
                         </div>
                     </div>
                     <div class="sheet-toolbar-secondary">

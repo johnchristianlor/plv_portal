@@ -108,8 +108,11 @@ test('admin attendance can safely delete one class date from the spreadsheet', (
 
 test('admin attendance can focus one date and restore all recorded dates', () => {
     const attendance = read('admin-attendance.html');
+    assert.match(attendance, /class="sheet-date-actions" role="group" aria-label="Attendance date view"/);
     assert.match(attendance, /id="viewAllDatesBtn"[^>]+aria-pressed="true"[^>]+window\.viewAllRecordDates/);
     assert.match(attendance, /id="viewAllDatesCount"/);
+    assert.match(attendance, /\.sheet-date-actions \.bulk-status-btn \{[^}]*height:42px;[^}]*justify-content:center;/);
+    assert.match(attendance, /@media \(max-width:768px\)[\s\S]*\.sheet-date-actions \{ grid-template-columns:repeat\(2,minmax\(0,1fr\)\); \}/);
     assert.match(attendance, /recordDateView = 'single';\s*visibleRecordDates = new Set\(\[date\]\)/);
     assert.match(attendance, /window\.viewAllRecordDates = function\(\)[\s\S]{0,450}visibleRecordDates = getRecordedDateSet\(\)/);
     assert.match(attendance, /recordDateView = 'all';\s*visibleRecordDates = getRecordedDateSet\(\)/);
