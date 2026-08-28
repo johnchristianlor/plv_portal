@@ -90,6 +90,7 @@ test('admin attendance uses an enrolled-student spreadsheet with autosaved statu
     assert.match(attendance, /class="attendance-history-table"/);
     assert.match(attendance, /id="recordStatusPopover"/);
     assert.match(attendance, /window\.saveSheetStatus/);
+    assert.match(attendance, /\.attendance-history-table \.sheet-col-index \{[^}]*font-variant-numeric:tabular-nums;[^}]*white-space:nowrap;[^}]*overflow-wrap:normal;[^}]*word-break:normal;/);
     assert.match(attendance, /fetchRows\('enrollments', query => query\.eq\('section', section\)\.eq\('subjectCode', subjectCode\)\)/);
     assert.match(attendance, /id="filterSearch"/);
     assert.doesNotMatch(attendance, /id="editModal"|id="btnListView"|id="btnSheetView"|id="recordsBody"|class="records-table"/);
