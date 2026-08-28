@@ -1,8 +1,15 @@
 import assert from 'node:assert/strict';
 import {
+  formatLocalDateInput,
   normalizeAttendanceStatus,
   summarizeAttendance,
 } from '../public/attendance-utils.mjs';
+
+assert.equal(formatLocalDateInput({
+  getFullYear: () => 2026,
+  getMonth: () => 7,
+  getDate: () => 28,
+}), '2026-08-28');
 
 assert.equal(normalizeAttendanceStatus('P'), 'P');
 assert.equal(normalizeAttendanceStatus('Present'), 'P');

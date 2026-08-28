@@ -82,6 +82,19 @@ test('student attendance shows a responsive professional records table', () => {
     assert.doesNotMatch(attendance, /grid-template-areas:'date status'/);
 });
 
+test('admin attendance uses an enrolled-student spreadsheet with autosaved status popover editing', () => {
+    const attendance = read('admin-attendance.html');
+    assert.match(attendance, /formatLocalDateInput/);
+    assert.match(attendance, /id="rosterAutosaveState"/);
+    assert.match(attendance, /function queueRosterSave/);
+    assert.match(attendance, /class="attendance-history-table"/);
+    assert.match(attendance, /id="recordStatusPopover"/);
+    assert.match(attendance, /window\.saveSheetStatus/);
+    assert.match(attendance, /fetchRows\('enrollments', query => query\.eq\('section', section\)\.eq\('subjectCode', subjectCode\)\)/);
+    assert.match(attendance, /id="filterSearch"/);
+    assert.doesNotMatch(attendance, /id="editModal"|id="btnListView"|id="btnSheetView"|id="recordsBody"|class="records-table"/);
+});
+
 test('inline and shared browser modules remain syntactically valid', () => {
     const failures = [];
     for (const file of htmlFiles) {

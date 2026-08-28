@@ -192,6 +192,188 @@
         .att-record-row:hover td { background:var(--accent-light); }
         .att-record-row.row-selected td { background:rgba(225,29,72,0.07) !important; }
 
+        /* Attendance workflow: direct editing with visible autosave feedback */
+        .attendance-panel-head { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin-bottom:22px; }
+        .attendance-panel-title { display:flex; align-items:flex-start; gap:13px; }
+        .attendance-panel-icon { width:44px; height:44px; border-radius:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:var(--accent-primary); color:#fff; font-size:22px; box-shadow:0 10px 22px rgba(0,61,165,0.2); }
+        .attendance-panel-title h3 { font-size:18px; font-weight:850; letter-spacing:-0.35px; color:var(--text-main); }
+        .attendance-panel-title p { margin-top:4px; max-width:660px; color:var(--text-muted); font-size:12px; line-height:1.55; font-weight:600; }
+        .autosave-badge { display:inline-flex; align-items:center; gap:7px; min-height:34px; padding:7px 12px; border-radius:999px; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.22); color:var(--success); font-size:11px; font-weight:800; white-space:nowrap; }
+        .autosave-badge.is-saving { background:var(--accent-light); border-color:rgba(0,61,165,0.2); color:var(--accent-primary); }
+        .autosave-badge.is-error { background:rgba(225,29,72,0.1); border-color:rgba(225,29,72,0.22); color:var(--danger); }
+        .spin { animation:attSpin .8s linear infinite; }
+        @keyframes attSpin { to { transform:rotate(360deg); } }
+
+        .attendance-action-bar { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin:0 0 14px; }
+        .attendance-bulk-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .bulk-status-btn { min-height:38px; padding:8px 13px; border-radius:10px; border:1px solid var(--input-border); background:var(--input-bg); color:var(--text-main); font-size:12px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:7px; }
+        .bulk-status-btn:hover { border-color:var(--accent-primary); color:var(--accent-primary); transform:translateY(-1px); }
+        .bulk-status-btn.bulk-present { color:var(--success); border-color:rgba(16,185,129,0.25); }
+        .bulk-status-btn.bulk-absent { color:var(--danger); border-color:rgba(225,29,72,0.25); }
+        .status-legend { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 14px; padding:10px 12px; background:var(--accent-light); border:1px solid rgba(0,61,165,0.1); border-radius:12px; }
+        .status-legend-label { flex:0 0 auto; color:var(--text-muted); font-size:10px; font-weight:850; letter-spacing:.8px; text-transform:uppercase; }
+        .legend-status { display:inline-flex; align-items:center; gap:5px; flex:0 0 auto; color:var(--text-muted); font-size:11px; font-weight:750; }
+        .legend-status i { font-size:15px; }
+        .legend-status.legend-P i { color:var(--success); }
+        .legend-status.legend-A i { color:var(--danger); }
+        .legend-status.legend-L i { color:var(--warning); }
+        .legend-status.legend-E i { color:var(--accent-primary); }
+
+        .roster-table-shell { overflow:auto; max-height:620px; border:1px solid var(--input-border); border-radius:14px; background:var(--input-bg); }
+        .roster-spreadsheet { min-width:780px; }
+        .roster-spreadsheet thead th { padding:12px 14px; background:#07377f; }
+        .dark-theme .roster-spreadsheet thead th { background:#10244a; }
+        .roster-spreadsheet tbody tr:hover { background:var(--accent-light); }
+        .roster-spreadsheet .col-current { width:122px; }
+        .status-pill-group { display:inline-grid; grid-template-columns:repeat(4,42px); gap:5px; padding:4px; border:1px solid var(--input-border); background:rgba(100,116,139,0.05); border-radius:11px; }
+        .status-pill { width:42px; min-height:34px; padding:5px; border:1px solid transparent; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; gap:3px; font-size:11px; }
+        .status-pill i { font-size:15px; }
+        .status-pill:disabled { cursor:wait; opacity:.65; }
+        .row-save-state, .record-save-state { display:inline-flex; align-items:center; gap:6px; min-width:82px; color:var(--text-muted); font-size:10px; font-weight:800; white-space:nowrap; }
+        .row-save-state i, .record-save-state i { font-size:15px; }
+        .row-save-state.is-saving, .record-save-state.is-saving { color:var(--accent-primary); }
+        .row-save-state.is-saved, .record-save-state.is-saved { color:var(--success); }
+        .row-save-state.is-error, .record-save-state.is-error { color:var(--danger); }
+
+        .records-workspace { border:1px solid var(--input-border); border-radius:18px; background:rgba(255,255,255,0.24); overflow:hidden; }
+        .dark-theme .records-workspace { background:rgba(0,0,0,0.12); }
+        .records-toolbar { display:grid; grid-template-columns:minmax(220px,1.4fr) repeat(4,minmax(140px,.7fr)); gap:10px; padding:16px; border-bottom:1px solid var(--input-border); }
+        .records-toolbar .search-wrapper { width:100%; }
+        .records-toolbar .select-filter { width:100%; min-width:0; }
+        .records-toolbar-actions { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; padding:0 16px 14px; border-bottom:1px solid var(--input-border); }
+        .records-toolbar-actions-left, .records-toolbar-actions-right { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+        .records-summary { display:grid; grid-template-columns:repeat(5,minmax(120px,1fr)); gap:1px; background:var(--input-border); border-bottom:1px solid var(--input-border); }
+        .records-stat { background:var(--input-bg); padding:13px 16px; display:flex; align-items:center; gap:10px; }
+        .records-stat-icon { width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:17px; background:var(--accent-light); color:var(--accent-primary); }
+        .records-stat[data-tone="present"] .records-stat-icon { background:rgba(16,185,129,.1); color:var(--success); }
+        .records-stat[data-tone="absent"] .records-stat-icon { background:rgba(225,29,72,.1); color:var(--danger); }
+        .records-stat[data-tone="late"] .records-stat-icon { background:rgba(245,158,11,.1); color:var(--warning); }
+        .records-stat[data-tone="excused"] .records-stat-icon { background:var(--accent-light); color:var(--accent-primary); }
+        .records-stat strong { display:block; font-size:17px; line-height:1; color:var(--text-main); }
+        .records-stat span { display:block; margin-top:3px; color:var(--text-muted); font-size:9px; font-weight:800; letter-spacing:.6px; text-transform:uppercase; }
+        .records-table-wrap { overflow:auto; max-height:640px; }
+        .records-table { width:100%; min-width:780px; border-collapse:separate; border-spacing:0; }
+        .records-table thead th { position:sticky; top:0; z-index:6; padding:11px 13px; background:#102a56; color:#fff; border-right:1px solid rgba(255,255,255,.1); font-size:10px; font-weight:800; letter-spacing:.75px; text-transform:uppercase; text-align:left; white-space:nowrap; }
+        .records-table tbody td { padding:11px 13px; border-bottom:1px solid var(--input-border); background:var(--input-bg); vertical-align:middle; font-size:12px; }
+        .records-table tbody tr:nth-child(even) td { background:rgba(248,250,252,.72); }
+        .dark-theme .records-table tbody tr:nth-child(even) td { background:rgba(255,255,255,.025); }
+        .records-table tbody tr:hover td { background:var(--accent-light); }
+        .records-table .att-record-row td { cursor:default; }
+        .record-date { display:flex; flex-direction:column; gap:2px; white-space:nowrap; }
+        .record-date strong { color:var(--text-main); font-size:12px; }
+        .record-date span { color:var(--text-muted); font-size:9px; font-weight:750; text-transform:uppercase; letter-spacing:.5px; }
+        .student-identity strong { display:block; color:var(--text-main); font-size:12px; }
+        .student-identity span { display:block; color:var(--text-muted); font-family:monospace; font-size:10px; margin-top:2px; }
+        .class-identity strong { display:block; color:var(--text-main); font-size:11px; }
+        .class-identity span { display:block; color:var(--text-muted); font-size:10px; margin-top:2px; }
+        .inline-status-group { display:inline-grid; grid-template-columns:repeat(4,36px); gap:4px; padding:4px; border-radius:11px; border:1px solid var(--input-border); background:rgba(100,116,139,.05); }
+        .inline-status-btn { width:36px; height:32px; border:1px solid transparent; border-radius:8px; background:transparent; color:var(--text-muted); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:15px; }
+        .inline-status-btn:hover { background:var(--input-bg); color:var(--text-main); }
+        .inline-status-btn[data-status="P"].active { background:var(--success); color:#fff; box-shadow:0 3px 8px rgba(16,185,129,.22); }
+        .inline-status-btn[data-status="A"].active { background:var(--danger); color:#fff; box-shadow:0 3px 8px rgba(225,29,72,.2); }
+        .inline-status-btn[data-status="L"].active { background:var(--warning); color:#fff; box-shadow:0 3px 8px rgba(245,158,11,.2); }
+        .inline-status-btn[data-status="E"].active { background:var(--accent-primary); color:#fff; box-shadow:0 3px 8px rgba(0,61,165,.2); }
+        .inline-status-btn:disabled { opacity:.6; cursor:wait; }
+        .record-delete-btn { width:34px; height:34px; border:1px solid rgba(225,29,72,.2); border-radius:9px; background:rgba(225,29,72,.07); color:var(--danger); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; }
+        .records-footer { padding:11px 16px; display:flex; justify-content:space-between; gap:12px; align-items:center; color:var(--text-muted); font-size:11px; font-weight:700; border-top:1px solid var(--input-border); }
+
+        /* Spreadsheet-only attendance history */
+        .attendance-sheet-workspace { border:1px solid var(--input-border); border-radius:18px; overflow:hidden; background:var(--input-bg); }
+        .sheet-class-toolbar { display:grid; grid-template-columns:minmax(220px,1.3fr) minmax(160px,.8fr) minmax(160px,.8fr) minmax(250px,1fr); gap:10px; padding:16px; border-bottom:1px solid var(--input-border); background:rgba(248,250,252,.55); }
+        .dark-theme .sheet-class-toolbar { background:rgba(255,255,255,.02); }
+        .sheet-class-toolbar .search-wrapper { width:100%; }
+        .sheet-class-toolbar .select-filter { width:100%; min-width:0; }
+        .sheet-date-control { display:grid; grid-template-columns:minmax(140px,1fr) auto; gap:7px; }
+        .sheet-toolbar-secondary { min-height:56px; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid var(--input-border); }
+        .sheet-toolbar-secondary .status-legend { margin:0; padding:0; border:none; background:transparent; }
+        .sheet-summary { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid var(--input-border); background:var(--input-border); gap:1px; }
+        .sheet-summary > div { padding:14px 16px; background:var(--input-bg); }
+        .sheet-summary strong { display:block; color:var(--text-main); font-size:18px; line-height:1; }
+        .sheet-summary span { display:block; margin-top:5px; color:var(--text-muted); font-size:9px; font-weight:850; letter-spacing:.65px; text-transform:uppercase; }
+        .sheet-empty-state { padding:64px 24px; display:flex; flex-direction:column; align-items:center; text-align:center; color:var(--text-muted); }
+        .sheet-empty-icon { width:56px; height:56px; border-radius:16px; display:flex; align-items:center; justify-content:center; margin-bottom:14px; background:var(--accent-light); color:var(--accent-primary); font-size:27px; }
+        .sheet-empty-state h4 { color:var(--text-main); font-size:15px; font-weight:850; }
+        .sheet-empty-state p { margin-top:6px; max-width:400px; font-size:12px; line-height:1.55; font-weight:600; }
+        .attendance-sheet-container[hidden] { display:none; }
+        .attendance-sheet-scroll { overflow:auto; max-height:640px; scrollbar-color:rgba(0,61,165,.35) transparent; }
+        .attendance-history-table { width:max-content; min-width:100%; border-collapse:separate; border-spacing:0; font-size:12px; }
+        .attendance-history-table th { position:sticky; top:0; z-index:8; height:52px; padding:9px 11px; background:#102a56; color:#fff; border-right:1px solid rgba(255,255,255,.11); border-bottom:1px solid rgba(255,255,255,.12); text-align:center; font-size:9px; font-weight:850; letter-spacing:.65px; text-transform:uppercase; white-space:nowrap; }
+        .attendance-history-table th .date-day { display:block; font-size:13px; letter-spacing:0; text-transform:none; }
+        .attendance-history-table th .date-weekday { display:block; margin-top:2px; color:rgba(255,255,255,.65); font-size:8px; }
+        .attendance-history-table td { height:52px; padding:0; border-right:1px solid var(--input-border); border-bottom:1px solid var(--input-border); background:var(--input-bg); text-align:center; }
+        .attendance-history-table tbody tr:nth-child(even) td { background:rgba(248,250,252,.76); }
+        .dark-theme .attendance-history-table tbody tr:nth-child(even) td { background:rgba(255,255,255,.025); }
+        .attendance-history-table tbody tr:hover td { background:var(--accent-light); }
+        .attendance-history-table .sheet-col-index { position:sticky; left:0; z-index:5; width:46px; min-width:46px; color:var(--text-muted); font-size:10px; font-weight:800; }
+        .attendance-history-table .sheet-col-number { position:sticky; left:46px; z-index:5; width:116px; min-width:116px; padding:0 11px; text-align:left; color:var(--text-muted); font-family:monospace; font-size:10px; white-space:nowrap; }
+        .attendance-history-table .sheet-col-name { position:sticky; left:162px; z-index:5; width:210px; min-width:210px; padding:0 13px; text-align:left; color:var(--text-main); font-weight:800; box-shadow:3px 0 0 rgba(0,61,165,.08); white-space:nowrap; }
+        .attendance-history-table th.sheet-col-index, .attendance-history-table th.sheet-col-number, .attendance-history-table th.sheet-col-name { z-index:12; background:#102a56; color:#fff; }
+        .attendance-history-table .sheet-date-cell { width:76px; min-width:76px; }
+        .attendance-history-table .sheet-rate-col { position:sticky; right:0; z-index:6; width:72px; min-width:72px; background:#f2f6fc; border-left:2px solid rgba(0,61,165,.15); color:var(--accent-primary); font-size:11px; font-weight:850; }
+        .dark-theme .attendance-history-table .sheet-rate-col { background:#0d1930; }
+        .attendance-history-table th.sheet-rate-col { z-index:12; background:#0a2148; color:#fff; }
+        .sheet-status-cell { width:100%; height:51px; border:none; background:transparent; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-muted); }
+        .sheet-status-cell:hover, .sheet-status-cell:focus-visible { outline:none; box-shadow:inset 0 0 0 2px var(--accent-primary); background:rgba(0,61,165,.06); }
+        .sheet-status-mark { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:17px; transition:transform .15s ease, box-shadow .15s ease; }
+        .sheet-status-cell:hover .sheet-status-mark { transform:scale(1.06); }
+        .sheet-status-P .sheet-status-mark { background:rgba(16,185,129,.13); color:var(--success); }
+        .sheet-status-L .sheet-status-mark { background:rgba(245,158,11,.14); color:var(--warning); }
+        .sheet-status-A .sheet-status-mark { background:rgba(225,29,72,.11); color:var(--danger); }
+        .sheet-status-E .sheet-status-mark { background:var(--accent-light); color:var(--accent-primary); }
+        .sheet-status-empty .sheet-status-mark { background:rgba(100,116,139,.07); color:#94a3b8; border:1px dashed rgba(100,116,139,.25); }
+        .sheet-status-cell.is-saving .sheet-status-mark { color:var(--accent-primary); background:var(--accent-light); }
+        .sheet-status-cell.is-error .sheet-status-mark { color:var(--danger); background:rgba(225,29,72,.1); }
+        .sheet-footer { min-height:44px; padding:10px 15px; display:flex; align-items:center; justify-content:space-between; gap:12px; color:var(--text-muted); font-size:10px; font-weight:750; border-top:1px solid var(--input-border); }
+
+        .attendance-status-popover { position:fixed; z-index:2600; width:300px; padding:13px; border:1px solid var(--input-border); border-radius:16px; background:var(--glass-bg); backdrop-filter:blur(30px); box-shadow:0 20px 55px rgba(15,23,42,.24); transition:none; }
+        .attendance-status-popover[hidden] { display:none; }
+        .status-popover-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:2px 2px 11px; border-bottom:1px solid var(--input-border); }
+        .status-popover-head strong { display:block; color:var(--text-main); font-size:13px; }
+        .status-popover-head span { display:block; margin-top:3px; color:var(--text-muted); font-size:10px; font-weight:650; }
+        .status-popover-head button { width:30px; height:30px; border:1px solid var(--input-border); border-radius:9px; background:var(--input-bg); color:var(--text-muted); cursor:pointer; }
+        .status-popover-options { display:grid; gap:6px; margin-top:10px; }
+        .status-popover-options > button { width:100%; min-height:50px; padding:8px 10px; border:1px solid transparent; border-radius:11px; background:transparent; color:var(--text-main); display:flex; align-items:center; gap:10px; text-align:left; cursor:pointer; }
+        .status-popover-options > button:hover, .status-popover-options > button.active { background:var(--accent-light); border-color:rgba(0,61,165,.14); }
+        .status-popover-options > button > i { width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+        .status-popover-options > button[data-status="P"] > i { background:rgba(16,185,129,.12); color:var(--success); }
+        .status-popover-options > button[data-status="L"] > i { background:rgba(245,158,11,.13); color:var(--warning); }
+        .status-popover-options > button[data-status="A"] > i { background:rgba(225,29,72,.1); color:var(--danger); }
+        .status-popover-options > button[data-status="E"] > i { background:var(--accent-light); color:var(--accent-primary); }
+        .status-popover-options strong { display:block; font-size:11px; }
+        .status-popover-options small { display:block; margin-top:2px; color:var(--text-muted); font-size:9px; font-weight:650; }
+        .status-popover-save { margin-top:9px; padding:8px 10px; border-radius:9px; background:rgba(16,185,129,.08); color:var(--success); font-size:9px; font-weight:800; text-align:center; }
+        .status-popover-save.is-saving { background:var(--accent-light); color:var(--accent-primary); }
+        .status-popover-save.is-error { background:rgba(225,29,72,.09); color:var(--danger); }
+
+        @media (max-width:1400px) and (min-width:769px) { .sheet-class-toolbar { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+        @media (max-width:1200px) { .records-toolbar { grid-template-columns:repeat(2,minmax(180px,1fr)); } .records-toolbar .search-wrapper { grid-column:span 2; } }
+        @media (max-width:768px) {
+            .attendance-panel-head { align-items:stretch; flex-direction:column; }
+            .autosave-badge { align-self:flex-start; }
+            .summary-bar { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+            .summary-chip { padding:8px 10px; font-size:11px; }
+            .records-toolbar { grid-template-columns:1fr; padding:12px; }
+            .records-toolbar .search-wrapper { grid-column:auto; }
+            .records-summary { grid-template-columns:repeat(5,120px); overflow-x:auto; }
+            .records-stat { padding:11px 12px; }
+            .records-toolbar-actions { padding:0 12px 12px; }
+            .records-footer { align-items:flex-start; flex-direction:column; }
+            .sheet-class-toolbar { grid-template-columns:1fr; padding:12px; }
+            .sheet-date-control { grid-template-columns:1fr auto; }
+            .sheet-toolbar-secondary { align-items:stretch; flex-direction:column; padding:10px 12px; }
+            .sheet-toolbar-secondary .status-legend { overflow-x:auto; flex-wrap:nowrap; white-space:nowrap; padding-bottom:3px; }
+            .sheet-toolbar-secondary .status-legend-label { display:none; }
+            .sheet-toolbar-secondary .status-legend, .sheet-summary { scrollbar-width:none; }
+            .sheet-toolbar-secondary .status-legend::-webkit-scrollbar, .sheet-summary::-webkit-scrollbar { display:none; }
+            .sheet-summary { grid-template-columns:repeat(4,125px); overflow-x:auto; }
+            .sheet-summary > div { padding:12px; }
+            .attendance-history-table .sheet-col-number { display:none; }
+            .attendance-history-table .sheet-col-name { left:46px; min-width:176px; width:176px; }
+            .attendance-history-table .sheet-rate-col { display:none; }
+            .attendance-status-popover { left:12px !important; right:12px; bottom:82px !important; top:auto !important; width:auto; max-height:68vh; overflow:auto; }
+            .sheet-footer { align-items:flex-start; flex-direction:column; }
+        }
+
         /* ── CHECKBOX COLUMN ─── */
         .cb-col { width:44px; text-align:center; padding:0 !important; }
         .row-cb { width:18px; height:18px; cursor:pointer; accent-color:var(--danger); border-radius:4px; }
@@ -398,26 +580,34 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 </div>
 
                 <div id="attendance-roster" style="display:none; margin-top:8px; border-top:1px solid var(--glass-border); padding-top:24px;">
-                    <div class="section-title"><i class="ph-bold ph-pencil-simple"></i> Step 2: Mark Attendance</div>
+                    <div class="attendance-panel-head">
+                        <div class="attendance-panel-title">
+                            <span class="attendance-panel-icon"><i class="ph-bold ph-user-check"></i></span>
+                            <div><h3>Mark the class roster</h3><p>Choose a status beside each student. Every change is saved automatically, including corrections to previously recorded attendance.</p></div>
+                        </div>
+                        <span class="autosave-badge" id="rosterAutosaveState"><i class="ph-bold ph-cloud-check"></i> Autosave ready</span>
+                    </div>
                     <div class="summary-bar">
                         <div class="summary-chip chip-present"><i class="ph-fill ph-check-circle"></i> Present: <span id="cnt-present">0</span></div>
                         <div class="summary-chip chip-absent"><i class="ph-fill ph-x-circle"></i> Absent: <span id="cnt-absent">0</span></div>
                         <div class="summary-chip chip-late"><i class="ph-fill ph-clock-countdown"></i> Late: <span id="cnt-late">0</span></div>
                         <div class="summary-chip chip-excused"><i class="ph-fill ph-note"></i> Excused: <span id="cnt-excused">0</span></div>
                     </div>
-                    <div style="display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
-                        <button class="btn btn-outline" style="padding:8px 16px; font-size:13px;" onclick="window.markAll('P')"><i class="ph-bold ph-check"></i> All Present</button>
-                        <button class="btn" style="padding:8px 16px; font-size:13px; background:rgba(225,29,72,0.1); color:var(--danger); border:1px solid rgba(225,29,72,0.3);" onclick="window.markAll('A')"><i class="ph-bold ph-x"></i> All Absent</button>
+                    <div class="attendance-action-bar">
+                        <div class="attendance-bulk-actions">
+                            <button class="bulk-status-btn bulk-present" onclick="window.markAll('P')"><i class="ph-bold ph-checks"></i> Mark all present</button>
+                            <button class="bulk-status-btn bulk-absent" onclick="window.markAll('A')"><i class="ph-bold ph-x-circle"></i> Mark all absent</button>
+                        </div>
+                        <button class="bulk-status-btn" onclick="window.saveAttendance()"><i class="ph-bold ph-arrows-clockwise"></i> Sync all marked</button>
                     </div>
-                    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:10px; padding:10px 14px; background:var(--accent-light); border-radius:10px; align-items:center;">
-                        <span style="font-size:12px; font-weight:700; color:var(--text-muted);">LEGEND:</span>
-                        <span class="status-chip status-chip-P"><i class="ph-bold ph-check"></i> P = Present</span>
-                        <span class="status-chip status-chip-A"><i class="ph-bold ph-x"></i> A = Absent</span>
-                        <span class="status-chip status-chip-L"><i class="ph-bold ph-clock-countdown"></i> L = Late</span>
-                        <span class="status-chip status-chip-E"><i class="ph-bold ph-note"></i> E = Excused</span>
-                        <span style="font-size:11px; color:var(--text-muted); margin-left:auto;"><i class="ph-bold ph-info"></i> Row color reflects current status</span>
+                    <div class="status-legend" aria-label="Attendance status legend">
+                        <span class="status-legend-label">Status legend</span>
+                        <span class="legend-status legend-P"><i class="ph-fill ph-check-circle"></i> Present</span>
+                        <span class="legend-status legend-A"><i class="ph-fill ph-x-circle"></i> Absent</span>
+                        <span class="legend-status legend-L"><i class="ph-fill ph-clock-countdown"></i> Late</span>
+                        <span class="legend-status legend-E"><i class="ph-fill ph-note"></i> Excused</span>
                     </div>
-                    <div class="table-container" style="border-radius:12px; border:1px solid var(--input-border); overflow:hidden;">
+                    <div class="roster-table-shell">
                         <table class="roster-spreadsheet">
                             <thead>
                                 <tr>
@@ -425,107 +615,70 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                                     <th class="col-sno">Student No.</th>
                                     <th class="col-name">Student Name</th>
                                     <th class="col-status">Mark Attendance</th>
-                                    <th class="col-current">Current Status</th>
+                                    <th class="col-current">Autosave</th>
                                 </tr>
                             </thead>
                             <tbody id="rosterBody"></tbody>
                         </table>
-                    </div>
-                    <div style="margin-top:24px; display:flex; gap:12px;">
-                        <button class="btn btn-primary" onclick="window.saveAttendance()">
-                            <i class="ph-bold ph-floppy-disk"></i> Save Attendance
-                        </button>
                     </div>
                 </div>
             </div>
 
             <!-- TAB 2: VIEW RECORDS -->
             <div id="tab-records" class="tab-content">
-                <div class="filter-row">
-                    <select id="filterSection" class="select-filter" onchange="window.filterRecords()">
-                        <option value="">All Sections</option>
-                    </select>
-                    <select id="filterSubject" class="select-filter" onchange="window.filterRecords()">
-                        <option value="">All Subjects</option>
-                    </select>
-                    <select id="filterStatus" class="select-filter" onchange="window.filterRecords()">
-                        <option value="">All Statuses</option>
-                        <option value="P">Present</option>
-                        <option value="A">Absent</option>
-                        <option value="L">Late</option>
-                        <option value="E">Excused</option>
-                    </select>
-                    <input type="date" id="filterDate" class="select-filter" onchange="window.filterRecords()" style="font-family:'Plus Jakarta Sans',sans-serif;">
-                    <button class="btn btn-outline" style="padding:10px 16px; font-size:13px;" onclick="window.clearFilters()"><i class="ph-bold ph-funnel-x"></i> Clear</button>
-                    <button class="btn btn-success" style="padding:10px 16px; font-size:13px;" onclick="window.exportAttendanceExcel()"><i class="ph-bold ph-download-simple"></i> Export Excel</button>
-                </div>
-
-                <!-- View Toggle -->
-                <div class="view-toggle-wrap">
-                    <span style="font-size:12px; font-weight:700; color:var(--text-muted);">VIEW AS:</span>
-                    <button class="view-toggle-btn active" id="btnListView" onclick="window.setViewMode('list')"><i class="ph-bold ph-list-bullets"></i> List View</button>
-                    <button class="view-toggle-btn" id="btnSheetView" onclick="window.setViewMode('sheet')"><i class="ph-bold ph-table"></i> Spreadsheet View</button>
-                </div>
-
-                <!-- LIST VIEW -->
-                <div id="listViewContainer">
-                    <!-- Selection action bar (appears when rows are checked) -->
-                    <div class="selection-bar" id="selectionBar">
-                        <i class="ph-fill ph-trash" style="font-size:22px;"></i>
-                        <span class="sel-count" id="selCountText">0 records selected</span>
-                        <button class="btn-sel-clear" onclick="window.clearSelection()"><i class="ph-bold ph-x"></i> Deselect All</button>
-                        <button class="btn-sel-delete" onclick="window.openDeleteSelected()"><i class="ph-bold ph-trash"></i> Delete Selected</button>
+                <div class="attendance-panel-head">
+                    <div class="attendance-panel-title">
+                        <span class="attendance-panel-icon"><i class="ph-bold ph-table"></i></span>
+                        <div><h3>Attendance spreadsheet</h3><p>Every enrolled student appears in the roster, including students without a saved status. Select a class, then click any attendance cell to record or correct it.</p></div>
                     </div>
+                    <span class="autosave-badge" id="sheetAutosaveState"><i class="ph-bold ph-cloud-check"></i> Changes autosave</span>
+                </div>
 
-                    <!-- Toolbar: select all + bulk delete button -->
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:10px;">
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <label style="display:flex; align-items:center; gap:7px; font-size:13px; font-weight:700; color:var(--text-muted); cursor:pointer;">
-                                <input type="checkbox" id="selectAllCb" class="select-all-cb" onchange="window.toggleSelectAll(this)">
-                                Select All Visible
-                            </label>
-                            <span style="font-size:12px; color:var(--text-muted);" id="selectionHint"></span>
+                <div class="attendance-sheet-workspace">
+                    <div class="sheet-class-toolbar">
+                        <div class="search-wrapper">
+                            <i class="ph-bold ph-magnifying-glass"></i>
+                            <input id="filterSearch" class="search-input" type="search" placeholder="Search enrolled students" oninput="window.renderAttendanceSheet()" autocomplete="off">
                         </div>
-                        <button class="btn" style="padding:9px 18px; font-size:13px; background:rgba(225,29,72,0.1); color:var(--danger); border:1.5px solid rgba(225,29,72,0.3);" onclick="window.openSmartBulkDelete()">
-                            <i class="ph-bold ph-trash"></i> Smart Bulk Delete
-                        </button>
+                        <select id="filterSection" class="select-filter" onchange="window.loadRecordSubjects()"><option value="">Select section</option></select>
+                        <select id="filterSubject" class="select-filter" onchange="window.loadRecords()" disabled><option value="">Select subject</option></select>
+                        <div class="sheet-date-control">
+                            <input type="date" id="recordSessionDate" class="select-filter" aria-label="Attendance session date">
+                            <button class="bulk-status-btn" onclick="window.showRecordDate()"><i class="ph-bold ph-calendar-plus"></i> Show date</button>
+                        </div>
+                    </div>
+                    <div class="sheet-toolbar-secondary">
+                        <div class="status-legend" aria-label="Attendance status legend">
+                            <span class="status-legend-label">Cell legend</span>
+                            <span class="legend-status legend-P"><i class="ph-fill ph-check-circle"></i> Present</span>
+                            <span class="legend-status legend-L"><i class="ph-fill ph-clock-countdown"></i> Late</span>
+                            <span class="legend-status legend-A"><i class="ph-fill ph-x-circle"></i> Absent</span>
+                            <span class="legend-status legend-E"><i class="ph-fill ph-note"></i> Excused</span>
+                            <span class="legend-status"><i class="ph-bold ph-minus-circle"></i> No record</span>
+                        </div>
+                        <button class="bulk-status-btn" onclick="window.exportAttendanceExcel()"><i class="ph-bold ph-download-simple"></i> Export records</button>
+                    </div>
+                    <div class="sheet-summary" aria-label="Attendance spreadsheet summary">
+                        <div><strong id="sheetStudentCount">0</strong><span>Enrolled students</span></div>
+                        <div><strong id="sheetSessionCount">0</strong><span>Session dates</span></div>
+                        <div><strong id="sheetRecordCount">0</strong><span>Recorded cells</span></div>
+                        <div><strong id="sheetClassRate">0%</strong><span>Class attendance</span></div>
                     </div>
 
-                    <div class="table-container">
-                        <table class="modern-table">
-                            <thead>
-                                <tr>
-                                    <th class="cb-col"></th>
-                                    <th>Date</th>
-                                    <th>Student No.</th>
-                                    <th>Student Name</th>
-                                    <th>Section</th>
-                                    <th>Subject</th>
-                                    <th style="text-align:center;">Status</th>
-                                    <th style="text-align:center;">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="recordsBody"><tr><td colspan="8" style="text-align:center;">Loading records...</td></tr></tbody>
-                        </table>
+                    <div id="recordSheetHint" class="sheet-empty-state">
+                        <span class="sheet-empty-icon"><i class="ph-bold ph-users-three"></i></span>
+                        <h4>Select a section and subject</h4>
+                        <p>The complete enrolled roster and its attendance history will appear here.</p>
                     </div>
-                    <div style="margin-top:12px; color:var(--text-muted); font-size:13px; text-align:right;">Showing <span id="recordCount">0</span> records</div>
+                    <div id="recordSheetContainer" class="attendance-sheet-container" hidden>
+                        <div class="attendance-sheet-scroll" id="recordSheetScroll"></div>
+                        <div class="sheet-footer">
+                            <span id="sheetFooterInfo"></span>
+                            <span><i class="ph-bold ph-cursor-click"></i> Click any status cell to edit it.</span>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- SPREADSHEET PIVOT VIEW -->
-                <div id="sheetViewContainer" style="display:none;">
-                    <div class="legend-row">
-                        <span class="status-chip status-chip-P"><i class="ph-bold ph-check"></i> Present</span>
-                        <span class="status-chip status-chip-A"><i class="ph-bold ph-x"></i> Absent</span>
-                        <span class="status-chip status-chip-L"><i class="ph-bold ph-clock-countdown"></i> Late</span>
-                        <span class="status-chip status-chip-E"><i class="ph-bold ph-note"></i> Excused</span>
-                        <span style="font-size:11px; color:var(--text-muted); margin-left:auto;">Click any cell to edit status</span>
-                    </div>
-                    <div id="pivotHint" class="pivot-hint"><i class="ph-bold ph-funnel" style="margin-right:6px;"></i>Select a <strong>Section</strong> and <strong>Subject</strong> above to generate the spreadsheet view.</div>
-                    <div id="pivotContainer" style="display:none;">
-                        <div class="ss-wrap" id="ssWrap"></div>
-                        <div style="margin-top:10px; color:var(--text-muted); font-size:12px; font-weight:600;"><span id="pivotInfo"></span></div>
-                    </div>
-                </div>
             </div>
 
             <!-- TAB 3: BULK UPLOAD -->
@@ -550,6 +703,17 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             </div>
         </div>
     </main>
+
+    <div id="recordStatusPopover" class="attendance-status-popover" hidden role="dialog" aria-modal="false" aria-labelledby="statusPopoverTitle">
+        <div class="status-popover-head"><div><strong id="statusPopoverTitle">Update attendance</strong><span id="statusPopoverMeta"></span></div><button onclick="window.closeRecordStatusPopover()" aria-label="Close status menu"><i class="ph-bold ph-x"></i></button></div>
+        <div class="status-popover-options">
+            <button data-status="P" onclick="window.saveSheetStatus('P')"><i class="ph-fill ph-check-circle"></i><span><strong>Present</strong><small>Attended on time</small></span></button>
+            <button data-status="L" onclick="window.saveSheetStatus('L')"><i class="ph-fill ph-clock-countdown"></i><span><strong>Late</strong><small>Arrived after start</small></span></button>
+            <button data-status="A" onclick="window.saveSheetStatus('A')"><i class="ph-fill ph-x-circle"></i><span><strong>Absent</strong><small>Did not attend</small></span></button>
+            <button data-status="E" onclick="window.saveSheetStatus('E')"><i class="ph-fill ph-note"></i><span><strong>Excused</strong><small>Approved absence</small></span></button>
+        </div>
+        <div class="status-popover-save" id="statusPopoverSave"><i class="ph-bold ph-cloud-check"></i> Select a status to autosave</div>
+    </div>
 
     <!-- LARGE QR MODAL -->
     <div id="largeQrModal" class="modal-overlay">
@@ -661,41 +825,28 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
     <div id="toast" class="toast"><i id="toast-icon" class="ph-fill ph-check-circle" style="font-size:24px;"></i><span id="toast-msg">Success!</span></div>
 
-    <div id="editModal" class="modal-overlay">
-        <div class="modal-box glass">
-            <h3 style="font-size:18px; font-weight:800; margin-bottom:16px;">Edit Attendance Status</h3>
-            <p id="editModalInfo" style="font-size:14px; color:var(--text-muted); margin-bottom:20px;"></p>
-            <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-                <button class="att-btn att-btn-present" style="width:auto;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:700;" onclick="window.applyStatusEdit('P')"><i class="ph-bold ph-check"></i> Present</button>
-                <button class="att-btn att-btn-absent" style="width:auto;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:700;" onclick="window.applyStatusEdit('A')"><i class="ph-bold ph-x"></i> Absent</button>
-                <button class="att-btn att-btn-late" style="width:auto;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:700;" onclick="window.applyStatusEdit('L')"><i class="ph-bold ph-clock-countdown"></i> Late</button>
-                <button class="att-btn att-btn-excused" style="width:auto;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:700;" onclick="window.applyStatusEdit('E')"><i class="ph-bold ph-note"></i> Excused</button>
-            </div>
-            <div class="modal-actions">
-                <button class="btn-modal-cancel" onclick="window.closeEditModal()">Cancel</button>
-            </div>
-        </div>
-    </div>
-
     <script type="module">
         import { supabase } from "./supabase-adapter.js";
-
-
-import { startAdminSessionGuard } from "./admin-session.js";
-import { loadVendor } from "./vendor-loader.v1.js";
-const user = JSON.parse(localStorage.getItem('loggedInUser'));
+        import { startAdminSessionGuard } from "./admin-session.js";
+        import { formatLocalDateInput, summarizeAttendance } from "./attendance-utils.mjs";
+        import { loadVendor } from "./vendor-loader.v1.js";
+        const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
 
         const adminSessionGuard = startAdminSessionGuard(supabase, user);
         window.logout = async function() { adminSessionGuard.stop(); try { await supabase.auth.signOut(); } catch (error) {} localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
 
         let allAttendanceData = [];
-        let currentEditDocId = null;
-        let editingData = {};
+        let filteredAttendanceData = [];
+        let recordEnrollments = [];
+        let visibleRecordDates = new Set();
+        let activeSheetCell = null;
+        let recordLoadToken = 0;
         let subjectsBySection = {};
         let currentQrPayload = '';
         let currentQrSession = null;
         let qrCountdownTimer = null;
+        const rosterSaveQueues = new Map();
 
         const TABLE_FIELDS = {
             sections: 'id,sectionName,yearLevel',
@@ -724,6 +875,21 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         async function updateById(table, id, updates) {
             const { error } = await supabase.from(table).update(updates).eq('id', id);
             if (error) throw error;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>'"]/g, character => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            })[character]);
+        }
+
+        function formatAttendanceDate(value) {
+            if(!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return { primary: value || 'No date', secondary: '' };
+            const parsed = new Date(`${value}T00:00:00`);
+            return {
+                primary: parsed.toLocaleDateString('en-PH', { month:'short', day:'numeric', year:'numeric' }),
+                secondary: parsed.toLocaleDateString('en-PH', { weekday:'long' })
+            };
         }
 
         async function deleteIds(table, ids) {
@@ -907,7 +1073,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                 const secs = sections.map(d => d.sectionName);
                 secs.sort();
                 sel.innerHTML = '<option value="">Select Section</option>';
-                fSel.innerHTML = '<option value="">All Sections</option>';
+                fSel.innerHTML = '<option value="">Select Section</option>';
                 secs.forEach(s => {
                     sel.innerHTML += `<option value="${s}">${s}</option>`;
                     fSel.innerHTML += `<option value="${s}">${s}</option>`;
@@ -934,8 +1100,22 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             } catch(e) { subSel.innerHTML = '<option value="">Error loading subjects</option>'; }
         });
 
-        // Set today as default date
-        document.getElementById('inputDate').valueAsDate = new Date();
+        function invalidateLoadedRoster() {
+            const roster = document.getElementById('attendance-roster');
+            if(roster.style.display !== 'none' && roster.dataset.date) {
+                roster.style.display = 'none';
+                document.getElementById('rosterBody').innerHTML = '';
+                setRosterAutosaveState('ready', 'Autosave ready');
+            }
+        }
+        document.getElementById('inputSection').addEventListener('change', invalidateLoadedRoster);
+        document.getElementById('inputSubject').addEventListener('change', invalidateLoadedRoster);
+        document.getElementById('inputDate').addEventListener('change', invalidateLoadedRoster);
+
+        // Date inputs must use the administrator's local calendar date, not UTC.
+        const todayLocal = formatLocalDateInput();
+        document.getElementById('inputDate').value = todayLocal;
+        document.getElementById('dsDate').value = todayLocal;
 
         // Load roster for attendance
         window.loadAttendanceRoster = async function() {
@@ -946,7 +1126,11 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
             const tbody = document.getElementById('rosterBody');
             tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Loading...</td></tr>';
-            document.getElementById('attendance-roster').style.display = 'block';
+            const roster = document.getElementById('attendance-roster');
+            roster.style.display = 'block';
+            roster.dataset.section = sec;
+            roster.dataset.subject = sub;
+            roster.dataset.date = date;
 
             try {
                 // Check if attendance already exists for this date/section/subject
@@ -964,66 +1148,121 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                     const existing = existingMap[st.studentNo];
                     const defStatus = existing ? (existing.status || '') : '';
                     const docId = existing ? existing.id : '';
-                    const statusLabels = { P:'Present', A:'Absent', L:'Late', E:'Excused', '':'Not marked' };
-                    const statusClass = defStatus ? `status-chip-${defStatus}` : 'status-chip-empty';
                     const rowClass = defStatus ? `row-${defStatus}` : 'row-unmarked';
-                    const timeLabel = existing?.createdAt ? `<span class="status-time">${new Date(existing.createdAt).toLocaleTimeString('en-PH', { hour:'numeric', minute:'2-digit' })}</span>` : '';
                     tbody.innerHTML += `
                         <tr class="${rowClass}" data-status="${defStatus}">
                             <td class="row-num">${rowNum++}</td>
-                            <td class="col-sno">${st.studentNo}</td>
-                            <td class="col-name">${st.studentName}</td>
+                            <td class="col-sno">${escapeHtml(st.studentNo)}</td>
+                            <td class="col-name">${escapeHtml(st.studentName)}</td>
                             <td class="col-status">
-                                <div class="status-pill-group">
-                                    <button class="status-pill status-pill-P ${defStatus==='P'?'active':''}" onclick="window.setStatus(this,'P','${st.studentNo}')">✓ P</button>
-                                    <button class="status-pill status-pill-A ${defStatus==='A'?'active':''}" onclick="window.setStatus(this,'A','${st.studentNo}')">✗ A</button>
-                                    <button class="status-pill status-pill-L ${defStatus==='L'?'active':''}" onclick="window.setStatus(this,'L','${st.studentNo}')">⏱ L</button>
-                                    <button class="status-pill status-pill-E ${defStatus==='E'?'active':''}" onclick="window.setStatus(this,'E','${st.studentNo}')">📝 E</button>
-                                    <input type="hidden" class="status-val" data-sno="${st.studentNo}" data-docid="${docId}" value="${defStatus}">
+                                <div class="status-pill-group" role="group" aria-label="Attendance status for ${escapeHtml(st.studentName)}">
+                                    <button class="status-pill status-pill-P ${defStatus==='P'?'active':''}" onclick="window.setStatus(this,'P')" title="Present" aria-label="Mark present"><i class="ph-bold ph-check"></i>P</button>
+                                    <button class="status-pill status-pill-A ${defStatus==='A'?'active':''}" onclick="window.setStatus(this,'A')" title="Absent" aria-label="Mark absent"><i class="ph-bold ph-x"></i>A</button>
+                                    <button class="status-pill status-pill-L ${defStatus==='L'?'active':''}" onclick="window.setStatus(this,'L')" title="Late" aria-label="Mark late"><i class="ph-bold ph-clock-countdown"></i>L</button>
+                                    <button class="status-pill status-pill-E ${defStatus==='E'?'active':''}" onclick="window.setStatus(this,'E')" title="Excused" aria-label="Mark excused"><i class="ph-bold ph-note"></i>E</button>
+                                    <input type="hidden" class="status-val" data-sno="${escapeHtml(st.studentNo)}" data-name="${escapeHtml(st.studentName)}" data-docid="${escapeHtml(docId)}" data-saved-status="${defStatus}" value="${defStatus}">
                                 </div>
                             </td>
                             <td class="col-current">
-                                <span class="status-chip ${statusClass}" id="chip-${st.studentNo}">${statusLabels[defStatus] || 'Not marked'}${timeLabel}</span>
+                                <span class="row-save-state ${docId ? 'is-saved' : ''}"><i class="ph-bold ${docId ? 'ph-cloud-check' : 'ph-minus-circle'}"></i><span>${docId ? 'Saved' : 'Not marked'}</span></span>
                             </td>
                         </tr>`;
                 });
                 window.updateCounts();
+                setRosterAutosaveState('ready', existingRows.length ? 'Saved session loaded' : 'Autosave ready');
             } catch(e) { console.error(e); tbody.innerHTML = '<tr><td colspan="3">Error loading data.</td></tr>'; }
         }
 
-        window.setStatus = function(btn, status, sno) {
-            const group = btn.closest('.status-pill-group');
-            group.querySelectorAll('.status-pill').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            const hidden = group.querySelector('.status-val');
-            if(hidden) hidden.value = status;
-            // Update row color
-            const row = btn.closest('tr');
-            if(row) { row.className = `row-${status}`; }
-            // Update chip
-            const chip = document.getElementById(`chip-${sno}`);
-            const labels = { P:'Present', A:'Absent', L:'Late', E:'Excused' };
-            if(chip) { chip.className = `status-chip status-chip-${status}`; chip.textContent = labels[status]; }
+        function setRosterAutosaveState(state, label) {
+            const badge = document.getElementById('rosterAutosaveState');
+            if(!badge) return;
+            const icons = { ready:'ph-cloud-check', saving:'ph-spinner-gap spin', error:'ph-warning-circle' };
+            badge.className = `autosave-badge${state === 'saving' ? ' is-saving' : state === 'error' ? ' is-error' : ''}`;
+            badge.innerHTML = `<i class="ph-bold ${icons[state] || icons.ready}"></i> ${escapeHtml(label)}`;
+        }
+
+        function setRosterRowSaveState(input, state, label) {
+            const stateEl = input.closest('tr')?.querySelector('.row-save-state');
+            if(!stateEl) return;
+            const icons = { idle:'ph-minus-circle', saving:'ph-spinner-gap spin', saved:'ph-cloud-check', error:'ph-warning-circle' };
+            stateEl.className = `row-save-state is-${state}`;
+            stateEl.innerHTML = `<i class="ph-bold ${icons[state] || icons.idle}"></i><span>${escapeHtml(label)}</span>`;
+        }
+
+        function applyRosterStatusUi(input, status) {
+            const group = input.closest('.status-pill-group');
+            group.querySelectorAll('.status-pill').forEach(button => button.classList.toggle('active', button.classList.contains(`status-pill-${status}`)));
+            input.value = status;
+            const row = input.closest('tr');
+            if(row) {
+                row.className = `row-${status}`;
+                row.dataset.status = status;
+            }
             window.updateCounts();
         }
 
-        window.markAll = function(status) {
-            const labels = { P:'Present', A:'Absent', L:'Late', E:'Excused' };
-            document.querySelectorAll('.status-pill-group').forEach(group => {
-                group.querySelectorAll('.status-pill').forEach(b => b.classList.remove('active'));
-                const target = group.querySelector(`.status-pill-${status}`);
-                if(target) target.classList.add('active');
-                const hidden = group.querySelector('.status-val');
-                if(hidden) {
-                    const sno = hidden.getAttribute('data-sno');
-                    hidden.value = status;
-                    const row = hidden.closest('tr');
-                    if(row) row.className = `row-${status}`;
-                    const chip = document.getElementById(`chip-${sno}`);
-                    if(chip) { chip.className = `status-chip status-chip-${status}`; chip.textContent = labels[status]; }
+        function queueRosterSave(input) {
+            const studentNo = input.dataset.sno;
+            const roster = document.getElementById('attendance-roster');
+            const session = {
+                section: roster.dataset.section,
+                subjectCode: roster.dataset.subject,
+                date: roster.dataset.date
+            };
+            const prior = rosterSaveQueues.get(studentNo) || Promise.resolve();
+            setRosterRowSaveState(input, 'saving', 'Saving…');
+            setRosterAutosaveState('saving', 'Saving changes…');
+
+            const task = prior.catch(() => {}).then(async () => {
+                const status = input.value;
+                if(!status) return;
+                setRosterRowSaveState(input, 'saving', 'Saving…');
+                if(input.dataset.docid && input.dataset.savedStatus === status) {
+                    setRosterRowSaveState(input, 'saved', 'Saved');
+                    return;
                 }
+                const payload = {
+                    ...session,
+                    studentNo,
+                    studentName: input.dataset.name,
+                    status
+                };
+                if(input.dataset.docid) {
+                    await updateById('attendance', input.dataset.docid, { status });
+                } else {
+                    const inserted = await insertRow('attendance', { ...payload, createdAt: new Date().toISOString() });
+                    input.dataset.docid = inserted.id;
+                }
+                input.dataset.savedStatus = status;
+                setRosterRowSaveState(input, 'saved', 'Saved');
+            }).catch(error => {
+                console.error(error);
+                setRosterRowSaveState(input, 'error', 'Retry');
+                setRosterAutosaveState('error', 'Some changes need retry');
+                throw error;
+            }).finally(() => {
+                if(rosterSaveQueues.get(studentNo) === task) rosterSaveQueues.delete(studentNo);
+                if(rosterSaveQueues.size === 0 && !document.querySelector('.row-save-state.is-error')) setRosterAutosaveState('ready', 'All changes saved');
             });
-            window.updateCounts();
+            rosterSaveQueues.set(studentNo, task);
+            return task;
+        }
+
+        window.setStatus = function(btn, status) {
+            const group = btn.closest('.status-pill-group');
+            const hidden = group.querySelector('.status-val');
+            if(!hidden) return;
+            applyRosterStatusUi(hidden, status);
+            queueRosterSave(hidden).catch(() => window.showToast('This attendance change could not be saved. Click the status again to retry.', 'error'));
+        }
+
+        window.markAll = async function(status) {
+            const inputs = Array.from(document.querySelectorAll('.status-val'));
+            if(!inputs.length) return window.showToast('Load a student roster first.', 'error');
+            inputs.forEach(input => applyRosterStatusUi(input, status));
+            const results = await Promise.allSettled(inputs.map(queueRosterSave));
+            const failures = results.filter(result => result.status === 'rejected').length;
+            window.showToast(failures ? `${failures} attendance changes need retry.` : `All ${inputs.length} students updated and saved.`, failures ? 'error' : 'success');
         }
 
         window.updateCounts = function() {
@@ -1037,28 +1276,11 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         }
 
         window.saveAttendance = async function() {
-            const sec = document.getElementById('inputSection').value;
-            const sub = document.getElementById('inputSubject').value;
-            const date = document.getElementById('inputDate').value;
-            const inputs = document.querySelectorAll('.status-val');
-            if(inputs.length === 0) { window.showToast("No students to save.", "error"); return; }
-
-            try {
-                let savedCount = 0;
-                for(let inp of inputs) {
-                    const sno = inp.getAttribute('data-sno');
-                    const docId = inp.getAttribute('data-docid');
-                    const status = inp.value;
-                    if(!status) continue;
-                    const row = inp.closest('tr');
-                    const studentName = row ? row.cells[2].textContent : '';
-                    if(docId) await updateById("attendance", docId, { status });
-                    else await insertRow("attendance", { section: sec, subjectCode: sub, date, studentNo: sno, studentName, status, createdAt: new Date().toISOString() });
-                }
-                window.showToast("Marked attendance saved successfully!");
-                // Refresh docids
-                window.loadAttendanceRoster();
-            } catch(e) { console.error(e); window.showToast("Error saving attendance.", "error"); }
+            const inputs = Array.from(document.querySelectorAll('.status-val')).filter(input => input.value);
+            if(!inputs.length) return window.showToast('No marked attendance to sync.', 'error');
+            const results = await Promise.allSettled(inputs.map(queueRosterSave));
+            const failures = results.filter(result => result.status === 'rejected').length;
+            window.showToast(failures ? `${failures} attendance changes need retry.` : 'All marked attendance is saved.', failures ? 'error' : 'success');
         }
 
         // View mode toggle (list vs spreadsheet)
@@ -1125,7 +1347,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                         dateTotals[d][rec.status]++;
                         if(rec.status==='P'||rec.status==='L') pCount++;
                         totalCount++;
-                        return `<td class="ss-cell ss-${rec.status}" title="${name} — ${d}: ${rec.status==='P'?'Present':rec.status==='A'?'Absent':rec.status==='L'?'Late':'Excused'}" onclick="window.openEditModal('${rec.id}','${name}','${d}','${rec.status}')">${statusIcon[rec.status]}</td>`;
+                        return `<td class="ss-cell ss-${rec.status}" title="${name} — ${d}: ${rec.status==='P'?'Present':rec.status==='A'?'Absent':rec.status==='L'?'Late':'Excused'}">${statusIcon[rec.status]}</td>`;
                     }
                     totalCount++;
                     return `<td class="ss-cell ss-empty">—</td>`;
@@ -1164,97 +1386,258 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             document.getElementById('pivotInfo').innerHTML = `<i class="ph-bold ph-table"></i> ${students.length} students × ${dates.length} sessions — ${sec} / ${sub} &nbsp;|&nbsp; Click a cell to edit status`;
         }
 
-        window.loadRecords = async function() {
-            const tbody = document.getElementById('recordsBody');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Loading...</td></tr>';
+        window.loadRecordSubjects = async function() {
+            const section = document.getElementById('filterSection').value;
+            const subjectSelect = document.getElementById('filterSubject');
+            recordEnrollments = [];
+            allAttendanceData = [];
+            visibleRecordDates = new Set();
+            window.closeRecordStatusPopover();
+            document.getElementById('recordSheetContainer').hidden = true;
+            document.getElementById('recordSheetHint').style.display = 'flex';
+            if(!section) {
+                subjectSelect.disabled = true;
+                subjectSelect.innerHTML = '<option value="">Select subject</option>';
+                resetSheetSummary();
+                return;
+            }
+            subjectSelect.disabled = true;
+            subjectSelect.innerHTML = '<option value="">Loading subjects…</option>';
             try {
-                const attendanceRows = await fetchRows("attendance");
-                allAttendanceData = [];
-                const subjectSet = new Set();
-                attendanceRows.forEach(data => {
-                    allAttendanceData.push(data);
-                    if(data.subjectCode) subjectSet.add(data.subjectCode);
+                const enrollments = await fetchRows('enrollments', query => query.eq('section', section));
+                const subjects = [...new Set(enrollments.map(row => row.subjectCode).filter(Boolean))].sort();
+                subjectSelect.innerHTML = '<option value="">Select subject</option>' + subjects.map(code => `<option value="${escapeHtml(code)}">${escapeHtml(code)}</option>`).join('');
+                subjectSelect.disabled = subjects.length === 0;
+                if(!subjects.length) showSheetMessage('No subjects found', 'This section has no enrolled subjects yet.', 'ph-book-open-text');
+            } catch(error) {
+                console.error(error);
+                subjectSelect.innerHTML = '<option value="">Could not load subjects</option>';
+                showSheetMessage('Subjects could not be loaded', 'Please try selecting the section again.', 'ph-warning-circle');
+            }
+        }
+
+        window.loadRecords = async function() {
+            const section = document.getElementById('filterSection').value;
+            const subjectCode = document.getElementById('filterSubject').value;
+            const loadToken = ++recordLoadToken;
+            window.closeRecordStatusPopover();
+            if(!section || !subjectCode) {
+                resetSheetSummary();
+                showSheetMessage('Select a section and subject', 'The complete enrolled roster and its attendance history will appear here.', 'ph-users-three');
+                return;
+            }
+            showSheetMessage('Loading attendance spreadsheet…', 'Preparing the enrolled roster and attendance sessions.', 'ph-spinner-gap spin');
+            try {
+                const [enrollments, attendanceRows] = await Promise.all([
+                    fetchRows('enrollments', query => query.eq('section', section).eq('subjectCode', subjectCode)),
+                    fetchRows('attendance', query => query.eq('section', section).eq('subjectCode', subjectCode))
+                ]);
+                if(loadToken !== recordLoadToken) return;
+                const uniqueStudents = new Map();
+                enrollments.forEach(row => {
+                    if(row.studentNo && !uniqueStudents.has(row.studentNo)) uniqueStudents.set(row.studentNo, row);
                 });
-                allAttendanceData.sort((a,b) => b.date.localeCompare(a.date));
+                recordEnrollments = [...uniqueStudents.values()].sort((a,b) => String(a.studentName || a.studentNo).localeCompare(String(b.studentName || b.studentNo)));
+                allAttendanceData = attendanceRows.sort((a,b) => String(b.date).localeCompare(String(a.date)));
+                visibleRecordDates = new Set(attendanceRows.map(row => row.date).filter(Boolean));
+                if(visibleRecordDates.size === 0) visibleRecordDates.add(formatLocalDateInput());
+                document.getElementById('recordSessionDate').value = formatLocalDateInput();
+                populateDelDropdowns(new Set([subjectCode]));
+                window.renderAttendanceSheet();
+            } catch(error) {
+                console.error(error);
+                resetSheetSummary();
+                showSheetMessage('Attendance could not be loaded', 'Please check your connection and try again.', 'ph-warning-circle');
+            }
+        }
 
-                // Populate filter subjects
-                const fSubj = document.getElementById('filterSubject');
-                fSubj.innerHTML = '<option value="">All Subjects</option>';
-                Array.from(subjectSet).sort().forEach(s => fSubj.innerHTML += `<option value="${s}">${s}</option>`);
-
-                // Populate smart delete dropdowns
-                populateDelDropdowns(subjectSet);
-
-                window.filterRecords();
-            } catch(e) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--danger);">Error loading data.</td></tr>'; }
+        window.showRecordDate = function() {
+            const section = document.getElementById('filterSection').value;
+            const subject = document.getElementById('filterSubject').value;
+            const date = document.getElementById('recordSessionDate').value;
+            if(!section || !subject) return window.showToast('Select a section and subject first.', 'error');
+            if(!date) return window.showToast('Choose a session date to show.', 'error');
+            visibleRecordDates.add(date);
+            window.renderAttendanceSheet();
         }
 
         window.filterRecords = function() {
-            const sec = document.getElementById('filterSection').value;
-            const sub = document.getElementById('filterSubject').value;
-            const status = document.getElementById('filterStatus').value;
-            const date = document.getElementById('filterDate').value;
-
-            let filtered = allAttendanceData.filter(r => {
-                return (!sec || r.section === sec) &&
-                       (!sub || r.subjectCode === sub) &&
-                       (!status || r.status === status) &&
-                       (!date || r.date === date);
-            });
-
-            renderRecords(filtered);
-            if(currentViewMode === 'sheet') window.renderPivot();
+            window.renderAttendanceSheet();
         }
 
         window.clearFilters = function() {
+            document.getElementById('filterSearch').value = '';
             document.getElementById('filterSection').value = '';
-            document.getElementById('filterSubject').value = '';
-            document.getElementById('filterStatus').value = '';
-            document.getElementById('filterDate').value = '';
-            window.filterRecords();
+            const subjectSelect = document.getElementById('filterSubject');
+            subjectSelect.innerHTML = '<option value="">Select subject</option>';
+            subjectSelect.disabled = true;
+            recordEnrollments = [];
+            allAttendanceData = [];
+            visibleRecordDates = new Set();
+            resetSheetSummary();
+            showSheetMessage('Select a section and subject', 'The complete enrolled roster and its attendance history will appear here.', 'ph-users-three');
         }
 
-        function statusBadge(s) {
-            const map = { P: ['badge-present','Present'], A: ['badge-absent','Absent'], L: ['badge-late','Late'], E: ['badge-excused','Excused'] };
-            const [cls,label] = map[s] || ['','Unknown'];
-            return `<span class="badge ${cls}">${label}</span>`;
+        window.setRecordsToday = function() {
+            document.getElementById('recordSessionDate').value = formatLocalDateInput();
+            window.showRecordDate();
         }
 
-        function renderRecords(data) {
-            const tbody = document.getElementById('recordsBody');
-            document.getElementById('recordCount').textContent = data.length;
-            selectedIds.clear();
-            updateSelectionBar();
-            document.getElementById('selectAllCb').checked = false;
-            if(data.length === 0) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">No records found.</td></tr>'; return; }
-            tbody.innerHTML = '';
-            data.forEach(r => {
-                const statusClass = r.status==='P'?'present':r.status==='A'?'absent':r.status==='L'?'late':'excused';
-                tbody.innerHTML += `
-                    <tr class="att-record-row" id="row-${r.id}">
-                        <td class="cb-col"><input type="checkbox" class="row-cb" data-id="${r.id}" onchange="window.toggleRowSelect(this,'${r.id}')"></td>
-                        <td>${r.date}</td>
-                        <td style="font-family:monospace;color:var(--text-muted);font-size:12px;">${r.studentNo}</td>
-                        <td style="font-weight:700;">${r.studentName || '-'}</td>
-                        <td>${r.section}</td>
-                        <td>${r.subjectCode}</td>
-                        <td style="text-align:center;">${statusBadge(r.status)}</td>
-                        <td style="text-align:center;">
-                            <div style="display:flex;gap:6px;justify-content:center;">
-                                <button class="att-btn att-btn-${statusClass} selected"
-                                    style="width:auto;padding:5px 11px;border-radius:8px;font-size:12px;font-weight:700;"
-                                    onclick="window.openEditModal('${r.id}','${r.studentName}','${r.date}','${r.status}')">
-                                    <i class="ph-bold ph-pencil-simple"></i> Edit
-                                </button>
-                                <button class="btn" style="padding:5px 11px;border-radius:8px;font-size:12px;font-weight:700;background:rgba(225,29,72,0.1);color:var(--danger);border:1.5px solid rgba(225,29,72,0.3);"
-                                    onclick="window.openSingleDelete('${r.id}','${r.studentName}','${r.date}','${r.subjectCode}','${r.section}')">
-                                    <i class="ph-bold ph-trash"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>`;
-            });
+        function resetSheetSummary() {
+            document.getElementById('sheetStudentCount').textContent = '0';
+            document.getElementById('sheetSessionCount').textContent = '0';
+            document.getElementById('sheetRecordCount').textContent = '0';
+            document.getElementById('sheetClassRate').textContent = '0%';
         }
+
+        function showSheetMessage(title, message, icon) {
+            const hint = document.getElementById('recordSheetHint');
+            document.getElementById('recordSheetContainer').hidden = true;
+            hint.style.display = 'flex';
+            hint.innerHTML = `<span class="sheet-empty-icon"><i class="ph-bold ${icon}"></i></span><h4>${escapeHtml(title)}</h4><p>${escapeHtml(message)}</p>`;
+        }
+
+        function statusCellMarkup(record, student, date) {
+            const status = record?.status || '';
+            const icon = { P:'ph-check', L:'ph-clock-countdown', A:'ph-x', E:'ph-note', '':'ph-minus' }[status];
+            const label = { P:'Present', L:'Late', A:'Absent', E:'Excused', '':'No record' }[status];
+            return `<button class="sheet-status-cell sheet-status-${status || 'empty'}" data-record-id="${escapeHtml(record?.id || '')}" data-student-no="${escapeHtml(student.studentNo)}" data-student-name="${escapeHtml(student.studentName || student.studentNo)}" data-date="${escapeHtml(date)}" data-status="${status}" onclick="window.openRecordStatusPopover(this)" title="${escapeHtml(label)} — click to edit" aria-label="${escapeHtml(student.studentName || student.studentNo)}, ${escapeHtml(date)}: ${escapeHtml(label)}"><span class="sheet-status-mark"><i class="ph-bold ${icon}"></i></span></button>`;
+        }
+
+        window.renderAttendanceSheet = function() {
+            const search = document.getElementById('filterSearch').value.trim().toLowerCase();
+            const students = recordEnrollments.filter(student => !search || `${student.studentName || ''} ${student.studentNo || ''}`.toLowerCase().includes(search));
+            const dates = [...visibleRecordDates].sort((a,b) => b.localeCompare(a));
+            const lookup = new Map(allAttendanceData.map(record => [`${record.studentNo}|${record.date}`, record]));
+            const statusRecords = allAttendanceData.filter(record => dates.includes(record.date));
+            const classSummary = summarizeAttendance(statusRecords);
+
+            document.getElementById('sheetStudentCount').textContent = recordEnrollments.length;
+            document.getElementById('sheetSessionCount').textContent = dates.length;
+            document.getElementById('sheetRecordCount').textContent = statusRecords.length;
+            document.getElementById('sheetClassRate').textContent = `${classSummary.rate}%`;
+
+            if(!recordEnrollments.length) {
+                showSheetMessage('No enrolled students found', 'This section and subject do not have an enrolled roster yet.', 'ph-user-minus');
+                return;
+            }
+            if(!students.length) {
+                showSheetMessage('No students match your search', 'Try a different student name or number.', 'ph-magnifying-glass');
+                return;
+            }
+
+            const headerDates = dates.map(date => {
+                const formatted = formatAttendanceDate(date);
+                return `<th class="sheet-date-cell" title="${escapeHtml(date)}"><span class="date-day">${escapeHtml(formatted.primary.replace(/, \d{4}$/, ''))}</span><span class="date-weekday">${escapeHtml(formatted.secondary)}</span></th>`;
+            }).join('');
+            const bodyRows = students.map((student, index) => {
+                const studentRecords = dates.map(date => lookup.get(`${student.studentNo}|${date}`)).filter(Boolean);
+                const studentSummary = summarizeAttendance(studentRecords);
+                const cells = dates.map(date => `<td class="sheet-date-cell">${statusCellMarkup(lookup.get(`${student.studentNo}|${date}`), student, date)}</td>`).join('');
+                return `<tr><td class="sheet-col-index">${index + 1}</td><td class="sheet-col-number">${escapeHtml(student.studentNo)}</td><td class="sheet-col-name">${escapeHtml(student.studentName || 'Unnamed student')}</td>${cells}<td class="sheet-rate-col">${studentSummary.rate}%</td></tr>`;
+            }).join('');
+            const table = `<table class="attendance-history-table"><thead><tr><th class="sheet-col-index">#</th><th class="sheet-col-number">Student No.</th><th class="sheet-col-name">Student name</th>${headerDates}<th class="sheet-rate-col">Rate</th></tr></thead><tbody>${bodyRows}</tbody></table>`;
+            document.getElementById('recordSheetHint').style.display = 'none';
+            const container = document.getElementById('recordSheetContainer');
+            container.hidden = false;
+            document.getElementById('recordSheetScroll').innerHTML = table;
+            document.getElementById('sheetFooterInfo').innerHTML = `<i class="ph-bold ph-users"></i> ${students.length} of ${recordEnrollments.length} enrolled students · newest session first`;
+        }
+
+        function setSheetAutosaveState(state, label) {
+            const badge = document.getElementById('sheetAutosaveState');
+            const icons = { ready:'ph-cloud-check', saving:'ph-spinner-gap spin', error:'ph-warning-circle' };
+            badge.className = `autosave-badge${state === 'saving' ? ' is-saving' : state === 'error' ? ' is-error' : ''}`;
+            badge.innerHTML = `<i class="ph-bold ${icons[state] || icons.ready}"></i> ${escapeHtml(label)}`;
+        }
+
+        window.openRecordStatusPopover = function(cell) {
+            activeSheetCell = cell;
+            const popover = document.getElementById('recordStatusPopover');
+            document.getElementById('statusPopoverTitle').textContent = cell.dataset.studentName;
+            const formatted = formatAttendanceDate(cell.dataset.date);
+            document.getElementById('statusPopoverMeta').textContent = `${formatted.primary} · Choose attendance status`;
+            document.querySelectorAll('.status-popover-options > button').forEach(button => button.classList.toggle('active', button.dataset.status === cell.dataset.status));
+            const saveLabel = document.getElementById('statusPopoverSave');
+            saveLabel.className = 'status-popover-save';
+            saveLabel.innerHTML = '<i class="ph-bold ph-cloud-check"></i> Select a status to autosave';
+            popover.hidden = false;
+            const rect = cell.getBoundingClientRect();
+            const width = 300;
+            const left = Math.max(12, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - 12));
+            const estimatedHeight = 330;
+            const top = rect.bottom + estimatedHeight < window.innerHeight ? rect.bottom + 8 : Math.max(12, rect.top - estimatedHeight - 8);
+            popover.style.left = `${left}px`;
+            popover.style.top = `${top}px`;
+        }
+
+        window.closeRecordStatusPopover = function() {
+            const popover = document.getElementById('recordStatusPopover');
+            if(popover) popover.hidden = true;
+            activeSheetCell = null;
+        }
+
+        window.saveSheetStatus = async function(nextStatus) {
+            const cell = activeSheetCell;
+            if(!cell || !['P','L','A','E'].includes(nextStatus)) return;
+            if(cell.dataset.recordId && cell.dataset.status === nextStatus) return window.closeRecordStatusPopover();
+            const section = document.getElementById('filterSection').value;
+            const subjectCode = document.getElementById('filterSubject').value;
+            const sectionSelect = document.getElementById('filterSection');
+            const subjectSelect = document.getElementById('filterSubject');
+            const previousStatus = cell.dataset.status;
+            const saveLabel = document.getElementById('statusPopoverSave');
+            document.querySelectorAll('.status-popover-options > button').forEach(button => { button.disabled = true; });
+            sectionSelect.disabled = true;
+            subjectSelect.disabled = true;
+            cell.classList.add('is-saving');
+            cell.querySelector('.sheet-status-mark').innerHTML = '<i class="ph-bold ph-spinner-gap spin"></i>';
+            saveLabel.className = 'status-popover-save is-saving';
+            saveLabel.innerHTML = '<i class="ph-bold ph-spinner-gap spin"></i> Saving attendance…';
+            setSheetAutosaveState('saving', 'Saving change…');
+            try {
+                if(cell.dataset.recordId) {
+                    await updateById('attendance', cell.dataset.recordId, { status: nextStatus });
+                    const record = allAttendanceData.find(item => String(item.id) === String(cell.dataset.recordId));
+                    if(record) record.status = nextStatus;
+                } else {
+                    const inserted = await insertRow('attendance', {
+                        section, subjectCode, date: cell.dataset.date,
+                        studentNo: cell.dataset.studentNo, studentName: cell.dataset.studentName,
+                        status: nextStatus, createdAt: new Date().toISOString()
+                    });
+                    allAttendanceData.push(inserted);
+                }
+                const scroll = document.getElementById('recordSheetScroll');
+                const scrollPosition = { left: scroll.scrollLeft, top: scroll.scrollTop };
+                window.closeRecordStatusPopover();
+                window.renderAttendanceSheet();
+                document.getElementById('recordSheetScroll').scrollTo(scrollPosition);
+                setSheetAutosaveState('ready', 'All changes saved');
+            } catch(error) {
+                console.error(error);
+                cell.classList.remove('is-saving');
+                cell.classList.add('is-error');
+                cell.dataset.status = previousStatus;
+                cell.querySelector('.sheet-status-mark').innerHTML = '<i class="ph-bold ph-warning-circle"></i>';
+                saveLabel.className = 'status-popover-save is-error';
+                saveLabel.innerHTML = '<i class="ph-bold ph-warning-circle"></i> Save failed — try again';
+                setSheetAutosaveState('error', 'Change needs retry');
+                window.showToast('Attendance could not be saved. Please try again.', 'error');
+            } finally {
+                document.querySelectorAll('.status-popover-options > button').forEach(button => { button.disabled = false; });
+                sectionSelect.disabled = false;
+                subjectSelect.disabled = false;
+            }
+        }
+
+        document.addEventListener('click', event => {
+            const popover = document.getElementById('recordStatusPopover');
+            if(!popover.hidden && !popover.contains(event.target) && !event.target.closest('.sheet-status-cell')) window.closeRecordStatusPopover();
+        });
+        document.addEventListener('keydown', event => {
+            if(event.key === 'Escape') window.closeRecordStatusPopover();
+        });
 
         // ─── SELECTION LOGIC ─────────────────────────────────────────
         let selectedIds = new Set();
@@ -1475,39 +1858,19 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             pendingDeleteIds = [];
         }
 
-        window.openEditModal = function(docId, name, date, currentStatus) {
-            currentEditDocId = docId;
-            document.getElementById('editModalInfo').textContent = `${name} — ${date} (Current: ${currentStatus === 'P' ? 'Present' : currentStatus === 'A' ? 'Absent' : currentStatus === 'L' ? 'Late' : 'Excused'})`;
-            document.getElementById('editModal').classList.add('open');
-        }
-
-        window.applyStatusEdit = async function(newStatus) {
-            if(!currentEditDocId) return;
-            try {
-                await updateById("attendance", currentEditDocId, { status: newStatus });
-                window.showToast("Attendance updated!");
-                window.closeEditModal();
-                window.loadRecords();
-            } catch(e) { window.showToast("Update failed.", "error"); }
-        }
-
-        window.closeEditModal = function() { document.getElementById('editModal').classList.remove('open'); currentEditDocId = null; }
-
         // Export
         window.exportAttendanceExcel = async function() {
             const sec = document.getElementById('filterSection').value;
             const sub = document.getElementById('filterSubject').value;
-            const status = document.getElementById('filterStatus').value;
-            const date = document.getElementById('filterDate').value;
-            let filtered = allAttendanceData.filter(r => (!sec||r.section===sec)&&(!sub||r.subjectCode===sub)&&(!status||r.status===status)&&(!date||r.date===date));
-            if(filtered.length === 0) { window.showToast("No data to export.", "error"); return; }
+            if(!sec || !sub) return window.showToast('Select a section and subject first.', 'error');
+            if(allAttendanceData.length === 0) { window.showToast("No recorded attendance to export.", "error"); return; }
             try { await loadVendor('xlsx'); }
             catch(error) { window.showToast('Excel tools could not be loaded.', 'error'); return; }
-            const rows = filtered.map(r => ({ Date: r.date, Student_No: r.studentNo, Student_Name: r.studentName, Section: r.section, Subject_Code: r.subjectCode, Status: r.status==='P'?'Present':r.status==='A'?'Absent':r.status==='L'?'Late':'Excused' }));
+            const rows = allAttendanceData.map(r => ({ Date: r.date, Student_No: r.studentNo, Student_Name: r.studentName, Section: r.section, Subject_Code: r.subjectCode, Status: r.status==='P'?'Present':r.status==='A'?'Absent':r.status==='L'?'Late':'Excused' }));
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.json_to_sheet(rows);
             XLSX.utils.book_append_sheet(wb, ws, "Attendance");
-            XLSX.writeFile(wb, `Attendance_${date||'All'}_${sec||'AllSections'}.xlsx`);
+            XLSX.writeFile(wb, `Attendance_${sec}_${sub}.xlsx`);
             window.showToast("Exported successfully!");
         }
 
