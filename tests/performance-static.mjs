@@ -120,6 +120,21 @@ test('admin attendance can focus one date and restore all recorded dates', () =>
     assert.match(attendance, /Showing all \$\{recordedCount\} recorded attendance date/);
 });
 
+test('admin records defaults to a compact overview and offers organized export ordering', () => {
+    const records = read('admin-records.html');
+    assert.match(records, /class="card glass records-card grid-density-compact grid-overview"/);
+    assert.match(records, /id="overviewModeBtn"[^>]+aria-pressed="true"[^>]+setRecordTableMode\('overview'\)/);
+    assert.match(records, /id="activitiesModeBtn"[^>]+aria-pressed="false"[^>]+setRecordTableMode\('activities'\)/);
+    assert.match(records, /shownActs=\[\.\.\.shownMidActs,\.\.\.shownFinActs\]/);
+    assert.match(records, /\.records-card\.grid-overview \.grid-table\{width:100%!important;min-width:835px!important;/);
+    assert.match(records, /@media\(max-width:1200px\)[\s\S]*\.records-card\.grid-overview \.grid-table\{width:100%!important;min-width:0!important;/);
+    assert.match(records, /@media\(max-width:900px\)[\s\S]*\.records-card\.grid-overview \.grid-table\{width:100%!important;min-width:0!important;/);
+    assert.match(records, /\.records-card\.grid-overview \.grid-table \.col-midgrade,[\s\S]{0,250}\.percent-cell\{display:none!important;\}/);
+    assert.match(records, /id="expOrder"[\s\S]{0,700}value="rank"[\s\S]{0,700}value="name_asc"[\s\S]{0,700}value="student_no"[\s\S]{0,700}value="section_name"/);
+    assert.match(records, /rows=sortRecordRows\(rows,expOrder\)/);
+    assert.match(records, /row\.map\(escapeCsvCell\)\.join\(','\)/);
+});
+
 test('inline and shared browser modules remain syntactically valid', () => {
     const failures = [];
     for (const file of htmlFiles) {
