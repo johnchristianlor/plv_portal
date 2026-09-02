@@ -14,8 +14,9 @@ function compareName(left, right) {
 export function sortRecordRows(rows, order = 'rank') {
   const sorted = [...rows];
   const comparators = {
-    rank: (left, right) => (left.rank ?? Number.MAX_SAFE_INTEGER) - (right.rank ?? Number.MAX_SAFE_INTEGER)
-      || Number(right.scorePercent ?? -1) - Number(left.scorePercent ?? -1)
+    rank: (left, right) => compareText(left.section, right.section)
+      || compareText(left.subjectCode, right.subjectCode)
+      || (left.rank ?? Number.MAX_SAFE_INTEGER) - (right.rank ?? Number.MAX_SAFE_INTEGER)
       || compareName(left, right),
     name_asc: compareName,
     name_desc: (left, right) => compareName(right, left),

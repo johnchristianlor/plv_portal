@@ -81,12 +81,16 @@
         .rank-2 { background: #C0C0C0; color: #4b5563; }
         .rank-3 { background: #CD7F32; color: #78350f; }
         .rank-other { color: var(--text-muted); }
-        .section-selector { margin-bottom: 16px; width: 250px; }
+        .ranking-filters { display:grid; grid-template-columns:repeat(2,minmax(220px,320px)); gap:12px; margin-bottom:16px; }
+        .section-selector { width:100%; }
+        .ranking-basis-note { display:flex; align-items:flex-start; gap:9px; margin-bottom:12px; padding:11px 13px; border:1px solid rgba(0,61,165,.14); border-radius:12px; background:var(--accent-light); color:var(--text-muted); font-size:11px; font-weight:650; line-height:1.45; }
+        .ranking-basis-note i { margin-top:1px; color:var(--accent-primary); font-size:16px; }
 
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .toast { position: fixed; bottom: 32px; right: 32px; background: var(--success); color: #fff; padding: 16px 24px; border-radius: 12px; font-weight: 600; box-shadow: 0 12px 24px rgba(16, 185, 129, 0.3); display: flex; align-items: center; gap: 12px; transform: translateX(150%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000;} .toast.show { transform: translateX(0); } .toast.error { background: var(--danger); }
 
         @media (max-width: 1024px) { body { flex-direction: column; } .sidebar { width: 100%; height: auto; flex-direction: row; padding: 20px; justify-content: space-between; align-items: center; z-index: 100; border-right: none; border-bottom: 1px solid var(--glass-border); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable;} .nav-menu { display: none; } .form-grid { grid-template-columns: 1fr; } .form-section-title, .form-group.full { grid-column: span 1; } }
+        @media (max-width: 640px) { .ranking-filters { grid-template-columns:1fr; } }
 
         /* ===== MOBILE NAVIGATION ===== */
         .mobile-nav-bar {
@@ -253,13 +257,16 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
                 <!-- STUDENT RANKING SECTION -->
                 <div class="form-section-title" style="margin-top: 32px;"><i class="ph-bold ph-trophy"></i> Section Leaderboard</div>
-                <div class="form-group">
-                    <select id="rankingSectionFilter" class="form-control section-selector" onchange="window.renderRankings()">
+                <div class="ranking-filters">
+                    <select id="rankingSectionFilter" class="form-control section-selector" onchange="window.onRankingSectionChange()">
                         <option value="">Select Section to View Ranking</option>
+                    </select>
+                    <select id="rankingSubjectFilter" class="form-control section-selector" onchange="window.renderRankings()" disabled>
+                        <option value="">Select Subject</option>
                     </select>
                 </div>
                 <div id="rankingContainer" class="ranking-container">
-                    <p style="color:var(--text-muted); text-align:center;">Select a section to view student ranking based on total activity scores.</p>
+                    <p style="color:var(--text-muted); text-align:center;">Select a section and subject to view its class standing.</p>
                 </div>
             </div>
 
@@ -379,6 +386,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
     <script type="module">
         import { supabase } from "./supabase-adapter.js";
+        import { assignClassStanding, sortClassStanding } from "./class-standing-utils.mjs";
 
 
 import { startAdminSessionGuard } from "./admin-session.js";
@@ -407,7 +415,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         }
 
         // ── SETTINGS & RANKING ──
-        let sectionData = {};
+        let rankingEnrollments = [];
 
         async function insertRow(table, row) {
             const fieldsByTable = {
@@ -436,26 +444,33 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             } catch(e) { console.error(e); }
 
             try {
-                const { data: enrollments, error } = await supabase.from("enrollments").select("id,studentNo,studentName,section,subjectCode");
+                const { data: enrollments, error } = await supabase.from("enrollments").select("id,studentNo,studentName,section,subjectCode,midtermRawGrade,midtermGrade,finalTermRawGrade,finalTermGrade");
                 if (error) throw error;
-                sectionData = {};
-                (enrollments || []).forEach(d => {
-                    if(!sectionData[d.section]) { sectionData[d.section] = { students: [], subjectCode: d.subjectCode }; }
-                    sectionData[d.section].students.push({ no: d.studentNo, name: d.studentName, totalScore: 0 });
-                });
+                rankingEnrollments = enrollments || [];
                 const select = document.getElementById('rankingSectionFilter');
                 select.innerHTML = '<option value="">Select Section to View Ranking</option>';
-                Object.keys(sectionData).sort().forEach(sec => { select.innerHTML += `<option value="${sec}">${sec}</option>`; });
+                [...new Set(rankingEnrollments.map(row => row.section).filter(Boolean))].sort().forEach(section => {
+                    select.innerHTML += `<option value="${escapeHtml(section)}">${escapeHtml(section)}</option>`;
+                });
             } catch(e) { console.error("Err loading enrollments", e); }
         }
 
+        window.onRankingSectionChange = function() {
+            const section = document.getElementById('rankingSectionFilter').value;
+            const subjectSelect = document.getElementById('rankingSubjectFilter');
+            const subjects = [...new Set(rankingEnrollments.filter(row => row.section === section).map(row => row.subjectCode).filter(Boolean))].sort();
+            subjectSelect.innerHTML = '<option value="">Select Subject</option>' + subjects.map(subject => `<option value="${escapeHtml(subject)}">${escapeHtml(subject)}</option>`).join('');
+            subjectSelect.disabled = !section;
+            if(subjects.length === 1) subjectSelect.value = subjects[0];
+            window.renderRankings();
+        };
+
         window.renderRankings = async function() {
             const section = document.getElementById('rankingSectionFilter').value;
+            const subjectCode = document.getElementById('rankingSubjectFilter').value;
             const container = document.getElementById('rankingContainer');
-            if(!section) { container.innerHTML = '<p style="color:var(--text-muted); text-align:center;">Select a section to view rankings.</p>'; return; }
-            container.innerHTML = '<p style="text-align:center;">Calculating scores...</p>';
-            const data = sectionData[section];
-            const subjectCode = data.subjectCode;
+            if(!section || !subjectCode) { container.innerHTML = '<p style="color:var(--text-muted); text-align:center;">Select a section and subject to view class standing.</p>'; return; }
+            container.innerHTML = '<p style="text-align:center;">Calculating class standing...</p>';
             let grandTotalPerfect = 0;
             const activityIds = new Set();
             try {
@@ -474,19 +489,24 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                 scores.forEach(s => {
                     if(activityIds.has(s.activityId)) { if(!studentScoresMap[s.studentNo]) studentScoresMap[s.studentNo] = 0; studentScoresMap[s.studentNo] += Number(s.score); }
                 });
-                const rankedStudents = data.students.map(stud => {
-                    const total = studentScoresMap[stud.no] || 0;
+                const cohort = [...new Map(rankingEnrollments
+                    .filter(row => row.section === section && row.subjectCode === subjectCode)
+                    .map(row => [String(row.studentNo), row])).values()];
+                const rankedStudents = sortClassStanding(assignClassStanding(cohort.map(student => {
+                    const total = studentScoresMap[student.studentNo] || 0;
                     const percent = grandTotalPerfect > 0 ? (total / grandTotalPerfect) * 100 : 0;
-                    return { ...stud, total, percent };
-                });
-                rankedStudents.sort((a, b) => b.percent - a.percent);
-                let html = `<table class="ranking-table"><thead><tr><th style="text-align:center;">Rank</th><th>Student Name</th><th>Total Score</th><th>Rating</th></tr></thead><tbody>`;
-                rankedStudents.forEach((s, index) => {
-                    let rankDisplay = `<span class="rank-badge rank-other">${index + 1}</span>`;
-                    if(index === 0) rankDisplay = `<span class="rank-badge rank-1">1</span>`;
-                    if(index === 1) rankDisplay = `<span class="rank-badge rank-2">2</span>`;
-                    if(index === 2) rankDisplay = `<span class="rank-badge rank-3">3</span>`;
-                    html += `<tr><td style="text-align:center;">${rankDisplay}</td><td>${s.name}</td><td>${s.total} <span style="font-size:11px;color:var(--text-muted);">/ ${grandTotalPerfect}</span></td><td><strong>${s.percent.toFixed(2)}%</strong></td></tr>`;
+                    return { ...student, totalScore: total, totalMax: grandTotalPerfect, scorePercent: percent };
+                })));
+                const basis = rankedStudents.find(student => student.rank)?.standingLabel || 'Ranking pending';
+                let html = `<div class="ranking-basis-note"><i class="ph-bold ph-scales"></i><span><strong>Ranking basis: ${escapeHtml(basis)}.</strong> One comparable basis is used for the entire section and subject. Equal values share the same rank; the next placement follows standard competition ranking.</span></div>`;
+                html += `<table class="ranking-table"><thead><tr><th style="text-align:center;">Rank</th><th>Student Name</th><th>Basis</th><th>Standing Value</th></tr></thead><tbody>`;
+                rankedStudents.forEach(student => {
+                    const rank = student.rank;
+                    const rankClass = rank && rank <= 3 ? `rank-${rank}` : 'rank-other';
+                    const rankDisplay = `<span class="rank-badge ${rankClass}">${rank || '—'}</span>`;
+                    const detail = student.standingSource === 'score' ? `${student.totalScore} / ${student.totalMax} points` : 'Official grade';
+                    const value = student.standingValue === null ? 'Pending' : `${student.standingValue.toFixed(2)}${student.standingUnit === 'percent' ? '%' : ''}`;
+                    html += `<tr><td style="text-align:center;">${rankDisplay}</td><td>${escapeHtml(student.studentName)}</td><td>${escapeHtml(student.standingLabel)}<br><span style="font-size:10px;color:var(--text-muted);">${escapeHtml(detail)}</span></td><td><strong>${value}</strong></td></tr>`;
                 });
                 html += `</tbody></table>`;
                 container.innerHTML = html;

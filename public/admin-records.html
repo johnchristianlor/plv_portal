@@ -1217,6 +1217,7 @@ import { supabase } from "./supabase-adapter.js";
 import { startAdminSessionGuard } from "./admin-session.js";
 import { loadVendor } from "./vendor-loader.v1.js";
 import { escapeCsvCell, sortRecordRows } from "./admin-records-utils.mjs";
+import { assignClassStanding, sortClassStanding } from "./class-standing-utils.mjs";
 const _u=JSON.parse(localStorage.getItem('loggedInUser'));
 if(!_u||_u.role!=='admin')location.href='index.html';
 const adminSessionGuard = startAdminSessionGuard(supabase, _u);
@@ -1242,7 +1243,7 @@ async function loadAll(){
     document.getElementById('gridBody').innerHTML='<tr class="loading-msg"><td colspan="12"><span class="spin"></span> Loading all records...</td></tr>';
     try{
         const[{data:eRows,error:eErr},{data:aRows,error:aErr},{data:sRows,error:sErr},{data:settings,error:settingsErr}]=await Promise.all([
-            supabase.from('enrollments').select('id,studentNo,studentName,section,subjectCode,midtermGrade,finalTermGrade'),
+            supabase.from('enrollments').select('id,studentNo,studentName,section,subjectCode,midtermRawGrade,midtermGrade,finalTermRawGrade,finalTermGrade'),
             supabase.from('activities').select('id,subjectCode,section,term,category,title,date,perfectScore'),
             supabase.from('scores').select('id,activityId,studentNo,score'),
             supabase.from('settings').select('showStanding').eq('id','global').limit(1).maybeSingle()
@@ -1325,6 +1326,7 @@ function computeRows(enList,acList,sm){
     return enList.map(e=>{
         const sba={};
         acList.forEach(a=>{sba[a.id]=sm[a.id+'||'+e.studentNo]??null;});
+        const relevantActivities=acList.filter(a=>a.section===e.section&&a.subjectCode===e.subjectCode);
         const mid=(e.midtermGrade!=null)?Number(e.midtermGrade):null;
         const fin=(e.finalTermGrade!=null)?Number(e.finalTermGrade):null;
         const avg=(mid!==null&&fin!==null)?(mid+fin)/2:null;
@@ -1332,7 +1334,7 @@ function computeRows(enList,acList,sm){
 
         // Compute total score and total max for ranking
         let totalScore=0,totalMax=0;
-        acList.forEach(a=>{
+        relevantActivities.forEach(a=>{
             const sc=sm[a.id+'||'+e.studentNo];
             totalMax+=Number(a.perfectScore)||0;
             if(sc)totalScore+=Number(sc.score)||0;
@@ -1345,6 +1347,10 @@ function computeRows(enList,acList,sm){
             studentName:e.studentName||'Unknown',
             section:e.section||'N/A',
             subjectCode:e.subjectCode||'N/A',
+            midtermRawGrade:e.midtermRawGrade??null,
+            finalTermRawGrade:e.finalTermRawGrade??null,
+            midtermGrade:e.midtermGrade??null,
+            finalTermGrade:e.finalTermGrade??null,
             midGrade:mid,finGrade:fin,avg,status,sba,
             totalScore,totalMax,scorePercent,
             rank:null
@@ -1352,19 +1358,9 @@ function computeRows(enList,acList,sm){
     });
 }
 
-// ========== ASSIGN RANKS (by score%) ==========
-function assignRanks(rows){
-    // Sort by scorePercent descending for ranking
-    const sorted=[...rows].sort((a,b)=>b.scorePercent-a.scorePercent);
-    let r=1;
-    sorted.forEach((row,i)=>{
-        if(i>0&&Math.abs(sorted[i-1].scorePercent-row.scorePercent)>0.001)r=i+1;
-        // Find original row and set rank
-        const orig=rows.find(x=>x.enrollId===row.enrollId);
-        if(orig)orig.rank=r;
-    });
-    return rows;
-}
+// Official grades take priority within each section and subject. When the
+// cohort's grades are incomplete, every student uses activity percentage.
+function assignRanks(rows,term=''){return assignClassStanding(rows,{term});}
 
 // ========== SORT ==========
 function doSort(rows){
@@ -1389,10 +1385,9 @@ window.applyFilters=()=>{
     const term=document.getElementById('filterTerm').value;
     const status=document.getElementById('filterStatus').value;
 
-    let fe=enrollments.filter(e=>
+    const cohortEnrollments=enrollments.filter(e=>
         (!sec||e.section===sec)&&
-        (!sub||e.subjectCode===sub)&&
-        (!search||(e.studentName||'').toLowerCase().includes(search)||(e.studentNo||'').toLowerCase().includes(search))
+        (!sub||e.subjectCode===sub)
     );
     let fa=activities.filter(a=>
         (!sec||a.section===sec)&&
@@ -1400,16 +1395,15 @@ window.applyFilters=()=>{
         (!term||a.term===term)
     );
     const sm=buildSMap();
-    let rows=computeRows(fe,fa,sm);
-    if(status)rows=rows.filter(r=>r.status===status);
-    rows=assignRanks(rows);
+    let rows=assignRanks(computeRows(cohortEnrollments,fa,sm),term);
+    rows=rows.filter(row=>(!search||(row.studentName||'').toLowerCase().includes(search)||(row.studentNo||'').toLowerCase().includes(search))&&(!status||row.status===status));
 
     // Cache for ranking view
     lastComputedRows=[...rows];
     lastComputedActs=[...fa];
 
     if(currentView==='rank'){
-        const ranked=[...rows].sort((a,b)=>(a.rank||9999)-(b.rank||9999)||(b.scorePercent-a.scorePercent));
+        const ranked=sortClassStanding(rows);
         renderRanking(ranked,fa);
     } else {
         rows=doSort(rows);
@@ -1703,17 +1697,16 @@ function renderRanking(rows, acts){
           </div>`;
 
     let html=visNote;
-    rows.forEach((row,idx)=>{
-        const rank=row.rank||idx+1;
-        const rankClass=rank<=3?`rank-card-${rank}`:'';
-        const pct=row.scorePercent; // totalScore/totalMax*100 — same as student-dashboard
-        const pctStr=row.totalMax>0?pct.toFixed(2)+'%':'N/A';
+    rows.forEach(row=>{
+        const rank=row.rank;
+        const rankClass=rank&&rank<=3?`rank-card-${rank}`:'';
+        const hasStanding=rank!==null&&row.standingValue!==null;
+        const displayValue=hasStanding?`${row.standingValue.toFixed(2)}${row.standingUnit==='percent'?'%':''}`:'Pending';
+        const barMetric=!hasStanding?0:row.standingUnit==='transmuted'?Math.max(0,Math.min(100,(5-row.standingValue)/4*100)):Math.max(0,Math.min(100,row.standingValue));
         const trophy=trophyEmoji(rank);
-        // Placement label — same ordinal style as student-dashboard's getOrdinal
-        const placement=getOrdinal(rank)+' Place';
+        const placement=rank?getOrdinal(rank)+' Place':'Pending';
         const avgStr=row.avg!==null?`Avg: ${row.avg.toFixed(2)}`:'Grade Pending';
-        // Score string: total / grandTotalPerfect — matching student-dashboard display
-        const scoreStr=row.totalMax>0?`${row.totalScore} / ${row.totalMax}`:'No Activities';
+        const basisDetail=row.standingSource==='score'?`${row.totalScore} / ${row.totalMax} points`:row.standingSource==='grade'?'Official grade basis':'Comparable data unavailable';
 
         html+=`
         <div class="rank-card ${rankClass}">
@@ -1725,14 +1718,15 @@ function renderRanking(rows, acts){
                     &nbsp;&bull;&nbsp;${row.section}
                     &nbsp;&bull;&nbsp;${row.subjectCode}
                     &nbsp;&bull;&nbsp;${avgStr}
+                    &nbsp;&bull;&nbsp;${row.standingLabel}
                 </div>
                 <div style="margin-top:6px;">${gradeLabel(row.avg)}</div>
             </div>
             <div class="rank-score-block">
-                <div class="rank-score-main" style="color:${barColor(pct)};">${pctStr}</div>
-                <div class="rank-score-pct">${scoreStr}</div>
+                <div class="rank-score-main" style="color:${barColor(barMetric)};">${displayValue}</div>
+                <div class="rank-score-pct">${basisDetail}</div>
                 <div class="rank-bar-wrap">
-                    <div class="rank-bar-fill" style="width:${Math.min(100,pct)}%;background:${barColor(pct)};"></div>
+                    <div class="rank-bar-fill" style="width:${barMetric}%;background:${barColor(barMetric)};"></div>
                 </div>
             </div>
             <div style="margin-left:8px;">
@@ -1915,7 +1909,7 @@ window.doExport=async(fmt)=>{
             const sA=allA.filter(a=>a.subjectCode===sc);
             const sMid=sA.filter(a=>a.term==='midterm');const sFin=sA.filter(a=>a.term==='final');
             const hdr=[];
-            if(incR){hdr.push('Rank');hdr.push('Placement');}
+            if(incR)hdr.push('Rank','Placement','Ranking Basis','Standing Value');
             hdr.push('Student No.','Student Name','Section','Subject');
             if(incA){sMid.forEach(a=>hdr.push('[MID] '+a.title+' (/'+a.perfectScore+')'));sFin.forEach(a=>hdr.push('[FIN] '+a.title+' (/'+a.perfectScore+')'));}
             if(incP)hdr.push('Total Score','Total Max','Score %');
@@ -1929,6 +1923,8 @@ window.doExport=async(fmt)=>{
                     // Placement label
                     const ord=(n)=>{const s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);};
                     row.push(r.rank?ord(r.rank)+' Place':'N/A');
+                    row.push(r.standingLabel);
+                    row.push(r.standingValue!==null?r.standingValue.toFixed(2):'');
                 }
                 row.push(r.studentNo,r.studentName,r.section,r.subjectCode);
                 if(incA)[...sMid,...sFin].forEach(a=>{const s=sm[a.id+'||'+r.studentNo];row.push(s!==undefined?s.score:'');});
@@ -1943,20 +1939,20 @@ window.doExport=async(fmt)=>{
             });
             const ws=XLSX.utils.aoa_to_sheet(data);
             const cw=[];
-            if(incR){cw.push({wch:6});cw.push({wch:14});}
+            if(incR)cw.push({wch:6},{wch:14},{wch:24},{wch:14});
             cw.push({wch:14},{wch:28},{wch:12},{wch:10});
             if(incA)sA.forEach(()=>cw.push({wch:24}));
             if(incP)[12,10,10].forEach(w=>cw.push({wch:w}));
             if(incG)[12,12,12].forEach(w=>cw.push({wch:w}));
             if(incS)cw.push({wch:10});
-            ws['!cols']=cw;ws['!freeze']={xSplit:incR?4:3,ySplit:1};
+            ws['!cols']=cw;ws['!freeze']={xSplit:incR?6:3,ySplit:1};
             XLSX.utils.book_append_sheet(wb,ws,sc.substring(0,31));
         });
         XLSX.writeFile(wb,'MasterRecords_'+(expSec||'All')+'_'+(expSub||'AllSubs')+'_'+new Date().toISOString().slice(0,10)+'.xlsx');
         window.showToast('Exported '+wb.SheetNames.length+' sheet(s)!');
     }else{
         const hdr=[];
-        if(incR){hdr.push('Rank');hdr.push('Placement');}
+        if(incR)hdr.push('Rank','Placement','Ranking Basis','Standing Value');
         hdr.push('Student No.','Student Name','Section','Subject');
         if(incA)allA.forEach(a=>hdr.push(a.title+' (/'+a.perfectScore+')'));
         if(incP)hdr.push('Total Score','Total Max','Score %');
@@ -1969,6 +1965,8 @@ window.doExport=async(fmt)=>{
                 const ord=(n)=>{const s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);};
                 row.push(r.rank||'');
                 row.push(r.rank?ord(r.rank)+' Place':'N/A');
+                row.push(r.standingLabel);
+                row.push(r.standingValue!==null?r.standingValue.toFixed(2):'');
             }
             row.push(r.studentNo,r.studentName,r.section,r.subjectCode);
             if(incA)allA.forEach(a=>{const s=sm[a.id+'||'+r.studentNo];row.push(s!==undefined?s.score:'');});

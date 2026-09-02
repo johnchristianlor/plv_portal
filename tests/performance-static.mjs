@@ -138,6 +138,29 @@ test('admin records defaults to a compact overview and offers organized export o
     assert.match(records, /row\.map\(escapeCsvCell\)\.join\(','\)/);
 });
 
+test('class standing uses one shared fair ranking model across student and admin views', () => {
+    const dashboard = read('student-dashboard.html');
+    const settings = read('admin-settings.html');
+    const records = read('admin-records.html');
+
+    for (const source of [dashboard, settings, records]) {
+        assert.match(source, /class-standing-utils\.mjs/);
+        assert.match(source, /assignClassStanding/);
+    }
+
+    assert.match(dashboard, /leaderboard\.some\(row => row\.rank === null\)/);
+    assert.match(dashboard, /\.eq\("section", currentSection\)\.eq\("subjectCode", currentSubjectCode\)/);
+    assert.doesNotMatch(dashboard, /dense ranking|previous_rank \+ 1/);
+
+    assert.match(settings, /id="rankingSubjectFilter"/);
+    assert.match(settings, /midtermRawGrade,midtermGrade,finalTermRawGrade,finalTermGrade/);
+    assert.match(settings, /Equal values share the same rank/);
+
+    assert.match(records, /relevantActivities=acList\.filter\(a=>a\.section===e\.section&&a\.subjectCode===e\.subjectCode\)/);
+    assert.match(records, /let rows=assignRanks\(computeRows\(cohortEnrollments,fa,sm\),term\);[\s\S]{0,280}rows=rows\.filter/);
+    assert.match(records, /Ranking Basis','Standing Value/);
+});
+
 test('inline and shared browser modules remain syntactically valid', () => {
     const failures = [];
     for (const file of htmlFiles) {

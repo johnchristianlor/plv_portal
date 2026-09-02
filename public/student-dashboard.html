@@ -333,6 +333,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
     import { resolveAvatarElement, uploadStudentAvatarBlob, defaultAvatarFor } from "./avatar-utils.js";
     import { getGlobalSettings, getRecentAnnouncements, getRecentDeadlines, getStudentEnrollments, getSubject } from "./student-data.js";
     import { normalizeStudentName } from "./student-name.js";
+    import { assignClassStanding } from "./class-standing-utils.mjs";
 
     const user = JSON.parse(localStorage.getItem('loggedInUser'));
     if (!user || user.role !== 'student') window.location.href = 'index.html';
@@ -670,59 +671,29 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 }
 
                 if(settings.showStanding) {
-                    // --- SMART CLASS STANDING LOGIC --------------------------------------
-                    // Priority: Final computed grade > Midterm raw grade > Activity score %
-                    // Tie handling: same score = same rank (dense ranking)
-                    // ---------------------------------------------------------------------
-
-                    // Fetch all enrollments in the same section for the same subject
                     const { data: classRows, error: classError } = await supabase.from("enrollments").select("studentNo,midtermRawGrade,midtermGrade,finalTermRawGrade,finalTermGrade").eq("section", currentSection).eq("subjectCode", currentSubjectCode);
                     if (classError) throw classError;
+                    let standingRows = (classRows || []).map(row => ({
+                        ...row,
+                        section: currentSection,
+                        subjectCode: currentSubjectCode,
+                        totalScore: 0,
+                        totalMax: 0,
+                        scorePercent: 0
+                    }));
+                    let leaderboard = assignClassStanding(standingRows);
 
-                    const enrollMap = {};
-                    (classRows || []).forEach(data => {
-                        enrollMap[data.studentNo] = {
-                            midtermRaw: data.midtermRawGrade != null ? Number(data.midtermRawGrade) : null,
-                            midtermGrade: data.midtermGrade != null ? Number(data.midtermGrade) : null,
-                            finalRaw: data.finalTermRawGrade != null ? Number(data.finalTermRawGrade) : null,
-                            finalGrade: data.finalTermGrade != null ? Number(data.finalTermGrade) : null,
-                        };
-                    });
-
-                    const allStudentNos = Object.keys(enrollMap);
-
-                    // Determine which scoring mode to use:
-                    // Check if ANY student in class has a final grade uploaded
-                    const hasFinal = allStudentNos.some(sNo => enrollMap[sNo].finalRaw != null);
-                    // Check if ANY student has a midterm grade uploaded
-                    const hasMidterm = allStudentNos.some(sNo => enrollMap[sNo].midtermRaw != null);
-
-                    let scoringMode = 'activity'; // fallback
-                    if (hasFinal) scoringMode = 'final';
-                    else if (hasMidterm) scoringMode = 'midterm';
-
-                    // Build student score records
-                    let leaderboard = [];
-                    let grandTotalPerfect = 0;
-                    let activityScoreMap = {};
-
-                    if (scoringMode === 'activity') {
-                        // Fallback: use activity scores
+                    // A cohort uses one comparable basis. When official grades are not
+                    // complete for everyone, all students fall back to activity scores.
+                    if (leaderboard.some(row => row.rank === null)) {
                         const { data: activityRows, error: activityError } = await supabase.from("activities").select("id,perfectScore").eq("subjectCode", currentSubjectCode).eq("section", currentSection);
                         if (activityError) throw activityError;
-                        const activityIds = [];
-                        (activityRows || []).forEach(activity => {
-                            grandTotalPerfect += Number(activity.perfectScore || 0);
-                            activityIds.push(activity.id);
-                        });
-
-                        // Initialize all students with 0
-                        allStudentNos.forEach(sNo => { activityScoreMap[sNo] = 0; });
-
+                        const activityIds = (activityRows || []).map(activity => activity.id);
+                        const grandTotalPerfect = (activityRows || []).reduce((total, activity) => total + Number(activity.perfectScore || 0), 0);
+                        const activityScoreMap = Object.fromEntries(standingRows.map(row => [row.studentNo, 0]));
                         if (activityIds.length > 0) {
                             const chunks = [];
-                            for (let i = 0; i < activityIds.length; i += 10)
-                                chunks.push(activityIds.slice(i, i + 10));
+                            for (let i = 0; i < activityIds.length; i += 100) chunks.push(activityIds.slice(i, i + 100));
                             const scoreResults = await Promise.all(chunks.map(chunk =>
                                 supabase.from("scores").select("activityId,studentNo,score").in("activityId", chunk)
                             ));
@@ -735,95 +706,28 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                                 });
                             });
                         }
-
-                        leaderboard = allStudentNos.map(sNo => ({
-                            sNo,
-                            score: grandTotalPerfect > 0
-                                ? (activityScoreMap[sNo] / grandTotalPerfect) * 100
-                                : activityScoreMap[sNo],
-                            rawScore: activityScoreMap[sNo],
-                            mode: 'activity'
-                        }));
-
-                    } else if (scoringMode === 'midterm') {
-                        // Use midterm raw grade as the score (0-100 scale)
-                        leaderboard = allStudentNos.map(sNo => {
-                            const e = enrollMap[sNo];
-                            // Students without midterm yet get 0 (not excluded - they still rank)
-                            const score = e.midtermRaw != null ? e.midtermRaw : 0;
-                            return { sNo, score, rawScore: score, mode: 'midterm', hasGrade: e.midtermRaw != null };
+                        standingRows = standingRows.map(row => {
+                            const totalScore = activityScoreMap[row.studentNo] || 0;
+                            return {
+                                ...row,
+                                totalScore,
+                                totalMax: grandTotalPerfect,
+                                scorePercent: grandTotalPerfect > 0 ? (totalScore / grandTotalPerfect) * 100 : 0
+                            };
                         });
-
-                    } else {
-                        // scoringMode === 'final': compute average of midterm + final
-                        leaderboard = allStudentNos.map(sNo => {
-                            const e = enrollMap[sNo];
-                            let score = 0;
-                            let label = 'final';
-                            if (e.midtermRaw != null && e.finalRaw != null) {
-                                score = (e.midtermRaw + e.finalRaw) / 2;
-                                label = 'average';
-                            } else if (e.finalRaw != null) {
-                                score = e.finalRaw;
-                                label = 'final';
-                            } else if (e.midtermRaw != null) {
-                                score = e.midtermRaw;
-                                label = 'midterm';
-                            }
-                            return { sNo, score: Math.round(score * 100) / 100, rawScore: score, mode: label,
-                                     midtermRaw: e.midtermRaw, finalRaw: e.finalRaw };
-                        });
+                        leaderboard = assignClassStanding(standingRows);
                     }
 
-                    // Sort descending by score
-                    leaderboard.sort((a, b) => b.score - a.score);
+                    const myEntry = leaderboard.find(entry => String(entry.studentNo) === String(user.studentNo));
 
-                    // -- Dense / tie-aware ranking ------------------------------------------
-                    // If two students share a score, they share a rank.
-                    // The next unique score gets rank = previous_rank + 1 (dense), not skipped.
-                    // Example: 98.8, 98.8, 95 -> Rank 1, Rank 1, Rank 2
-                    for (let i = 0; i < leaderboard.length; i++) {
-                        if (i === 0) {
-                            leaderboard[i].rank = 1;
-                        } else {
-                            if (leaderboard[i].score === leaderboard[i - 1].score) {
-                                leaderboard[i].rank = leaderboard[i - 1].rank; // same rank for tie
-                            } else {
-                                leaderboard[i].rank = leaderboard[i - 1].rank + 1; // next rank
-                            }
-                        }
-                    }
-
-                    // Find current student in leaderboard
-                    const myEntry = leaderboard.find(x => x.sNo === user.studentNo);
-
-                    if (myEntry) {
+                    if (myEntry?.rank) {
                         document.getElementById('sStanding').textContent = getOrdinal(myEntry.rank);
-
-                        // Build a human-readable remark based on scoring mode
-                        let remarkHTML = '';
-                        if (scoringMode === 'activity') {
-                            remarkHTML = `<i class="ph-bold ph-trophy"></i> Score: ${myEntry.rawScore} / ${grandTotalPerfect} pts`;
-                        } else if (scoringMode === 'midterm') {
-                            if (myEntry.hasGrade) {
-                                remarkHTML = `<i class="ph-bold ph-circle-half"></i> Midterm: ${myEntry.rawScore.toFixed(1)}`;
-                            } else {
-                                remarkHTML = `<i class="ph-bold ph-circle-half"></i> Midterm grade pending`;
-                            }
-                        } else {
-                            // final mode
-                            if (myEntry.midtermRaw != null && myEntry.finalRaw != null) {
-                                remarkHTML = `<i class="ph-bold ph-check-circle"></i> Final Grade: ${myEntry.score.toFixed(2)} (avg)`;
-                            } else if (myEntry.finalRaw != null) {
-                                remarkHTML = `<i class="ph-bold ph-circle"></i> Final: ${myEntry.finalRaw.toFixed(1)} (midterm pending)`;
-                            } else {
-                                remarkHTML = `<i class="ph-bold ph-circle-half"></i> Midterm: ${myEntry.midtermRaw != null ? myEntry.midtermRaw.toFixed(1) : '--'} (final pending)`;
-                            }
-                        }
-                        document.getElementById('sRemarks').innerHTML = remarkHTML;
+                        document.getElementById('sRemarks').innerHTML = myEntry.standingSource === 'score'
+                            ? `<i class="ph-bold ph-chart-bar"></i> ${myEntry.standingLabel}: ${myEntry.totalScore} / ${myEntry.totalMax} pts (${myEntry.standingValue.toFixed(2)}%)`
+                            : `<i class="ph-bold ph-seal-check"></i> ${myEntry.standingLabel}: ${myEntry.standingValue.toFixed(2)}`;
                     } else {
                         document.getElementById('sStanding').textContent = "--";
-                        document.getElementById('sRemarks').innerHTML = `<i class="ph-bold ph-warning"></i> Ranking data unavailable`;
+                        document.getElementById('sRemarks').innerHTML = `<i class="ph-bold ph-hourglass"></i> Ranking pending comparable grades or activity scores`;
                     }
 
                 } else {
