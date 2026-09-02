@@ -12,11 +12,11 @@
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/style.css">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/fill/style.css">
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/bold/style.css">
-  <link rel="stylesheet" href="./recitation.css?v=20260827rec3">
+  <link rel="stylesheet" href="./recitation.css?v=20260902rec5">
   <link rel="stylesheet" href="./plv-responsive.css?v=20260826global1">
   <script src="./plv-navigation.v1.js" defer></script>
 </head>
-<body>
+<body class="admin-recitation-page">
   <div class="ambient-mesh"><div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div></div>
   <aside class="sidebar">
     <div class="logo-container">
@@ -91,28 +91,33 @@
         </form>
       </article>
 
-      <article class="card glass">
-        <div class="card-head"><div><h2>Student Wallets</h2><p>Current totals and security status for every active student.</p></div><div class="card-icon"><i class="ph-fill ph-wallet"></i></div></div>
-        <div class="toolbar">
-          <div class="input-wrap"><i class="ph ph-magnifying-glass"></i><input class="input" id="studentSearch" placeholder="Search name or student number"></div>
-          <select class="select filter-select" id="sectionFilter"><option value="">All sections</option></select>
+      <article class="card glass wallet-card">
+        <div class="card-head"><div><span class="section-kicker"><i class="ph-fill ph-users-three"></i> Live roster</span><h2>Student Wallets</h2><p>Find a student, review wallet status, and open balance controls without losing your place.</p></div><div class="card-icon"><i class="ph-fill ph-wallet"></i></div></div>
+        <div class="wallet-toolbar" aria-label="Student wallet filters">
+          <div class="wallet-filter wallet-search"><label for="studentSearch">Search students</label><div class="input-wrap"><i class="ph ph-magnifying-glass"></i><input class="input" id="studentSearch" type="search" autocomplete="off" placeholder="Name or student number"></div></div>
+          <div class="wallet-filter"><label for="sectionFilter">Section</label><select class="select" id="sectionFilter"><option value="">All sections</option></select></div>
+          <div class="wallet-filter"><label for="walletStatusFilter">Wallet status</label><select class="select" id="walletStatusFilter"><option value="all">All wallets</option><option value="protected">PIN protected</option><option value="unprotected">PIN not set</option><option value="negative">Negative balance</option><option value="zero">Zero balance</option></select></div>
+          <div class="wallet-filter"><label for="walletSort">Sort by</label><select class="select" id="walletSort"><option value="name_asc">Name A–Z</option><option value="name_desc">Name Z–A</option><option value="balance_desc">Balance: high to low</option><option value="balance_asc">Balance: low to high</option><option value="section">Section, then name</option></select></div>
         </div>
-        <div class="table-wrap"><table class="data-table">
+        <div class="table-summary"><span id="walletResultCount" aria-live="polite"><i class="ph-bold ph-users"></i> Loading students…</span><button class="compact-clear" id="resetWalletFilters" type="button"><i class="ph-bold ph-funnel-x"></i> Clear filters</button></div>
+        <div class="table-wrap wallet-table-wrap" tabindex="0" role="region" aria-label="Scrollable student wallet roster"><table class="data-table wallet-table">
           <thead><tr><th>Student</th><th>Section</th><th>Balance</th><th>PIN</th><th>Action</th></tr></thead>
           <tbody id="walletRows"><tr><td colspan="5"><div class="empty"><span class="loading"></span><b>Loading wallets</b></div></td></tr></tbody>
         </table></div>
       </article>
     </section>
 
-    <section class="card glass">
+    <section class="card glass ledger-card">
         <div class="card-head"><div><h2>Recitation Ledger</h2><p>A complete, read-only audit trail of additions, reductions, and student transfers.</p></div><div class="card-icon"><i class="ph-fill ph-receipt"></i></div></div>
       <div class="ledger-toolbar">
+        <div class="ledger-filter ledger-search"><label for="ledgerSearch">Search ledger</label><div class="input-wrap"><i class="ph ph-magnifying-glass"></i><input class="input" id="ledgerSearch" type="search" autocomplete="off" placeholder="Student, subject, or activity"></div></div>
         <div class="ledger-filter"><label for="ledgerSectionFilter">Section</label><select class="select" id="ledgerSectionFilter"><option value="">All sections</option></select></div>
         <div class="ledger-filter"><label for="ledgerTypeFilter">Activity</label><select class="select" id="ledgerTypeFilter"><option value="">All activity</option><option value="award">Added chips</option><option value="deduction">Reduced chips</option><option value="transfer">Student transfers</option></select></div>
+        <div class="ledger-filter"><label for="ledgerSort">Sort by</label><select class="select" id="ledgerSort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="amount_desc">Amount: high to low</option><option value="amount_asc">Amount: low to high</option></select></div>
         <button class="btn btn-soft ledger-reset" id="resetLedgerFilters" type="button"><i class="ph-bold ph-funnel-x"></i> Clear filters</button>
-        <span class="ledger-count" id="ledgerCount"><i class="ph-bold ph-list-bullets"></i> Loading activity…</span>
+        <span class="ledger-count" id="ledgerCount" aria-live="polite"><i class="ph-bold ph-list-bullets"></i> Loading activity…</span>
       </div>
-      <div class="table-wrap"><table class="data-table">
+      <div class="table-wrap ledger-table-wrap" tabindex="0" role="region" aria-label="Scrollable Recitation activity ledger"><table class="data-table ledger-table">
         <thead><tr><th>Activity</th><th>From</th><th>To</th><th>Section</th><th>Subject</th><th>Amount</th><th>Date</th></tr></thead>
         <tbody id="ledgerRows"><tr><td colspan="7"><div class="empty"><span class="loading"></span><b>Loading ledger</b></div></td></tr></tbody>
       </table></div>
@@ -143,6 +148,6 @@
   </div>
 
   <div class="toast" id="toast"><i class="ph-fill ph-check-circle"></i><span id="toastMessage"></span></div>
-  <script type="module" src="./admin-recitation.js?v=20260827rec4"></script>
+  <script type="module" src="./admin-recitation.js?v=20260902rec5"></script>
 </body>
 </html>

@@ -112,3 +112,17 @@ test('admin Recitation offers a guided adjustment workflow and filtered ledger',
   assert.match(adjustmentMigration, /notify pgrst, 'reload schema'/i);
   assert.match(ledgerFilterMigration, /notify pgrst, 'reload schema'/i);
 });
+
+test('admin Recitation has professional scrollable rosters with complete filtering and sorting', () => {
+  for (const id of ['studentSearch', 'sectionFilter', 'walletStatusFilter', 'walletSort', 'resetWalletFilters', 'ledgerSearch', 'ledgerSectionFilter', 'ledgerTypeFilter', 'ledgerSort']) {
+    assert.match(adminPage, new RegExp(`id=["']${id}["']`));
+  }
+  assert.match(adminPage, /class="table-wrap wallet-table-wrap"[^>]+tabindex="0"[^>]+role="region"/);
+  assert.match(adminPage, /class="table-wrap ledger-table-wrap"[^>]+tabindex="0"[^>]+role="region"/);
+  assert.match(adminScript, /filterAndSortWallets/);
+  assert.match(adminScript, /filterAndSortLedger/);
+  assert.match(adminScript, /scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\)/);
+  assert.match(read('public/recitation.css'), /\.admin-recitation-page \.data-table thead\{position:sticky;top:0/);
+  assert.match(read('public/recitation.css'), /\.admin-recitation-page \.wallet-table th:last-child,[^{]+\{position:sticky;right:0/);
+  assert.match(read('public/recitation.css'), /@media\(max-width:720px\)[\s\S]+\.admin-recitation-page \.wallet-table tr\{display:grid/);
+});

@@ -1,5 +1,6 @@
 import { supabase } from './supabase-adapter.js';
 import { startAdminSessionGuard } from './admin-session.js';
+import { filterAndSortLedger, filterAndSortWallets } from './admin-recitation-utils.mjs';
 
 const user = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
 if (!user || user.role !== 'admin') window.location.href = 'index.html';
@@ -7,6 +8,8 @@ if (!user || user.role !== 'admin') window.location.href = 'index.html';
 const sessionToken = user && (user.activeSessionToken || user.sessionToken || '');
 const adminSessionGuard = startAdminSessionGuard(supabase, user);
 let walletRows = [];
+let walletSummaryRows = [];
+let ledgerRows = [];
 let subjects = [];
 let enrollments = [];
 let pendingResetStudent = null;
@@ -55,17 +58,18 @@ function openModal(id) { $(id).classList.add('show'); document.body.style.overfl
 function closeModal(id) { $(id).classList.remove('show'); if (!document.querySelector('.modal-backdrop.show')) document.body.style.overflow = ''; }
 
 function renderStats() {
-  $('issuedTotal').textContent = number(walletRows.reduce((sum, row) => sum + Number(row.balance || 0), 0));
-  $('walletCount').textContent = number(walletRows.length);
-  $('pinCount').textContent = number(walletRows.filter((row) => row.pin_set).length);
-  $('sectionCount').textContent = number(new Set(walletRows.map((row) => row.section).filter(Boolean)).size);
+  const rows = walletSummaryRows.length ? walletSummaryRows : walletRows;
+  $('issuedTotal').textContent = number(rows.reduce((sum, row) => sum + Number(row.balance || 0), 0));
+  $('walletCount').textContent = number(rows.length);
+  $('pinCount').textContent = number(rows.filter((row) => row.pin_set).length);
+  $('sectionCount').textContent = number(new Set(rows.map((row) => row.section).filter(Boolean)).size);
 }
 
 function populateStudents() {
   const select = $('awardStudent');
   const current = select.value;
   const grouped = new Map();
-  walletRows.forEach((row) => {
+  filterAndSortWallets(walletRows).forEach((row) => {
     const section = row.section || 'Unassigned';
     if (!grouped.has(section)) grouped.set(section, []);
     grouped.get(section).push(row);
@@ -86,19 +90,30 @@ function populateSubjects(studentNo = '') {
 
 function renderWallets() {
   const body = $('walletRows');
-  if (!walletRows.length) {
-    body.innerHTML = '<tr><td colspan="5"><div class="empty"><i class="ph ph-users"></i><b>No students found</b><span>Try another search or section.</span></div></td></tr>';
+  const visibleRows = filterAndSortWallets(walletRows, {
+    status: $('walletStatusFilter').value,
+    sort: $('walletSort').value,
+  });
+  $('walletResultCount').innerHTML = `<i class="ph-bold ph-users"></i> ${number(visibleRows.length)} ${visibleRows.length === 1 ? 'student' : 'students'} shown`;
+  if (!visibleRows.length) {
+    body.innerHTML = `<tr><td colspan="5"><div class="empty"><i class="ph ph-users"></i><b>No matching students</b><span>${walletRows.length ? 'Clear a filter to show more wallets.' : 'Try another search or section.'}</span></div></td></tr>`;
     renderStats(); populateStudents(); return;
   }
-  body.innerHTML = walletRows.map((row) => `<tr>
-    <td><div class="student-cell"><span class="recipient-avatar">${escapeHtml(initials(row.full_name))}</span><div><b>${escapeHtml(row.full_name)}</b><small>${escapeHtml(row.student_no)}</small></div></div></td>
-    <td>${escapeHtml(row.section || 'Unassigned')}</td>
-    <td><span class="amount ${Number(row.balance) < 0 ? 'minus' : 'plus'}">${number(row.balance)}</span></td>
-    <td><span class="status-pill ${row.pin_set ? 'earned' : ''}"><i class="ph-fill ${row.pin_set ? 'ph-shield-check' : 'ph-lock-simple-open'}"></i>${row.pin_set ? 'Protected' : 'Not set'}</span></td>
-    <td><div style="display:flex;gap:6px;white-space:nowrap"><button class="btn btn-soft" type="button" data-award="${escapeHtml(row.student_no)}" style="padding:8px 10px;min-height:34px"><i class="ph-bold ph-sliders-horizontal"></i> Adjust</button>${row.pin_set ? `<button class="btn btn-danger-soft" type="button" data-reset="${escapeHtml(row.student_no)}" data-name="${escapeHtml(row.full_name)}" aria-label="Reset ${escapeHtml(row.full_name)} PIN" style="padding:8px 10px;min-height:34px"><i class="ph-bold ph-password"></i></button>` : ''}</div></td>
+  const selectedStudentNo = $('awardStudent').value;
+  body.innerHTML = visibleRows.map((row) => `<tr class="${row.student_no === selectedStudentNo ? 'is-selected' : ''}">
+    <td data-label="Student"><div class="student-cell"><span class="recipient-avatar">${escapeHtml(initials(row.full_name))}</span><div><b>${escapeHtml(row.full_name)}</b><small>${escapeHtml(row.student_no)}</small></div></div></td>
+    <td data-label="Section">${escapeHtml(row.section || 'Unassigned')}</td>
+    <td data-label="Balance"><span class="amount ${Number(row.balance) < 0 ? 'minus' : 'plus'}">${number(row.balance)}</span></td>
+    <td data-label="PIN"><span class="status-pill ${row.pin_set ? 'earned' : ''}"><i class="ph-fill ${row.pin_set ? 'ph-shield-check' : 'ph-lock-simple-open'}"></i>${row.pin_set ? 'Protected' : 'Not set'}</span></td>
+    <td data-label="Actions"><div class="wallet-actions"><button class="btn btn-soft wallet-adjust" type="button" data-award="${escapeHtml(row.student_no)}"><i class="ph-bold ph-sliders-horizontal"></i> Adjust</button>${row.pin_set ? `<button class="btn btn-danger-soft wallet-pin-reset" type="button" data-reset="${escapeHtml(row.student_no)}" data-name="${escapeHtml(row.full_name)}" aria-label="Reset ${escapeHtml(row.full_name)} PIN"><i class="ph-bold ph-password"></i></button>` : ''}</div></td>
   </tr>`).join('');
   body.querySelectorAll('[data-award]').forEach((button) => button.addEventListener('click', () => {
-    $('awardStudent').value = button.dataset.award; populateSubjects(button.dataset.award); updateSelectedStudent(); $('awardAmount').focus(); window.scrollTo({ top: 360, behavior: 'smooth' });
+    $('awardStudent').value = button.dataset.award;
+    populateSubjects(button.dataset.award);
+    updateSelectedStudent();
+    renderWallets();
+    document.querySelector('.adjustment-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.setTimeout(() => $('awardAmount').focus({ preventScroll: true }), 350);
   }));
   body.querySelectorAll('[data-reset]').forEach((button) => button.addEventListener('click', () => {
     pendingResetStudent = button.dataset.reset; $('resetPinText').textContent = `Remove the current PIN for ${button.dataset.name}? The balance and ledger will not change.`; openModal('resetPinModal');
@@ -106,7 +121,11 @@ function renderWallets() {
   renderStats(); populateStudents();
 }
 
-function renderLedger(rows) {
+function renderLedger() {
+  const rows = filterAndSortLedger(ledgerRows, {
+    query: $('ledgerSearch').value,
+    sort: $('ledgerSort').value,
+  });
   const body = $('ledgerRows');
   $('ledgerCount').innerHTML = `<i class="ph-bold ph-list-bullets"></i> ${number(rows.length)} ${rows.length === 1 ? 'entry' : 'entries'} shown`;
   if (!rows.length) {
@@ -148,6 +167,7 @@ async function loadWallets() {
   });
   if (error) throw error;
   walletRows = data || [];
+  if (!$('sectionFilter').value && !$('studentSearch').value.trim()) walletSummaryRows = [...walletRows];
   renderWallets();
 }
 
@@ -171,7 +191,8 @@ async function loadLedger() {
     }
   }
   if (error) throw error;
-  renderLedger(data || []);
+  ledgerRows = data || [];
+  renderLedger();
 }
 
 async function adjustRecitation(event) {
@@ -179,6 +200,7 @@ async function adjustRecitation(event) {
   const amount = Number($('awardAmount').value);
   if (!Number.isInteger(amount) || amount < 1) return showToast(messages.invalid_amount, 'err');
   const reducing = adjustmentMode === 'reduce';
+  const studentNo = $('awardStudent').value;
   const button = $('awardButton'); button.disabled = true; button.innerHTML = `<span class="loading"></span> ${reducing ? 'Reducing' : 'Adding'} securely`;
   try {
     let { data, error } = await supabase.rpc('admin_adjust_recitation', {
@@ -199,6 +221,10 @@ async function adjustRecitation(event) {
       }));
     }
     if (error || !data?.success) throw new Error(friendlyError(error, data));
+    [walletRows, walletSummaryRows].forEach((rows) => {
+      const row = rows.find((item) => item.student_no === studentNo);
+      if (row) row.balance = data.balance;
+    });
     showToast(`${number(amount)} chip${amount === 1 ? '' : 's'} ${reducing ? 'reduced from' : 'added to'} ${data.studentName}. New balance: ${number(data.balance)}.`);
     $('awardAmount').value = ''; $('awardNote').value = '';
     await Promise.all([loadWallets(), loadLedger()]);
@@ -255,6 +281,10 @@ async function resetPin() {
   try {
     const { data, error } = await supabase.rpc('admin_reset_recitation_pin', { p_admin_session_token: sessionToken, p_student_no: pendingResetStudent });
     if (error || !data?.success) throw new Error(friendlyError(error, data));
+    [walletRows, walletSummaryRows].forEach((rows) => {
+      const row = rows.find((item) => item.student_no === pendingResetStudent);
+      if (row) row.pin_set = false;
+    });
     closeModal('resetPinModal'); showToast('Wallet PIN reset. The student can now create a new PIN.'); pendingResetStudent = null; await loadWallets();
   } catch (error) { showToast(error.message, 'err'); }
   finally { button.disabled = false; }
@@ -273,14 +303,31 @@ document.querySelectorAll('[data-close]').forEach((button) => button.addEventLis
 $('awardForm').addEventListener('submit', adjustRecitation);
 $('modeAdd').addEventListener('click', () => updateAdjustmentMode('add'));
 $('modeReduce').addEventListener('click', () => updateAdjustmentMode('reduce'));
-$('awardStudent').addEventListener('change', (event) => { populateSubjects(event.target.value); updateSelectedStudent(); });
+$('awardStudent').addEventListener('change', (event) => { populateSubjects(event.target.value); updateSelectedStudent(); renderWallets(); });
 $('awardAmount').addEventListener('input', updateBalanceImpact);
 document.querySelectorAll('.quick-amounts button[data-amount]').forEach((button) => button.addEventListener('click', () => { $('awardAmount').value = button.dataset.amount; updateBalanceImpact(); }));
 $('confirmResetPin').addEventListener('click', resetPin);
 $('sectionFilter').addEventListener('change', () => loadWallets().catch((error) => showToast(friendlyError(error), 'err')));
+$('walletStatusFilter').addEventListener('change', renderWallets);
+$('walletSort').addEventListener('change', renderWallets);
+$('resetWalletFilters').addEventListener('click', () => {
+  $('studentSearch').value = '';
+  $('sectionFilter').value = '';
+  $('walletStatusFilter').value = 'all';
+  $('walletSort').value = 'name_asc';
+  loadWallets().catch((error) => showToast(friendlyError(error), 'err'));
+});
 $('ledgerSectionFilter').addEventListener('change', () => loadLedger().catch((error) => showToast(friendlyError(error), 'err')));
 $('ledgerTypeFilter').addEventListener('change', () => loadLedger().catch((error) => showToast(friendlyError(error), 'err')));
-$('resetLedgerFilters').addEventListener('click', () => { $('ledgerSectionFilter').value = ''; $('ledgerTypeFilter').value = ''; loadLedger().catch((error) => showToast(friendlyError(error), 'err')); });
+$('ledgerSearch').addEventListener('input', renderLedger);
+$('ledgerSort').addEventListener('change', renderLedger);
+$('resetLedgerFilters').addEventListener('click', () => {
+  $('ledgerSearch').value = '';
+  $('ledgerSectionFilter').value = '';
+  $('ledgerTypeFilter').value = '';
+  $('ledgerSort').value = 'newest';
+  loadLedger().catch((error) => showToast(friendlyError(error), 'err'));
+});
 $('studentSearch').addEventListener('input', () => { clearTimeout(filterTimer); filterTimer = setTimeout(() => loadWallets().catch((error) => showToast(friendlyError(error), 'err')), 240); });
 
 loadReferenceData().then(() => Promise.all([loadWallets(), loadLedger()])).catch((error) => {
