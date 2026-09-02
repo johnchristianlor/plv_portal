@@ -87,6 +87,8 @@ test('admin attendance uses an enrolled-student spreadsheet with autosaved statu
     assert.match(attendance, /formatLocalDateInput/);
     assert.match(attendance, /id="rosterAutosaveState"/);
     assert.match(attendance, /function queueRosterSave/);
+    assert.match(attendance, /async function removeScoresForAbsentAttendance[\s\S]{0,850}from\('scores'\)\.delete\(\)[\s\S]{0,180}\.eq\('studentNo', studentNo\)[\s\S]{0,180}\.in\('activityId', activityIds\)/);
+    assert.match(attendance, /normalizeAttendanceStatus\(status\) === 'A'[^\n]+removeScoresForAbsentAttendance\(session, studentNo\)/);
     assert.match(attendance, /class="attendance-history-table"/);
     assert.match(attendance, /id="recordStatusPopover"/);
     assert.match(attendance, /window\.saveSheetStatus/);

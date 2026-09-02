@@ -11,13 +11,15 @@ export function parseActivityScore(rawValue, perfectScore) {
     return { kind: 'score', value };
 }
 
-export function planActivityScoreChanges(entries, existingScores, perfectScore) {
+export function planActivityScoreChanges(entries, existingScores, perfectScore, absentStudentNumbers = new Set()) {
+    const absentSet = new Set([...absentStudentNumbers].map(value => String(value ?? '').trim()).filter(Boolean));
     const changes = {
         inserts: [],
         updates: [],
         deletes: [],
         invalid: [],
         gradedCount: 0,
+        absentCount: 0,
         unchangedCount: 0
     };
 
@@ -25,8 +27,14 @@ export function planActivityScoreChanges(entries, existingScores, perfectScore) 
         const studentNo = String(entry.studentNo ?? '').trim();
         if (!studentNo) continue;
 
-        const parsed = parseActivityScore(entry.value, perfectScore);
         const existing = existingScores.get(studentNo);
+        if (absentSet.has(studentNo) || entry.absent === true) {
+            changes.absentCount++;
+            if (existing?.id) changes.deletes.push({ id: existing.id, studentNo });
+            continue;
+        }
+
+        const parsed = parseActivityScore(entry.value, perfectScore);
 
         if (parsed.kind === 'invalid') {
             changes.invalid.push(studentNo);

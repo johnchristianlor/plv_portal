@@ -26,6 +26,31 @@ export function normalizeAttendanceStatus(value) {
   return ATTENDANCE_STATUS.pending;
 }
 
+export function normalizeDateKey(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+  const datePrefix = text.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (datePrefix) return datePrefix[1];
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+}
+
+export function getAbsentStudentNumbers(records, targetDate = '') {
+  const dateKey = normalizeDateKey(targetDate);
+  return new Set((records || [])
+    .filter(record => normalizeAttendanceStatus(record?.status) === ATTENDANCE_STATUS.absent)
+    .filter(record => !dateKey || normalizeDateKey(record?.date) === dateKey)
+    .map(record => String(record?.studentNo ?? '').trim())
+    .filter(Boolean));
+}
+
+export function getAbsentDateKeys(records) {
+  return new Set((records || [])
+    .filter(record => normalizeAttendanceStatus(record?.status) === ATTENDANCE_STATUS.absent)
+    .map(record => normalizeDateKey(record?.date))
+    .filter(Boolean));
+}
+
 export function summarizeAttendance(records) {
   const summary = {
     totalRecords: records.length,

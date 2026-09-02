@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import {
   formatLocalDateInput,
+  getAbsentDateKeys,
+  getAbsentStudentNumbers,
+  normalizeDateKey,
   normalizeAttendanceStatus,
   summarizeAttendance,
 } from '../public/attendance-utils.mjs';
@@ -16,6 +19,16 @@ assert.equal(normalizeAttendanceStatus('Present'), 'P');
 assert.equal(normalizeAttendanceStatus('late'), 'L');
 assert.equal(normalizeAttendanceStatus('Excused absence'), 'E');
 assert.equal(normalizeAttendanceStatus('Pending'), '');
+assert.equal(normalizeDateKey('2026-09-02T08:30:00+08:00'), '2026-09-02');
+assert.equal(normalizeDateKey('not-a-date'), '');
+
+const absenceRecords = [
+  { studentNo: '2026-001', date: '2026-09-02', status: 'Absent' },
+  { studentNo: '2026-002', date: '2026-09-02T00:00:00', status: 'A' },
+  { studentNo: '2026-003', date: '2026-09-03', status: 'Present' },
+];
+assert.deepEqual([...getAbsentStudentNumbers(absenceRecords, '2026-09-02')], ['2026-001', '2026-002']);
+assert.deepEqual([...getAbsentDateKeys(absenceRecords)], ['2026-09-02']);
 
 const twoPresent = summarizeAttendance([
   { status: 'P' },

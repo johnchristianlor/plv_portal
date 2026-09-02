@@ -34,6 +34,14 @@ assert.deepEqual(changes.deletes, [{ id: 103, studentNo: '2026-00003' }], 'clear
 assert.deepEqual(changes.inserts, [{ studentNo: '2026-00004', score: 0 }], 'zero is a valid completed score, not a blank');
 assert.equal(changes.gradedCount, 3);
 
+const absenceChanges = planActivityScoreChanges([
+    { studentNo: '2026-00001', value: '45' },
+    { studentNo: '2026-00004', value: '25' }
+], existingScores, 50, new Set(['2026-00001', '2026-00004']));
+assert.deepEqual(absenceChanges.deletes, [{ id: 101, studentNo: '2026-00001' }], 'a saved score must be removed after same-day absence');
+assert.deepEqual(absenceChanges.inserts, [], 'absent students must never receive a new score');
+assert.equal(absenceChanges.absentCount, 2);
+
 assert.deepEqual(getActivityProgress(20, 0), { total: 20, graded: 0, percent: 0, status: 'not-started' });
 assert.deepEqual(getActivityProgress(20, 7), { total: 20, graded: 7, percent: 35, status: 'in-progress' });
 assert.deepEqual(getActivityProgress(20, 20), { total: 20, graded: 20, percent: 100, status: 'complete' });
@@ -52,9 +60,24 @@ assert.match(page, /window\.openActivityForScoring/, 'saved activities must be r
 assert.match(page, /id="savedActivitiesGrid"/, 'manual entry must show initialized activities as a grading workspace');
 assert.match(page, /id="scoreRosterSearch"/, 'student score entry must be searchable');
 assert.match(page, /data-score-filter="ungraded"/, 'the roster must support an ungraded-student filter');
+assert.match(page, /data-score-filter="absent"/, 'the roster must clearly separate absent students');
+assert.match(page, /from\('attendance'\)\.select\('studentNo,status,date'\)/, 'activity scoring must load same-day attendance');
+assert.match(page, /absentStudentNumbers/, 'activity scoring must lock absent students');
+assert.match(page, /absentForActivity\.has\(sNo\)/, 'spreadsheet uploads must skip absent students');
 assert.match(page, /@media \(max-width: 700px\)[\s\S]+score-table tr\.student-score-row/, 'score rows must become mobile-friendly cards');
 assert.match(page, /async function selectAllRows[\s\S]+\.range\(start, start \+ pageSize - 1\)/, 'saved activity progress must include records beyond the first database page');
 assert.doesNotMatch(page, /class="score-input stud-score"[^>]+required/, 'unfinished students must not be forced to receive scores');
 assert.match(page, /if\(scoreRaw === ''[^\n]+continue;/, 'blank spreadsheet scores must remain ungraded');
+
+const studentScoresPage = fs.readFileSync(new URL('../public/student-scores.html', import.meta.url), 'utf8');
+assert.match(studentScoresPage, /from\("attendance"\)\.select\("date,status"\)/, 'student scores must read attendance for the selected class');
+assert.match(studentScoresPage, /getAbsentDateKeys/, 'student scores must map absences by activity date');
+assert.match(studentScoresPage, /Attendance marked absent · no score recorded/, 'students must see a clear absent state instead of a numeric score');
+
+const migration = fs.readFileSync(new URL('../supabase_migrations/20260902_absent_activity_scores.sql', import.meta.url), 'utf8');
+assert.match(migration, /scores_reject_absent_activity/, 'the database must reject a score for same-day absence');
+assert.match(migration, /attendance_remove_same_day_activity_scores/, 'marking attendance absent must remove an existing same-day score');
+assert.match(migration, /activity\.section = new\.section[\s\S]+activity\."subjectCode" = new\."subjectCode"[\s\S]+activity\.date::date = new\.date::date/, 'cleanup must be scoped to the exact class and date');
+assert.doesNotMatch(migration, /disable row level security|alter table[^;]+disable/i, 'absence enforcement must not weaken RLS');
 
 console.log('admin activities manual-entry smoke checks passed');

@@ -61,6 +61,12 @@
         .act-top { display: flex; justify-content: space-between; align-items: center; gap: 16px;} .act-title-area { flex: 1; } .act-title-area h4 { font-size: 16px; font-weight: 700; color: var(--text-main); margin-bottom: 6px; line-height: 1.3; } .act-date { font-size: 12px; font-weight: 600; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
         .act-score-area { display: flex; align-items: baseline; justify-content: center; gap: 3px; background: var(--score-bg); padding: 10px 18px; border-radius: 14px; border: 1px solid var(--item-border); min-width: 90px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); transition: all 0.3s ease; } .activity-item:hover .act-score-area { background: var(--bg-body); border-color: var(--accent-light); }
         .score-num { font-size: 20px; font-weight: 800; color: var(--text-main); line-height: 1; letter-spacing: -0.5px;} .score-div { font-size: 15px; font-weight: 600; color: var(--text-muted); } .score-total { font-size: 14px; font-weight: 700; color: var(--text-muted); }
+        .activity-item.absent { border-color: rgba(225,29,72,.22); background: linear-gradient(135deg,rgba(225,29,72,.055),var(--item-bg)); }
+        .absent-score-area { align-items: center; gap: 7px; color: var(--danger); background: rgba(225,29,72,.09); border-color: rgba(225,29,72,.2); }
+        .absent-score-area i { font-size: 18px; }
+        .absent-score-area strong { font-size: 13px; font-weight: 850; }
+        .absence-note { display: flex; align-items: center; gap: 5px; margin-top: 5px; color: var(--danger); font-size: 10px; font-weight: 750; }
+        .activity-item.absent .progress-fill { width: 0 !important; background: var(--danger); }
         .progress-wrapper { width: 100%; height: 6px; background: rgba(0,0,0,0.06); border-radius: 100px; overflow: hidden; } .dark-theme .progress-wrapper { background: rgba(255,255,255,0.1); } .progress-fill { height: 100%; border-radius: 100px; transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1); }
         .activity-item.written .progress-fill { background: var(--cat-written); } .activity-item.perf .progress-fill { background: var(--cat-perf); } .activity-item.exam .progress-fill { background: var(--cat-exam); }
         .activity-item.written:hover .progress-fill { box-shadow: 0 0 12px rgba(16, 185, 129, 0.4); } .activity-item.perf:hover .progress-fill { box-shadow: 0 0 12px rgba(59, 130, 246, 0.4); } .activity-item.exam:hover .progress-fill { box-shadow: 0 0 12px rgba(225, 29, 72, 0.4); }
@@ -263,6 +269,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         import { startStudentPresence } from "./student-presence.js";
         import { startStudentSessionGuard } from "./student-session.js";
         import { getStudentEnrollments, getSubject } from "./student-data.js";
+        import { getAbsentDateKeys, normalizeDateKey } from "./attendance-utils.mjs";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'student') window.location.href = 'index.html';
@@ -289,6 +296,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
         let scoresData = { midterm: { written: [], perf: [], exam: [] }, final: { written: [], perf: [], exam: [] } };
         let scoresMap = {};
+        let absentDateKeys = new Set();
         let currentTerm = 'midterm';
         let sortState = { written: 'newest', perf: 'newest', exam: 'newest' };
 
@@ -299,10 +307,11 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
                 const enroll = enrollments[0];
                 const studentSection = enroll.section; // Get Student's Section
-                const [subject, scoresResult, activitiesResult] = await Promise.all([
+                const [subject, scoresResult, activitiesResult, attendanceResult] = await Promise.all([
                     getSubject(supabase, enroll.subjectCode),
                     supabase.from("scores").select("activityId,score").eq("studentNo", user.studentNo),
-                    supabase.from("activities").select("id,term,category,title,date,perfectScore").eq("subjectCode", enroll.subjectCode).eq("section", studentSection)
+                    supabase.from("activities").select("id,term,category,title,date,perfectScore").eq("subjectCode", enroll.subjectCode).eq("section", studentSection),
+                    supabase.from("attendance").select("date,status").eq("studentNo", user.studentNo).eq("subjectCode", enroll.subjectCode).eq("section", studentSection)
                 ]);
                 if(subject) document.getElementById('hSubject').innerText = `${subject.subjectCode}: ${subject.subjectName}`;
 
@@ -312,6 +321,9 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
                 const { data: activities, error: activitiesError } = activitiesResult;
                 if (activitiesError) throw activitiesError;
+                const { data: attendance, error: attendanceError } = attendanceResult;
+                if (attendanceError) throw attendanceError;
+                absentDateKeys = getAbsentDateKeys(attendance || []);
 
                 (activities || []).forEach(a => {
                     if(scoresData[a.term] && scoresData[a.term][a.category]) { scoresData[a.term][a.category].push(a); }
@@ -360,14 +372,20 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 let totalPerfect = 0;
 
                 list.forEach(act => {
-                    const myScore = scoresMap[act.id] !== undefined ? scoresMap[act.id] : 0;
+                    const isAbsent = absentDateKeys.has(normalizeDateKey(act.date));
+                    const myScore = isAbsent ? 0 : scoresMap[act.id] !== undefined ? scoresMap[act.id] : 0;
                     totalScore += myScore;
                     totalPerfect += act.perfectScore;
 
                     const pct = (myScore / act.perfectScore) * 100;
-                    const dStr = new Date(act.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const dateKey = normalizeDateKey(act.date);
+                    const dStr = dateKey ? new Date(`${dateKey}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Date unavailable';
+                    const absenceNote = isAbsent ? '<span class="absence-note"><i class="ph-fill ph-info"></i> Attendance marked absent · no score recorded</span>' : '';
+                    const scoreDisplay = isAbsent
+                        ? '<div class="act-score-area absent-score-area" role="status" aria-label="Absent; no score recorded"><i class="ph-fill ph-user-minus"></i><strong>Absent</strong></div>'
+                        : `<div class="act-score-area"><span class="score-num">${myScore}</span><span class="score-div">/</span><span class="score-total">${act.perfectScore}</span></div>`;
 
-                    container.innerHTML += `<div class="activity-item ${cat}"><div class="act-top"><div class="act-title-area"><h4>${act.title}</h4><span class="act-date"><i class="ph-fill ph-calendar-blank"></i> ${dStr}</span></div><div class="act-score-area"><span class="score-num">${myScore}</span><span class="score-div">/</span><span class="score-total">${act.perfectScore}</span></div></div><div class="progress-wrapper"><div class="progress-fill" style="width: ${pct}%;"></div></div></div>`;
+                    container.innerHTML += `<div class="activity-item ${cat}${isAbsent ? ' absent' : ''}"><div class="act-top"><div class="act-title-area"><h4>${act.title}</h4><span class="act-date"><i class="ph-fill ph-calendar-blank"></i> ${dStr}</span>${absenceNote}</div>${scoreDisplay}</div><div class="progress-wrapper"><div class="progress-fill" style="width: ${pct}%;"></div></div></div>`;
                 });
 
                 if(list.length === 0) container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No scores yet.</p>';
