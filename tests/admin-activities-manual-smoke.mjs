@@ -20,6 +20,7 @@ assert.equal(getActivityScoreSaveErrorKind({ code: '23514', message: 'check cons
 assert.equal(getActivityScoreSaveErrorKind({ code: '23505', message: 'duplicate key' }), 'duplicate');
 assert.equal(getActivityScoreSaveErrorKind({ code: '42501', message: 'row-level security policy' }), 'auth');
 assert.equal(getActivityScoreSaveErrorKind({ code: '23503', message: 'foreign key violation' }), 'reference');
+assert.equal(getActivityScoreSaveErrorKind({ code: 'storage', message: 'score storage rejected the change' }), 'configuration');
 assert.equal(getActivityScoreSaveErrorKind(new TypeError('Failed to fetch')), 'network');
 
 const existingScores = new Map([

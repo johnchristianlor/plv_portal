@@ -119,14 +119,48 @@ async function writeScore(env, activity, studentNo, score) {
     return { score: { ...existing[0], score } };
   }
 
-  const savedScore = { id: crypto.randomUUID(), activityId: activity.id, studentNo, score };
-  const response = await supabaseServiceFetch(env, '/rest/v1/scores', {
+  const scoreValues = { activityId: activity.id, studentNo, score };
+  let response = await supabaseServiceFetch(env, '/rest/v1/scores', {
     method: 'POST',
-    headers: { 'content-type': 'application/json', prefer: 'return=minimal' },
-    body: JSON.stringify(savedScore),
+    headers: { 'content-type': 'application/json', prefer: 'return=representation' },
+    body: JSON.stringify(scoreValues),
   });
-  if (!response.ok) return { error: await databaseError(response) };
-  return { score: savedScore };
+  let details = await responseJson(response);
+
+  // Existing PLV databases generate UUIDs for scores. Let the database own that
+  // default, while retaining compatibility with older installations that require
+  // the caller to provide an id explicitly.
+  if (!response.ok && isMissingGeneratedId(details)) {
+    response = await supabaseServiceFetch(env, '/rest/v1/scores', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', prefer: 'return=representation' },
+      body: JSON.stringify({ id: crypto.randomUUID(), ...scoreValues }),
+    });
+    details = await responseJson(response);
+  }
+
+  // If another autosave created the row after our lookup, convert the unique
+  // conflict into an update instead of asking the administrator to retry.
+  if (!response.ok && String(details.code || '') === '23505') {
+    const concurrent = await findExistingScore(env, activity.id, studentNo);
+    if (concurrent.length) {
+      const query = new URLSearchParams({
+        activityId: `eq.${activity.id}`,
+        studentNo: `eq.${studentNo}`,
+      });
+      const update = await supabaseServiceFetch(env, `/rest/v1/scores?${query}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json', prefer: 'return=minimal' },
+        body: JSON.stringify({ score }),
+      });
+      if (!update.ok) return { error: await databaseError(update) };
+      return { score: { ...concurrent[0], score } };
+    }
+  }
+
+  if (!response.ok) return { error: databaseErrorFromDetails(details, response.status) };
+  const savedScore = Array.isArray(details) ? details[0] : details;
+  return { score: savedScore?.id ? savedScore : scoreValues };
 }
 
 async function deleteScore(env, activityId, studentNo) {
@@ -141,13 +175,42 @@ async function deleteScore(env, activityId, studentNo) {
 
 async function databaseError(response) {
   const details = await responseJson(response);
-  const message = String(details.message || '');
+  return databaseErrorFromDetails(details, response.status);
+}
+
+function isMissingGeneratedId(details) {
+  const code = String(details?.code || '').toUpperCase();
+  const message = `${details?.message || ''} ${details?.details || ''}`.toLowerCase();
+  return code === '23502' && /\bid\b/.test(message);
+}
+
+function databaseErrorFromDetails(details, status) {
+  const code = String(details?.code || '').toUpperCase();
+  const message = String(details?.message || '');
   const absent = message.toLowerCase().includes('absent');
-  console.error(JSON.stringify({ event: 'activity_score_write_failed', status: response.status, code: details.code || 'unknown' }));
+  const reference = code === '23503';
+  const validation = code === '23514';
+  const configuration = ['22P02', '23502', '42703', '42804', 'PGRST204'].includes(code)
+    || status === 401
+    || status === 403;
+  const safeCode = absent ? 'absent'
+    : reference ? 'reference'
+      : validation ? 'validation'
+        : configuration ? 'configuration'
+          : 'storage';
+  console.error(JSON.stringify({ event: 'activity_score_write_failed', status, code: code || 'unknown' }));
   return json({
-    error: absent ? 'This student is marked absent for the activity date.' : 'The score could not be stored.',
-    code: absent ? 'absent' : String(details.code || 'score_write_failed'),
-  }, absent ? 409 : 503);
+    error: absent
+      ? 'This student is marked absent for the activity date.'
+      : reference
+        ? 'The activity or enrollment no longer exists.'
+        : validation
+          ? 'The database rejected this score value.'
+          : configuration
+            ? 'The score service needs its database connection updated.'
+            : 'The score storage service rejected the change.',
+    code: safeCode,
+  }, absent || reference ? 409 : validation ? 422 : 503);
 }
 
 export async function onRequestPost({ request, env }) {

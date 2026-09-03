@@ -52,13 +52,14 @@ export async function getAuthenticatedUser(request, env) {
 
 export async function supabaseServiceFetch(env, path, init = {}) {
   const url = envValue(env, 'SUPABASE_URL').replace(/\/$/, '');
-  const serviceKey = envValue(env, 'SUPABASE_SERVICE_ROLE_KEY');
+  const serviceKey = envValue(env, 'SUPABASE_SECRET_KEY', 'SUPABASE_SERVICE_ROLE_KEY');
   if (!url || !serviceKey) throw new Error('server_configuration');
+  const isOpaqueSecretKey = serviceKey.startsWith('sb_secret_');
   return fetch(`${url}${path}`, {
     ...init,
     headers: {
       apikey: serviceKey,
-      authorization: `Bearer ${serviceKey}`,
+      ...(!isOpaqueSecretKey ? { authorization: `Bearer ${serviceKey}` } : {}),
       ...(init.headers || {}),
     },
   });

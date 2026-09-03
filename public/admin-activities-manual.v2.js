@@ -20,7 +20,7 @@ export function getActivityScoreSaveErrorKind(error) {
     if (code === '23505' || message.includes('duplicate') || message.includes('unique constraint')) return 'duplicate';
     if (['AUTH', '401', '403', '42501', 'PGRST301'].includes(code) || message.includes('jwt') || message.includes('row-level security')) return 'auth';
     if (code === 'REFERENCE' || code === '23503' || message.includes('foreign key')) return 'reference';
-    if (code === '23502' || message.includes('null value')) return 'configuration';
+    if (['CONFIGURATION', 'STORAGE', '23502', '22P02', 'PGRST204'].includes(code) || message.includes('null value') || message.includes('database connection')) return 'configuration';
     if (code === 'NETWORK' || message.includes('failed to fetch') || message.includes('network') || message.includes('offline')) return 'network';
     return 'unknown';
 }

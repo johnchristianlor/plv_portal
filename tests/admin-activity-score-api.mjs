@@ -30,12 +30,14 @@ const env = {
   SUPABASE_SERVICE_ROLE_KEY: 'service-key',
 };
 
-function installSuccessfulFetch({ absent = false, existingScore = false } = {}) {
+function installSuccessfulFetch({ absent = false, existingScore = false, generatedIdRequired = false } = {}) {
   const writes = [];
+  const serviceHeaders = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (input, init = {}) => {
     const url = new URL(String(input));
     if (url.pathname === '/auth/v1/user') return jsonResponse({ id: AUTH_ID, email: 'admin@example.edu' });
+    if (url.pathname.startsWith('/rest/v1/')) serviceHeaders.push(new Headers(init.headers));
     if (url.pathname === '/rest/v1/users') return jsonResponse([{ id: ADMIN_ID, role: 'admin', status: 'Active' }]);
     if (url.pathname === '/rest/v1/activities') return jsonResponse([{
       id: ACTIVITY_ID,
@@ -50,12 +52,19 @@ function installSuccessfulFetch({ absent = false, existingScore = false } = {}) 
       return jsonResponse(existingScore ? [{ id: '44444444-4444-4444-8444-444444444444', activityId: ACTIVITY_ID, studentNo: '25-2900', score: 30 }] : []);
     }
     if (url.pathname === '/rest/v1/scores' && ['POST', 'PATCH', 'DELETE'].includes(init.method)) {
-      writes.push({ method: init.method, body: init.body ? JSON.parse(init.body) : null });
-      return new Response(null, { status: init.method === 'POST' ? 201 : 204 });
+      const body = init.body ? JSON.parse(init.body) : null;
+      writes.push({ method: init.method, body });
+      if (init.method === 'POST' && generatedIdRequired && !body.id) {
+        return jsonResponse({ code: '23502', message: 'null value in column "id" violates not-null constraint' }, 400);
+      }
+      if (init.method === 'POST') {
+        return jsonResponse([{ id: body.id || '55555555-5555-4555-8555-555555555555', ...body }], 201);
+      }
+      return new Response(null, { status: 204 });
     }
     throw new Error(`Unexpected request: ${init.method || 'GET'} ${url.pathname}`);
   };
-  return { writes, restore: () => { globalThis.fetch = originalFetch; } };
+  return { writes, serviceHeaders, restore: () => { globalThis.fetch = originalFetch; } };
 }
 
 test('activity score API rejects requests without an authenticated admin', async () => {
@@ -76,12 +85,49 @@ test('activity score API validates enrollment and saves through the service role
     assert.equal(response.status, 200);
     assert.equal(mock.writes.length, 1);
     assert.equal(mock.writes[0].method, 'POST');
-    assert.match(mock.writes[0].body.id, /^[0-9a-f-]{36}$/i);
+    assert.equal(Object.hasOwn(mock.writes[0].body, 'id'), false, 'the database should normally generate the score id');
     assert.deepEqual({
       activityId: mock.writes[0].body.activityId,
       studentNo: mock.writes[0].body.studentNo,
       score: mock.writes[0].body.score,
     }, { activityId: ACTIVITY_ID, studentNo: '25-2900', score: 40 });
+  } finally {
+    mock.restore();
+  }
+});
+
+test('activity score API supports modern Supabase secret keys without using them as bearer JWTs', async () => {
+  const mock = installSuccessfulFetch();
+  try {
+    const response = await onRequestPost({
+      request: request({ action: 'save', activityId: ACTIVITY_ID, studentNo: '25-2900', score: 40 }),
+      env: {
+        ...env,
+        SUPABASE_SECRET_KEY: 'sb_secret_server-only-test-key',
+      },
+    });
+    assert.equal(response.status, 200);
+    assert.ok(mock.serviceHeaders.length > 0);
+    mock.serviceHeaders.forEach(headers => {
+      assert.equal(headers.get('apikey'), 'sb_secret_server-only-test-key');
+      assert.equal(headers.has('authorization'), false, 'opaque secret keys are API keys, not bearer JWTs');
+    });
+  } finally {
+    mock.restore();
+  }
+});
+
+test('activity score API falls back to an explicit UUID for older score tables without an id default', async () => {
+  const mock = installSuccessfulFetch({ generatedIdRequired: true });
+  try {
+    const response = await onRequestPost({
+      request: request({ action: 'save', activityId: ACTIVITY_ID, studentNo: '25-2900', score: 40 }),
+      env,
+    });
+    assert.equal(response.status, 200);
+    assert.equal(mock.writes.length, 2);
+    assert.equal(Object.hasOwn(mock.writes[0].body, 'id'), false);
+    assert.match(mock.writes[1].body.id, /^[0-9a-f-]{36}$/i);
   } finally {
     mock.restore();
   }
