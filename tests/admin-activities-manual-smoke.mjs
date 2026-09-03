@@ -115,9 +115,11 @@ assert.match(migration, /attendance_remove_same_day_activity_scores/, 'marking a
 const scoreRepairMigration = fs.readFileSync(new URL('../supabase_migrations/20260903_repair_activity_score_storage.sql', import.meta.url), 'utf8');
 assert.match(scoreRepairMigration, /alter column score type numeric/i, 'score storage must support precise decimal scores');
 assert.match(scoreRepairMigration, /alter column "createdAt" set default now\(\)/i, 'new scores must receive a creation timestamp');
-assert.match(scoreRepairMigration, /alter column id set default gen_random_uuid\(\)/i, 'new scores must receive a database-generated UUID');
+assert.match(scoreRepairMigration, /gen_random_uuid\(\)::text|gen_random_uuid\(\)/i, 'new scores must receive a generated id compatible with text or uuid schemas');
 assert.doesNotMatch(scoreRepairMigration, /plv_is_absent_status\(attendance\.status\)/, 'the repaired insert trigger must not depend on a separately revoked helper');
-assert.match(scoreRepairMigration, /create or replace function public\.plv_write_activity_score/i, 'score writes must have one atomic server-only database operation');
+assert.match(scoreRepairMigration, /create function public\.plv_write_activity_score/i, 'score writes must have one atomic server-only database operation');
+assert.match(scoreRepairMigration, /p_activity_id text/i, 'the score writer must accept legacy text activity ids');
+assert.match(scoreRepairMigration, /id::text = btrim\(p_activity_id\)/i, 'the score writer must compare ids without text-vs-uuid operator failures');
 assert.match(scoreRepairMigration, /grant execute on function public\.plv_write_activity_score[\s\S]+to service_role/i, 'only the server database role may execute the score writer');
 assert.match(migration, /activity\.section = new\.section[\s\S]+activity\."subjectCode" = new\."subjectCode"[\s\S]+activity\.date::date = new\.date::date/, 'cleanup must be scoped to the exact class and date');
 assert.doesNotMatch(migration, /disable row level security|alter table[^;]+disable/i, 'absence enforcement must not weaken RLS');

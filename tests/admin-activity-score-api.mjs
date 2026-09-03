@@ -33,10 +33,10 @@ const env = {
 test('activity score API exposes a safe deployment version on preflight', () => {
   const response = onRequestOptions();
   assert.equal(response.status, 204);
-  assert.equal(response.headers.get('x-plv-score-api-version'), '2026-09-03.5');
+  assert.equal(response.headers.get('x-plv-score-api-version'), '2026-09-03.6');
 });
 
-function installSuccessfulFetch({ absent = false, existingScore = false, generatedIdRequired = false, writeError = null, rpcAvailable = false } = {}) {
+function installSuccessfulFetch({ absent = false, existingScore = false, generatedIdRequired = false, writeError = null, rpcAvailable = false, rpcError = null } = {}) {
   const writes = [];
   const rpcWrites = [];
   const serviceHeaders = [];
@@ -58,6 +58,7 @@ function installSuccessfulFetch({ absent = false, existingScore = false, generat
     if (url.pathname === '/rest/v1/rpc/plv_write_activity_score') {
       const body = JSON.parse(init.body);
       rpcWrites.push(body);
+      if (rpcError) return jsonResponse(rpcError, 400);
       if (!rpcAvailable) return jsonResponse({ code: 'PGRST202', message: 'Function not found' }, 404);
       if (body.p_action === 'probe') return jsonResponse({ code: '22023', message: 'Invalid activity score request.' }, 400);
       return jsonResponse(body.p_action === 'delete'
@@ -90,7 +91,7 @@ test('activity score health probe verifies the server can execute the installed 
     const response = await onRequestGet({ env });
     const body = await response.json();
     assert.equal(response.status, 200);
-    assert.deepEqual(body, { ready: true, version: '2026-09-03.5' });
+    assert.deepEqual(body, { ready: true, version: '2026-09-03.6', mode: 'rpc' });
     assert.equal(mock.writes.length, 0);
     assert.equal(mock.rpcWrites[0].p_action, 'probe');
   } finally {
@@ -145,6 +146,41 @@ test('activity score API prefers the atomic server-only database function when i
       p_score: 40,
     }]);
     assert.equal(mock.writes.length, 0, 'the direct table fallback must not run when the RPC succeeds');
+  } finally {
+    mock.restore();
+  }
+});
+
+
+
+test('activity score API falls back safely when the installed RPC has the legacy text-vs-uuid type bug', async () => {
+  const mock = installSuccessfulFetch({
+    rpcError: { code: '42883', message: 'operator does not exist: text = uuid' },
+  });
+  try {
+    const response = await onRequestPost({
+      request: request({ action: 'save', activityId: ACTIVITY_ID, studentNo: '25-2900', score: 40 }),
+      env,
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.saved, true);
+    assert.equal(mock.writes.length, 1, 'the service-role table fallback should keep grading usable');
+    assert.equal(mock.writes[0].method, 'POST');
+  } finally {
+    mock.restore();
+  }
+});
+
+test('activity score API accepts safe legacy text activity ids', async () => {
+  const mock = installSuccessfulFetch();
+  try {
+    const response = await onRequestPost({
+      request: request({ action: 'save', activityId: 'legacyActivity_2026A', studentNo: '25-2900', score: 40 }),
+      env,
+    });
+    assert.equal(response.status, 200);
+    assert.equal(mock.writes.length, 1);
   } finally {
     mock.restore();
   }

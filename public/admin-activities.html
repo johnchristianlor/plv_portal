@@ -1052,7 +1052,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             if (kind === 'validation') return `The server rejected the score for ${studentNumbers.join(', ')}. Confirm it is within the activity's allowed range.`;
             if (kind === 'auth') return 'Your secure admin session expired. Sign in again, then retry; the entered values remain on screen.';
             if (kind === 'reference') return `The activity or enrollment changed while you were grading ${studentNumbers.join(', ')}. Refresh the activity and retry.`;
-            if (kind === 'configuration') return 'The score storage configuration is incomplete. Apply the latest database setup before retrying.';
+            if (kind === 'configuration') return 'Score storage is not ready yet. Apply the 20260903 activity-score database repair and verify the server Supabase secret, then retry; your entered scores stay on screen.';
             if (kind === 'network') return 'The portal could not reach the server. Check your connection and use Save now to retry.';
             return `Could not save ${studentNumbers.join(', ')}. The values remain on screen so you can retry.`;
         }

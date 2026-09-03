@@ -1,11 +1,12 @@
 import {
   getAuthenticatedUser,
-  isUuid,
   json,
   supabaseServiceFetch,
 } from '../../_shared/push.js';
 
 const STUDENT_NUMBER_PATTERN = /^[a-z0-9][a-z0-9._-]{1,49}$/i;
+const RECORD_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{5,127}$/i;
+const SCORE_API_VERSION = '2026-09-03.6';
 
 async function responseJson(response) {
   return response.json().catch(() => ({}));
@@ -99,6 +100,17 @@ async function findExistingScore(env, activityId, studentNo) {
   return selectRows(env, 'scores', query);
 }
 
+function isRpcCompatibilityFailure(details, status) {
+  const code = String(details?.code || '').toUpperCase();
+  const message = `${details?.message || ''} ${details?.details || ''} ${details?.hint || ''}`.toLowerCase();
+  if (status === 404 || code === 'PGRST202' || code === 'PGRST203') return true;
+  if (code === '22P02' && message.includes('uuid')) return true;
+  if (['42804', '42883'].includes(code) && /(uuid|text|operator|type)/i.test(message)) return true;
+  if (['23502', '42703', 'PGRST204'].includes(code)) return true;
+  if (code === '42501' || status === 403 || status >= 500) return true;
+  return false;
+}
+
 async function runScoreWriteRpc(env, action, activityId, studentNo, score = null) {
   const response = await supabaseServiceFetch(env, '/rest/v1/rpc/plv_write_activity_score', {
     method: 'POST',
@@ -111,8 +123,14 @@ async function runScoreWriteRpc(env, action, activityId, studentNo, score = null
     }),
   });
   const details = await responseJson(response);
-  const code = String(details?.code || '').toUpperCase();
-  if (!response.ok && (response.status === 404 || code === 'PGRST202')) return { available: false };
+  if (!response.ok && isRpcCompatibilityFailure(details, response.status)) {
+    console.warn(JSON.stringify({
+      event: 'activity_score_rpc_fallback',
+      status: response.status,
+      code: String(details?.code || 'unknown'),
+    }));
+    return { available: false, compatibilityFallback: true };
+  }
   if (!response.ok) return { available: true, error: databaseErrorFromDetails(details, response.status) };
   return { available: true, value: details };
 }
@@ -254,7 +272,7 @@ export async function onRequestPost({ request, env }) {
     const action = String(body?.action || '');
     const activityId = String(body?.activityId || '');
     const studentNo = String(body?.studentNo || '').trim();
-    if (!['save', 'delete'].includes(action) || !isUuid(activityId) || !STUDENT_NUMBER_PATTERN.test(studentNo)) {
+    if (!['save', 'delete'].includes(action) || !RECORD_ID_PATTERN.test(activityId) || !STUDENT_NUMBER_PATTERN.test(studentNo)) {
       return json({ error: 'Invalid score request.', code: 'validation' }, 422);
     }
 
@@ -306,22 +324,22 @@ export async function onRequestGet({ env }) {
     });
     const details = await responseJson(response);
     const code = String(details?.code || '').toUpperCase();
-    if (code === '22023') return json({ ready: true, version: '2026-09-03.5' });
+    if (code === '22023') return json({ ready: true, version: SCORE_API_VERSION, mode: 'rpc' });
     const reason = code === 'PGRST202' || response.status === 404
       ? 'function_missing'
       : code === '42501' || response.status === 401 || response.status === 403
         ? 'function_permission'
         : 'function_unexpected';
-    return json({ ready: false, version: '2026-09-03.5', reason }, 503);
+    return json({ ready: false, version: SCORE_API_VERSION, reason }, 503);
   } catch (error) {
     console.error(JSON.stringify({ event: 'activity_score_health_failed', message: error instanceof Error ? error.message : 'unknown' }));
-    return json({ ready: false, version: '2026-09-03.5', reason: 'server_configuration' }, 503);
+    return json({ ready: false, version: SCORE_API_VERSION, reason: 'server_configuration' }, 503);
   }
 }
 
 export function onRequestOptions() {
   return new Response(null, {
     status: 204,
-    headers: { 'x-plv-score-api-version': '2026-09-03.5' },
+    headers: { 'x-plv-score-api-version': SCORE_API_VERSION },
   });
 }
