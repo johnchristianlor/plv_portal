@@ -56,6 +56,43 @@
         .search-input { width: 100%; padding: 12px 16px 12px 48px; border-radius: 12px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-main); font-size: 14px; font-weight: 500; outline: none; }
         .search-input:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-light); }
 
+        .manage-workspace { display: flex; flex-direction: column; gap: 18px; }
+        .manage-workspace-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+        .manage-workspace-header h2 { display: flex; align-items: center; gap: 9px; font-size: 20px; font-weight: 800; }
+        .manage-workspace-header h2 i { color: var(--accent-primary); }
+        .manage-workspace-header p { margin-top: 5px; color: var(--text-muted); font-size: 13px; font-weight: 600; line-height: 1.5; }
+        .manage-header-actions { display: flex; align-items: center; gap: 10px; }
+        .manage-result-badge { flex-shrink: 0; padding: 8px 12px; border: 1px solid var(--input-border); border-radius: 999px; background: var(--input-bg); color: var(--text-muted); font-size: 12px; font-weight: 800; white-space: nowrap; }
+        .manage-filter-panel { padding: 16px; border: 1px solid var(--input-border); border-radius: 18px; background: linear-gradient(135deg, var(--accent-light), transparent 72%); }
+        .manage-filter-grid { display: grid; grid-template-columns: minmax(240px,1.45fr) repeat(3,minmax(145px,.72fr)) minmax(175px,.85fr); gap: 11px; align-items: end; }
+        .manage-filter-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+        .manage-filter-field label { color: var(--text-muted); font-size: 10px; font-weight: 800; letter-spacing: .7px; text-transform: uppercase; }
+        .manage-filter-search { position: relative; }
+        .manage-filter-search i { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 18px; pointer-events: none; }
+        .manage-filter-search .form-control { width: 100%; padding-left: 40px; }
+        .manage-filter-panel .form-control { min-height: 44px; padding: 10px 12px; font-size: 13px; }
+        .manage-filter-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--input-border); }
+        .manage-filter-summary { color: var(--text-muted); font-size: 12px; font-weight: 700; }
+        .manage-reset-btn { min-height: 36px; padding: 7px 11px; border: 0; border-radius: 10px; background: transparent; color: var(--accent-primary); font-size: 12px; font-weight: 800; cursor: pointer; }
+        .manage-reset-btn:hover { background: var(--accent-light); }
+        .manage-reset-btn:disabled { opacity: .45; cursor: default; background: transparent; }
+        .manage-table-container { max-height: 64vh; margin-top: 0; padding: 0 8px 8px; border: 1px solid var(--input-border); background: rgba(255,255,255,.16); }
+        .manage-table { min-width: 920px; }
+        .manage-table thead th { position: sticky; top: 0; z-index: 3; padding-top: 13px; background: var(--bg-body); box-shadow: 0 1px 0 var(--input-border); }
+        .manage-title-cell strong { display: block; max-width: 260px; overflow: hidden; color: var(--text-main); text-overflow: ellipsis; white-space: nowrap; }
+        .manage-title-cell span { display: block; margin-top: 3px; color: var(--text-muted); font-size: 10px; font-weight: 700; }
+        .manage-category-tag, .manage-term-tag { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; white-space: nowrap; }
+        .manage-category-tag { color: var(--accent-primary); background: var(--accent-light); }
+        .manage-category-tag.perf { color: #7c3aed; background: rgba(124,58,237,.1); }
+        .manage-category-tag.exam { color: #b45309; background: rgba(245,158,11,.13); }
+        .manage-category-tag.other { color: var(--text-muted); background: rgba(100,116,139,.12); }
+        .manage-term-tag { color: #475569; background: rgba(100,116,139,.12); }
+        .dark-theme .manage-term-tag { color: #cbd5e1; }
+        .manage-empty-state { padding: 38px 20px !important; text-align: center; color: var(--text-muted); background: transparent !important; border: 0 !important; }
+        .manage-empty-state i { display: block; margin-bottom: 8px; color: var(--accent-primary); font-size: 30px; }
+        .manage-empty-state strong { display: block; color: var(--text-main); font-size: 14px; }
+        .manage-empty-state span { display: block; margin-top: 5px; font-size: 12px; }
+
         .table-container { width: 100%; overflow-x: auto; margin-top: 10px; border-radius: 16px;}
         .modern-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; text-align: left; }
         .modern-table th { padding: 0 16px 8px; font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--glass-border); }
@@ -224,12 +261,20 @@
         .spin-ring { width: 18px; height: 18px; border: 2px solid var(--accent-light); border-top-color: var(--accent-primary); border-radius: 50%; animation: spin 0.6s linear infinite; flex-shrink: 0; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
+        @media (max-width: 1180px) { .manage-filter-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .manage-filter-field:first-child { grid-column: 1 / -1; } }
         @media (max-width: 1024px) { body { flex-direction: column; } .sidebar { width: 100%; height: auto; flex-direction: row; padding: 20px; justify-content: space-between; align-items: center; z-index: 100; border-right: none; border-bottom: 1px solid var(--glass-border); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable;} .nav-menu { display: none; } .form-grid { grid-template-columns: 1fr; } .form-group.full, .form-section-title { grid-column: span 1; } .search-wrapper { width: 100%; order: 2; } .table-controls-wrapper { flex-direction: column; align-items: flex-start; } .btn-bulk-delete { width: 100%; order: 1; justify-content: center; } .act-def-row { grid-template-columns: 1fr 1fr; } .template-builder { padding-left: 0; } .saved-activity-tools { grid-template-columns: minmax(200px,1fr) 160px 150px auto; } }
         @media (max-width: 700px) {
             .card { padding: 16px; border-radius: 20px; overflow: visible; }
             .tab-controls { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); width: 100%; overflow: visible; gap: 3px; margin-bottom: 18px; }
             .tab-btn { min-width: 0; min-height: 44px; padding: 8px 6px; font-size: 10.5px; line-height: 1.2; white-space: normal; }
             .saved-activities-panel { padding: 17px 14px; margin-inline: -2px; }
+            .manage-workspace-header { flex-direction: column; }
+            .manage-header-actions { width: 100%; justify-content: space-between; }
+            .manage-header-actions .btn-bulk-delete { width: auto; order: initial; }
+            .manage-filter-grid { grid-template-columns: 1fr; }
+            .manage-filter-field:first-child { grid-column: auto; }
+            .manage-filter-footer { align-items: flex-start; }
+            .manage-table-container { max-height: 58vh; margin-inline: -2px; }
             .workspace-heading { align-items: center; }
             .workspace-heading h2 { font-size: 16px; }
             .workspace-heading p { font-size: 12px; }
@@ -543,33 +588,65 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
             <!-- MANAGE / DELETE SUBMENU -->
             <div id="act-manage" class="tab-content">
-                <div class="table-controls-wrapper">
-                    <div class="search-wrapper">
-                        <i class="ph-bold ph-magnifying-glass"></i>
-                        <input type="text" class="search-input" id="actSearch" placeholder="Search by title, subject..." onkeyup="window.handleSearch()">
+                <section class="manage-workspace" aria-labelledby="manageActivitiesTitle">
+                    <div class="manage-workspace-header">
+                        <div>
+                            <h2 id="manageActivitiesTitle"><i class="ph-fill ph-folders"></i> Activity Library</h2>
+                            <p>Find, review, edit, or safely remove activities across every class.</p>
+                        </div>
+                        <div class="manage-header-actions">
+                            <span class="manage-result-badge" id="manageResultCount">0 activities</span>
+                            <button type="button" class="btn btn-bulk-delete" id="bulkDeleteBtn" onclick="window.confirmBulkDelete()">
+                                <i class="ph-bold ph-trash"></i> Delete selected (<span id="selectCount">0</span>)
+                            </button>
+                        </div>
                     </div>
-                    <button class="btn btn-bulk-delete" id="bulkDeleteBtn" onclick="window.confirmBulkDelete()">
-                        <i class="ph-bold ph-trash"></i> Delete Selected (<span id="selectCount">0</span>)
-                    </button>
-                </div>
 
-                <div class="table-container">
-                    <table class="modern-table">
+                    <div class="manage-filter-panel" aria-label="Activity filters">
+                        <div class="manage-filter-grid">
+                            <div class="manage-filter-field">
+                                <label for="actSearch">Search activities</label>
+                                <div class="manage-filter-search"><i class="ph-bold ph-magnifying-glass"></i><input type="search" class="form-control" id="actSearch" placeholder="Title, subject, section, or type" oninput="window.applyManageFilters()"></div>
+                            </div>
+                            <div class="manage-filter-field">
+                                <label for="manageTermFilter">Grading period</label>
+                                <select id="manageTermFilter" class="form-control" onchange="window.applyManageFilters()"><option value="all">All periods</option><option value="midterm">Midterm</option><option value="final">Final Term</option></select>
+                            </div>
+                            <div class="manage-filter-field">
+                                <label for="manageCategoryFilter">Activity type</label>
+                                <select id="manageCategoryFilter" class="form-control" onchange="window.applyManageFilters()"><option value="all">All activity types</option><option value="written">Written Output</option><option value="perf">Performance Based</option><option value="exam">Major Exam</option></select>
+                            </div>
+                            <div class="manage-filter-field">
+                                <label for="manageSectionFilter">Class section</label>
+                                <select id="manageSectionFilter" class="form-control" onchange="window.applyManageFilters()"><option value="all">All sections</option></select>
+                            </div>
+                            <div class="manage-filter-field">
+                                <label for="manageSort">Sort activities</label>
+                                <select id="manageSort" class="form-control" onchange="window.applyManageFilters()"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="title">Title A–Z</option><option value="subject">Subject A–Z</option><option value="points">Highest points</option></select>
+                            </div>
+                        </div>
+                        <div class="manage-filter-footer"><span class="manage-filter-summary" id="manageFilterSummary">Showing all activities</span><button type="button" class="manage-reset-btn" id="manageResetBtn" onclick="window.resetManageFilters()"><i class="ph-bold ph-arrow-counter-clockwise"></i> Reset filters</button></div>
+                    </div>
+
+                    <div class="table-container manage-table-container">
+                    <table class="modern-table manage-table">
                         <thead>
                             <tr>
-                                <th class="check-col"><input type="checkbox" class="custom-checkbox" id="selectAll" onclick="window.toggleSelectAll()"></th>
+                                <th class="check-col"><input type="checkbox" class="custom-checkbox" id="selectAll" onclick="window.toggleSelectAll()" aria-label="Select all visible activities"></th>
                                 <th>Date</th>
                                 <th>Section</th>
                                 <th>Subject</th>
                                 <th>Title</th>
+                                <th>Period</th>
                                 <th>Category</th>
                                 <th>Total Pts</th>
                                 <th style="text-align:center;">Action</th>
                             </tr>
                         </thead>
-                        <tbody id="manageBody"><tr><td colspan="8">Loading activities...</td></tr></tbody>
+                        <tbody id="manageBody"><tr><td colspan="9">Loading activities...</td></tr></tbody>
                     </table>
-                </div>
+                    </div>
+                </section>
             </div>
         </div>
     </main>
@@ -593,7 +670,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
     <!-- SUPABASE LOGIC -->
     <script type="module">
         import { supabase } from "./supabase-adapter.js";
-        import { filterSavedActivityRecords, getActivityProgress, getActivityScoreSaveErrorKind, parseActivityScore, planActivityScoreChanges } from "./admin-activities-manual.v2.js";
+        import { filterAndSortManagedActivities, filterSavedActivityRecords, getActivityProgress, getActivityScoreSaveErrorKind, parseActivityScore, planActivityScoreChanges } from "./admin-activities-manual.v2.js";
         import { getAbsentStudentNumbers, nextDateKey, normalizeDateKey } from "./attendance-utils.mjs";
 
 
@@ -881,53 +958,46 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             }));
         }
 
-        async function runScoreMutation(write) {
-            let result = await write();
-            if (!result.error || getActivityScoreSaveErrorKind(result.error) !== 'auth') return result;
-
-            const { data: sessionData } = await supabase.auth.getSession();
-            if (!sessionData?.session) return result;
-            const { error: refreshError } = await supabase.auth.refreshSession();
-            if (refreshError) return result;
-            return write();
+        async function getAdminAccessToken(refresh = false) {
+            const authResult = refresh ? await supabase.auth.refreshSession() : await supabase.auth.getSession();
+            const token = authResult.data?.session?.access_token;
+            if (authResult.error || !token) {
+                const error = new Error('Your secure admin session expired. Sign in again to save scores.');
+                error.code = 'auth';
+                throw error;
+            }
+            return token;
         }
 
-        async function findSavedScore(activityId, studentNo) {
-            const { data, error } = await supabase.from('scores')
-                .select('id,activityId,studentNo,score')
-                .eq('activityId', activityId)
-                .eq('studentNo', studentNo)
-                .limit(1)
-                .maybeSingle();
-            if (error) throw error;
-            return data || null;
+        async function requestScoreMutation(payload, retry = true) {
+            const token = await getAdminAccessToken(!retry);
+            const response = await fetch('/api/admin/activity-score', {
+                method: 'POST',
+                headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json().catch(() => ({}));
+            if (response.status === 401 && retry) return requestScoreMutation(payload, false);
+            if (!response.ok) {
+                const error = new Error(result.error || 'The score could not be stored.');
+                error.code = result.code || String(response.status);
+                throw error;
+            }
+            return result;
         }
 
         async function insertScoreRow(row) {
-            const payload = { id: crypto.randomUUID(), ...row };
-            const result = await runScoreMutation(() => supabase.from('scores').insert(payload));
-            if (!result.error) return payload;
-
-            if (getActivityScoreSaveErrorKind(result.error) === 'duplicate') {
-                const existing = await findSavedScore(row.activityId, row.studentNo);
-                if (existing) {
-                    const updateResult = await runScoreMutation(() => supabase.from('scores').update({ score: row.score }).eq('id', existing.id));
-                    if (updateResult.error) throw updateResult.error;
-                    return { ...existing, score: row.score };
-                }
-            }
-            throw result.error;
+            const result = await requestScoreMutation({ action: 'save', ...row });
+            return result.score;
         }
 
-        async function updateScoreRow(item) {
-            const result = await runScoreMutation(() => supabase.from('scores').update({ score: item.score }).eq('id', item.id));
-            if (result.error) throw result.error;
-            return item;
+        async function updateScoreRow(item, activityId) {
+            const result = await requestScoreMutation({ action: 'save', activityId, studentNo: item.studentNo, score: item.score });
+            return result.score;
         }
 
-        async function deleteScoreRow(item) {
-            const result = await runScoreMutation(() => supabase.from('scores').delete().eq('id', item.id));
-            if (result.error) throw result.error;
+        async function deleteScoreRow(item, activityId) {
+            await requestScoreMutation({ action: 'delete', activityId, studentNo: item.studentNo });
             return item;
         }
 
@@ -941,12 +1011,12 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                 ...changes.updates.map(item => ({
                     item,
                     type: 'update',
-                    run: () => updateScoreRow(item)
+                    run: () => updateScoreRow(item, activityId)
                 })),
                 ...changes.deletes.map(item => ({
                     item,
                     type: 'delete',
-                    run: () => deleteScoreRow(item)
+                    run: () => deleteScoreRow(item, activityId)
                 }))
             ];
             const results = await Promise.allSettled(operations.map(operation => operation.run()));
@@ -1670,7 +1740,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                                         if(scoreRaw === '' || scoreRaw === undefined || scoreRaw === null) continue;
                                         const score = Number(scoreRaw);
                                         if(!Number.isFinite(score) || score < 0 || score > act.perfect) continue;
-                                        await insertRow("scores", { activityId: actRef.id, studentNo: sNo, score });
+                                        await insertScoreRow({ activityId: actRef.id, studentNo: sNo, score });
                                         savedScores++;
                                     }
                                     logLines.push(`✅ "${act.title}" (${subjectCode}) — saved with ${savedScores} student scores${absentSkipped ? `; ${absentSkipped} absent skipped` : ''}.`);
@@ -1722,62 +1792,118 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
         // 4. Manage/Delete Logic
         let allActivitiesData = [];
+        let managedActivitiesView = [];
+        let selectedActivityIds = new Set();
+
+        function categoryLabel(category) {
+            return ({ written: 'Written Output', perf: 'Performance Based', exam: 'Major Exam' })[String(category || '').toLowerCase()] || category || 'Activity';
+        }
+
+        function termLabel(term) {
+            return String(term || '').toLowerCase() === 'final' ? 'Final Term' : 'Midterm';
+        }
+
+        function manageDateLabel(dateValue) {
+            const dateKey = String(dateValue || '').slice(0, 10);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return 'No date';
+            return new Date(`${dateKey}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        function populateManageSectionFilter(records) {
+            const select = document.getElementById('manageSectionFilter');
+            const current = select.value;
+            const sections = [...new Set(records.map(item => String(item.section || '').trim()).filter(Boolean))]
+                .sort((left, right) => left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' }));
+            select.innerHTML = '<option value="all">All sections</option>' + sections.map(section => `<option value="${escapeHtml(section)}">${escapeHtml(section)}</option>`).join('');
+            select.value = sections.includes(current) ? current : 'all';
+        }
+
+        function getManageFilters() {
+            return {
+                query: document.getElementById('actSearch').value,
+                term: document.getElementById('manageTermFilter').value,
+                category: document.getElementById('manageCategoryFilter').value,
+                section: document.getElementById('manageSectionFilter').value,
+                sort: document.getElementById('manageSort').value
+            };
+        }
+
+        window.applyManageFilters = function() {
+            const filters = getManageFilters();
+            managedActivitiesView = filterAndSortManagedActivities(allActivitiesData, filters);
+            const activeFilters = [filters.query.trim(), filters.term !== 'all', filters.category !== 'all', filters.section !== 'all'].filter(Boolean).length;
+            const resultLabel = `${managedActivitiesView.length} of ${allActivitiesData.length} activit${allActivitiesData.length === 1 ? 'y' : 'ies'}`;
+            document.getElementById('manageResultCount').textContent = resultLabel;
+            document.getElementById('manageFilterSummary').textContent = activeFilters
+                ? `${resultLabel} · ${activeFilters} filter${activeFilters === 1 ? '' : 's'} active`
+                : `Showing all ${allActivitiesData.length} activit${allActivitiesData.length === 1 ? 'y' : 'ies'}`;
+            document.getElementById('manageResetBtn').disabled = activeFilters === 0 && filters.sort === 'newest';
+            window.renderTable(managedActivitiesView);
+        };
+
+        window.resetManageFilters = function() {
+            document.getElementById('actSearch').value = '';
+            document.getElementById('manageTermFilter').value = 'all';
+            document.getElementById('manageCategoryFilter').value = 'all';
+            document.getElementById('manageSectionFilter').value = 'all';
+            document.getElementById('manageSort').value = 'newest';
+            window.applyManageFilters();
+            document.getElementById('actSearch').focus();
+        };
 
         window.loadActivities = async function() {
             const tbody = document.getElementById('manageBody');
-            tbody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="manage-empty-state"><div class="spin-ring" style="margin:0 auto 10px;"></div><strong>Loading activities</strong><span>Preparing your activity library.</span></td></tr>';
             try {
-                const { data: activities, error } = await supabase.from("activities").select("id,subjectCode,section,term,category,title,date,perfectScore");
-                if (error) throw error;
-                if(!activities || !activities.length) { tbody.innerHTML = '<tr><td colspan="8">No activities found.</td></tr>'; allActivitiesData = []; return; }
-
-                let records = activities.map(d => ({ ...d, dateStr: d.date ? d.date.split('T')[0] : 'N/A' }));
-
-                records.sort((a,b) => b.date.localeCompare(a.date));
-                allActivitiesData = records;
-
-                window.renderTable(records);
-            } catch(e) { console.error(e); tbody.innerHTML = '<tr><td colspan="8">Error loading data.</td></tr>'; }
+                const activities = await selectAllRows('activities', 'id,subjectCode,section,term,category,title,date,perfectScore');
+                allActivitiesData = activities.map(activity => ({ ...activity, dateStr: activity.date ? String(activity.date).split('T')[0] : 'N/A' }));
+                const validIds = new Set(allActivitiesData.map(item => String(item.id)));
+                selectedActivityIds = new Set([...selectedActivityIds].filter(id => validIds.has(id)));
+                populateManageSectionFilter(allActivitiesData);
+                window.applyManageFilters();
+            } catch(e) {
+                console.error(e);
+                allActivitiesData = [];
+                managedActivitiesView = [];
+                tbody.innerHTML = '<tr><td colspan="9" class="manage-empty-state"><i class="ph-bold ph-warning-circle"></i><strong>Activities could not be loaded</strong><span>Please refresh and try again.</span></td></tr>';
+                document.getElementById('manageResultCount').textContent = 'Unavailable';
+            }
         }
 
         window.renderTable = function(data) {
             const tbody = document.getElementById('manageBody');
-            tbody.innerHTML = '';
-
             if(data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8">No matching activities found.</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="9" class="manage-empty-state"><i class="ph-bold ${allActivitiesData.length ? 'ph-funnel-x' : 'ph-books'}"></i><strong>${allActivitiesData.length ? 'No activities match these filters' : 'No activities yet'}</strong><span>${allActivitiesData.length ? 'Adjust or reset the filters to see more records.' : 'Create an activity from Manual Entry to begin.'}</span></td></tr>`;
+                window.updateBulkBtn();
                 return;
             }
 
-            data.forEach(d => {
-                tbody.innerHTML += `
+            tbody.innerHTML = data.map(d => {
+                const id = String(d.id);
+                const category = String(d.category || '').toLowerCase();
+                return `
                     <tr>
-                        <td class="check-col"><input type="checkbox" class="custom-checkbox row-checkbox" data-id="${d.id}" onclick="window.updateBulkBtn()"></td>
-                        <td>${d.dateStr}</td>
-                        <td>${d.section || '-'}</td>
-                        <td>${d.subjectCode}</td>
-                        <td>${d.title}</td>
-                        <td>${d.category.toUpperCase()}</td>
-                        <td>${d.perfectScore}</td>
+                        <td class="check-col"><input type="checkbox" class="custom-checkbox row-checkbox" data-id="${escapeHtml(id)}" ${selectedActivityIds.has(id) ? 'checked' : ''} onchange="window.toggleManageSelection('${escapeHtml(id)}', this.checked)" aria-label="Select ${escapeHtml(d.title)}"></td>
+                        <td>${escapeHtml(manageDateLabel(d.dateStr))}</td>
+                        <td>${escapeHtml(d.section || '—')}</td>
+                        <td><strong>${escapeHtml(d.subjectCode)}</strong></td>
+                        <td class="manage-title-cell"><strong title="${escapeHtml(d.title)}">${escapeHtml(d.title)}</strong><span>${escapeHtml(d.perfectScore)} total points</span></td>
+                        <td><span class="manage-term-tag"><i class="ph-bold ph-flag"></i>${termLabel(d.term)}</span></td>
+                        <td><span class="manage-category-tag ${['written','perf','exam'].includes(category) ? category : 'other'}">${escapeHtml(categoryLabel(d.category))}</span></td>
+                        <td><strong>${escapeHtml(d.perfectScore)}</strong></td>
                         <td style="text-align:center;">
                             <div class="table-actions">
-                                <button class="btn-icon-edit" onclick="window.openActivityForScoring('${d.id}')" title="Edit setup and scores"><i class="ph-bold ph-pencil-simple"></i> Scores</button>
-                                <button class="btn-icon-danger" onclick="window.openDeleteModal('${d.id}')" title="Delete activity"><i class="ph-bold ph-trash"></i></button>
+                                <button class="btn-icon-edit" onclick="window.openActivityForScoring('${escapeHtml(id)}')" title="Edit setup and scores"><i class="ph-bold ph-pencil-simple"></i> Scores</button>
+                                <button class="btn-icon-danger" onclick="window.openDeleteModal('${escapeHtml(id)}')" title="Delete activity" aria-label="Delete ${escapeHtml(d.title)}"><i class="ph-bold ph-trash"></i></button>
                             </div>
                         </td>
                     </tr>`;
-            });
+            }).join('');
             window.updateBulkBtn();
         }
 
         window.handleSearch = function() {
-            const query = document.getElementById('actSearch').value.toLowerCase();
-            const filtered = allActivitiesData.filter(item =>
-                item.title.toLowerCase().includes(query) ||
-                item.subjectCode.toLowerCase().includes(query) ||
-                (item.section && item.section.toLowerCase().includes(query))
-            );
-            window.renderTable(filtered);
+            window.applyManageFilters();
         }
 
         window.openActivityForScoring = async function(id) {
@@ -1811,8 +1937,18 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
         window.toggleSelectAll = function() {
             const masterCheck = document.getElementById('selectAll');
-            const checkboxes = document.querySelectorAll('.row-checkbox');
-            checkboxes.forEach(cb => cb.checked = masterCheck.checked);
+            managedActivitiesView.forEach(activity => {
+                const id = String(activity.id);
+                if (masterCheck.checked) selectedActivityIds.add(id);
+                else selectedActivityIds.delete(id);
+            });
+            document.querySelectorAll('.row-checkbox').forEach(cb => { cb.checked = masterCheck.checked; });
+            window.updateBulkBtn();
+        }
+
+        window.toggleManageSelection = function(id, selected) {
+            if (selected) selectedActivityIds.add(String(id));
+            else selectedActivityIds.delete(String(id));
             window.updateBulkBtn();
         }
 
@@ -1822,12 +1958,12 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             const btn = document.getElementById('bulkDeleteBtn');
             const masterCheck = document.getElementById('selectAll');
 
-            if(checked.length === checkboxes.length && checkboxes.length > 0) masterCheck.checked = true;
-            else masterCheck.checked = false;
+            masterCheck.checked = checked.length === checkboxes.length && checkboxes.length > 0;
+            masterCheck.indeterminate = checked.length > 0 && checked.length < checkboxes.length;
 
-            if(checked.length > 0) {
+            if(selectedActivityIds.size > 0) {
                 btn.classList.add('visible');
-                document.getElementById('selectCount').innerText = checked.length;
+                document.getElementById('selectCount').innerText = selectedActivityIds.size;
             } else {
                 btn.classList.remove('visible');
             }
@@ -1856,25 +1992,22 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         }
 
         window.confirmBulkDelete = function() {
-            const selected = document.querySelectorAll('.row-checkbox:checked');
-            if(selected.length === 0) return;
+            const selectedIds = [...selectedActivityIds];
+            if(selectedIds.length === 0) return;
 
             document.getElementById('modalTitle').innerText = 'Delete Multiple Activities?';
-            document.getElementById('modalDesc').innerHTML = `You are about to delete <b>${selected.length} activities</b> and their associated scores.<br>This cannot be undone.`;
+            document.getElementById('modalDesc').innerHTML = `You are about to delete <b>${selectedIds.length} activities</b> and their associated scores.<br>This cannot be undone.`;
 
             pendingAction = async () => {
                 const btn = document.getElementById('modalConfirmBtn');
                 const originalText = btn.innerText; btn.innerText = "Processing..."; btn.disabled = true;
                 try {
-                    const promises = [];
-                    selected.forEach(box => {
-                        promises.push(deleteActivityAndScores(box.getAttribute('data-id')));
-                    });
-                    await Promise.all(promises);
-                    window.showToast(`Deleted ${selected.length} activities successfully!`);
+                    await Promise.all(selectedIds.map(id => deleteActivityAndScores(id)));
+                    window.showToast(`Deleted ${selectedIds.length} activities successfully!`);
+                    if (selectedIds.some(id => String(id) === String(activeActivityId))) window.startNewActivity();
+                    selectedActivityIds.clear();
                     window.loadActivities();
                     window.loadSavedActivities();
-                    if ([...selected].some(box => String(box.getAttribute('data-id')) === String(activeActivityId))) window.startNewActivity();
                     window.closeModal();
                     document.getElementById('selectAll').checked = false;
                 } catch(e) { console.error(e); window.showToast("Bulk delete failed partially or fully.", "error"); }

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
+    filterAndSortManagedActivities,
     filterSavedActivityRecords,
     getActivityProgress,
     getActivityScoreSaveErrorKind,
@@ -61,6 +62,15 @@ const savedActivities = [
 assert.deepEqual(filterSavedActivityRecords(savedActivities, { query: 'block a', status: 'all', term: 'all' }), [savedActivities[0]]);
 assert.deepEqual(filterSavedActivityRecords(savedActivities, { query: '', status: 'complete', term: 'final' }), [savedActivities[1]]);
 
+const managedActivities = [
+    { id: '1', title: 'Quiz 2', subjectCode: 'IT312', section: 'BLOCK A', term: 'midterm', category: 'written', date: '2026-08-10', perfectScore: 20 },
+    { id: '2', title: 'System Demo', subjectCode: 'IT313', section: 'BLOCK B', term: 'final', category: 'perf', date: '2026-09-01', perfectScore: 100 },
+    { id: '3', title: 'Quiz 1', subjectCode: 'IT312', section: 'BLOCK A', term: 'midterm', category: 'written', date: '2026-08-01', perfectScore: 30 }
+];
+assert.deepEqual(filterAndSortManagedActivities(managedActivities, { section: 'BLOCK A', category: 'written', sort: 'title' }).map(item => item.id), ['3', '1']);
+assert.deepEqual(filterAndSortManagedActivities(managedActivities, { term: 'final', sort: 'newest' }).map(item => item.id), ['2']);
+assert.deepEqual(filterAndSortManagedActivities(managedActivities, { query: 'demo', sort: 'points' }).map(item => item.id), ['2']);
+
 const page = fs.readFileSync(new URL('../public/admin-activities.html', import.meta.url), 'utf8');
 assert.match(page, /Save & Initialize Activity/, 'manual setup must save before score entry');
 assert.match(page, /window\.openActivityForScoring/, 'saved activities must be resumable');
@@ -75,11 +85,14 @@ assert.match(page, /absentForActivity\.has\(sNo\)/, 'spreadsheet uploads must sk
 assert.match(page, /id="scoreAutosaveState"/, 'score entry must show an accessible autosave status');
 assert.match(page, /function scheduleScoreAutosave/, 'score entry must debounce automatic saves');
 assert.match(page, /Promise\.allSettled/, 'one failed score must not discard successful score saves');
-assert.match(page, /const payload = \{ id: crypto\.randomUUID\(\), \.\.\.row \}/, 'new scores must carry their own stable UUID');
-assert.match(page, /from\('scores'\)\.insert\(payload\)/, 'score inserts must not depend on a post-insert select response');
-assert.match(page, /supabase\.auth\.refreshSession\(\)/, 'an expired authenticated session must receive one safe retry');
-assert.match(page, /findSavedScore\(row\.activityId, row\.studentNo\)/, 'a duplicate retry must reconcile with the existing score');
+assert.match(page, /fetch\('\/api\/admin\/activity-score'/, 'score writes must use the authenticated server endpoint');
+assert.match(page, /supabase\.auth\.refreshSession\(\)/, 'an expired authenticated score request must receive one safe retry');
 assert.doesNotMatch(page, /insertRow\('scores'/, 'score inserts must use the resilient score-specific write path');
+assert.match(page, /id="manageTermFilter"/, 'activity management must filter by grading period');
+assert.match(page, /id="manageCategoryFilter"/, 'activity management must filter by activity type');
+assert.match(page, /id="manageSectionFilter"/, 'activity management must filter by section');
+assert.match(page, /id="manageSort"/, 'activity management must offer useful sorting');
+assert.match(page, /selectedActivityIds/, 'filtered activity selection must remain predictable');
 assert.match(page, /activity-type-badge/, 'saved activity cards must display the activity type');
 assert.match(page, /written: 'Written Output'[\s\S]+perf: 'Performance Based'[\s\S]+exam: 'Major Exam'/, 'activity type labels must be clear and consistent');
 assert.match(page, /@media \(max-width: 700px\)[\s\S]+score-table tr\.student-score-row/, 'score rows must become mobile-friendly cards');

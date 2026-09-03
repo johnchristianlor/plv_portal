@@ -15,13 +15,13 @@ export function getActivityScoreSaveErrorKind(error) {
     const code = String(error?.code || error?.status || '').toUpperCase();
     const message = String(error?.message || '').toLowerCase();
 
-    if (message.includes('marked absent') || message.includes('absent on the activity date')) return 'absent';
-    if (code === '23514' || message.includes('check constraint')) return 'validation';
+    if (code === 'ABSENT' || message.includes('marked absent') || message.includes('absent on the activity date')) return 'absent';
+    if (code === 'VALIDATION' || code === '23514' || message.includes('check constraint')) return 'validation';
     if (code === '23505' || message.includes('duplicate') || message.includes('unique constraint')) return 'duplicate';
-    if (['401', '403', '42501', 'PGRST301'].includes(code) || message.includes('jwt') || message.includes('row-level security')) return 'auth';
-    if (code === '23503' || message.includes('foreign key')) return 'reference';
+    if (['AUTH', '401', '403', '42501', 'PGRST301'].includes(code) || message.includes('jwt') || message.includes('row-level security')) return 'auth';
+    if (code === 'REFERENCE' || code === '23503' || message.includes('foreign key')) return 'reference';
     if (code === '23502' || message.includes('null value')) return 'configuration';
-    if (message.includes('failed to fetch') || message.includes('network') || message.includes('offline')) return 'network';
+    if (code === 'NETWORK' || message.includes('failed to fetch') || message.includes('network') || message.includes('offline')) return 'network';
     return 'unknown';
 }
 
@@ -93,4 +93,33 @@ export function filterSavedActivityRecords(records, filters = {}) {
             && (status === 'all' || record.progressStatus === status)
             && (term === 'all' || record.term === term);
     });
+}
+
+export function filterAndSortManagedActivities(records, filters = {}) {
+    const query = String(filters.query || '').trim().toLowerCase();
+    const term = String(filters.term || 'all').toLowerCase();
+    const category = String(filters.category || 'all').toLowerCase();
+    const section = String(filters.section || 'all');
+    const sort = String(filters.sort || 'newest');
+
+    const filtered = (records || []).filter(record => {
+        const searchText = [record.title, record.subjectCode, record.section, record.category, record.term]
+            .map(value => String(value || '').toLowerCase())
+            .join(' ');
+        return (!query || searchText.includes(query))
+            && (term === 'all' || String(record.term || '').toLowerCase() === term)
+            && (category === 'all' || String(record.category || '').toLowerCase() === category)
+            && (section === 'all' || String(record.section || '') === section);
+    });
+
+    const compareText = (left, right) => String(left || '').localeCompare(String(right || ''), undefined, { numeric: true, sensitivity: 'base' });
+    const compareDate = (left, right) => String(left.date || '').localeCompare(String(right.date || ''));
+    const sorters = {
+        oldest: (left, right) => compareDate(left, right) || compareText(left.title, right.title),
+        title: (left, right) => compareText(left.title, right.title) || compareDate(right, left),
+        subject: (left, right) => compareText(left.subjectCode, right.subjectCode) || compareText(left.title, right.title),
+        points: (left, right) => Number(right.perfectScore || 0) - Number(left.perfectScore || 0) || compareText(left.title, right.title),
+        newest: (left, right) => compareDate(right, left) || compareText(left.title, right.title)
+    };
+    return filtered.sort(sorters[sort] || sorters.newest);
 }
