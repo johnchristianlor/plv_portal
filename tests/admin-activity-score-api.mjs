@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { onRequestPost } from '../functions/api/admin/activity-score.js';
+import { onRequestOptions, onRequestPost } from '../functions/api/admin/activity-score.js';
 
 const AUTH_ID = '11111111-1111-4111-8111-111111111111';
 const ADMIN_ID = '22222222-2222-4222-8222-222222222222';
@@ -29,6 +29,12 @@ const env = {
   SUPABASE_PUBLISHABLE_KEY: 'publishable-key',
   SUPABASE_SERVICE_ROLE_KEY: 'service-key',
 };
+
+test('activity score API exposes a safe deployment version on preflight', () => {
+  const response = onRequestOptions();
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get('x-plv-score-api-version'), '2026-09-03.2');
+});
 
 function installSuccessfulFetch({ absent = false, existingScore = false, generatedIdRequired = false } = {}) {
   const writes = [];

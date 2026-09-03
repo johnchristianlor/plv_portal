@@ -262,5 +262,8 @@ export async function onRequestPost({ request, env }) {
 }
 
 export function onRequestOptions() {
-  return new Response(null, { status: 204 });
+  return new Response(null, {
+    status: 204,
+    headers: { 'x-plv-score-api-version': '2026-09-03.2' },
+  });
 }
