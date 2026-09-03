@@ -203,3 +203,6 @@ to service_role;
 notify pgrst, 'reload schema';
 
 commit;
+
+select to_regprocedure('public.plv_write_activity_score(text,uuid,text,numeric)') is not null
+  as activity_score_write_ready;
