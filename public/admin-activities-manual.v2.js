@@ -16,6 +16,7 @@ export function getActivityScoreSaveErrorKind(error) {
     const message = String(error?.message || '').toLowerCase();
 
     if (code === 'ABSENT' || message.includes('marked absent') || message.includes('absent on the activity date')) return 'absent';
+    if (code === 'PRECISION' || message.includes('decimal scores require')) return 'precision';
     if (code === 'VALIDATION' || code === '23514' || message.includes('check constraint')) return 'validation';
     if (code === '23505' || message.includes('duplicate') || message.includes('unique constraint')) return 'duplicate';
     if (['AUTH', '401', '403', '42501', 'PGRST301'].includes(code) || message.includes('jwt') || message.includes('row-level security')) return 'auth';

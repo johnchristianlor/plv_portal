@@ -195,12 +195,15 @@ function databaseErrorFromDetails(details, status) {
   const absent = message.toLowerCase().includes('absent');
   const reference = code === '23503';
   const validation = code === '23514';
-  const configuration = ['22P02', '23502', '42703', '42804', 'PGRST204'].includes(code)
+  const precision = ['22P02', '42804'].includes(code)
+    && /score|bigint|integer|numeric/i.test(message);
+  const configuration = ['22P02', '23502', '42703', '42804', '42883', 'PGRST204'].includes(code)
     || status === 401
     || status === 403;
   const safeCode = absent ? 'absent'
     : reference ? 'reference'
       : validation ? 'validation'
+        : precision ? 'precision'
         : configuration ? 'configuration'
           : 'storage';
   console.error(JSON.stringify({ event: 'activity_score_write_failed', status, code: code || 'unknown' }));
@@ -209,13 +212,15 @@ function databaseErrorFromDetails(details, status) {
       ? 'This student is marked absent for the activity date.'
       : reference
         ? 'The activity or enrollment no longer exists.'
-        : validation
+      : validation
           ? 'The database rejected this score value.'
+          : precision
+            ? 'Decimal scores require the latest score storage migration.'
           : configuration
             ? 'The score service needs its database connection updated.'
             : 'The score storage service rejected the change.',
     code: safeCode,
-  }, absent || reference ? 409 : validation ? 422 : 503);
+  }, absent || reference ? 409 : validation || precision ? 422 : 503);
 }
 
 export async function onRequestPost({ request, env }) {
@@ -264,6 +269,6 @@ export async function onRequestPost({ request, env }) {
 export function onRequestOptions() {
   return new Response(null, {
     status: 204,
-    headers: { 'x-plv-score-api-version': '2026-09-03.2' },
+    headers: { 'x-plv-score-api-version': '2026-09-03.3' },
   });
 }

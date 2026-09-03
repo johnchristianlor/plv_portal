@@ -1048,6 +1048,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             if (kind === 'duplicate') {
                 return `A score changed in another session. Reopen the activity before retrying ${studentNumbers.join(', ')}.`;
             }
+            if (kind === 'precision') return 'The database still stores scores as whole numbers. Run the 20260903 score-storage migration once to enable decimal scores.';
             if (kind === 'validation') return `The server rejected the score for ${studentNumbers.join(', ')}. Confirm it is within the activity's allowed range.`;
             if (kind === 'auth') return 'Your secure admin session expired. Sign in again, then retry; the entered values remain on screen.';
             if (kind === 'reference') return `The activity or enrollment changed while you were grading ${studentNumbers.join(', ')}. Refresh the activity and retry.`;

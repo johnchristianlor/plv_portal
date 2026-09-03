@@ -16,6 +16,7 @@ assert.equal(parseActivityScore('51', 50).kind, 'invalid');
 assert.equal(parseActivityScore('-1', 50).kind, 'invalid');
 assert.equal(parseActivityScore('not-a-score', 50).kind, 'invalid');
 assert.equal(getActivityScoreSaveErrorKind({ code: '23514', message: 'Cannot record a score for a student marked absent.' }), 'absent');
+assert.equal(getActivityScoreSaveErrorKind({ code: 'precision', message: 'Decimal scores require migration.' }), 'precision');
 assert.equal(getActivityScoreSaveErrorKind({ code: '23514', message: 'check constraint failed' }), 'validation');
 assert.equal(getActivityScoreSaveErrorKind({ code: '23505', message: 'duplicate key' }), 'duplicate');
 assert.equal(getActivityScoreSaveErrorKind({ code: '42501', message: 'row-level security policy' }), 'auth');
@@ -110,6 +111,12 @@ assert.match(studentScoresPage, /Attendance marked absent · no score recorded/,
 const migration = fs.readFileSync(new URL('../supabase_migrations/20260902_absent_activity_scores.sql', import.meta.url), 'utf8');
 assert.match(migration, /scores_reject_absent_activity/, 'the database must reject a score for same-day absence');
 assert.match(migration, /attendance_remove_same_day_activity_scores/, 'marking attendance absent must remove an existing same-day score');
+
+const scoreRepairMigration = fs.readFileSync(new URL('../supabase_migrations/20260903_repair_activity_score_storage.sql', import.meta.url), 'utf8');
+assert.match(scoreRepairMigration, /alter column score type numeric/i, 'score storage must support precise decimal scores');
+assert.match(scoreRepairMigration, /alter column "createdAt" set default now\(\)/i, 'new scores must receive a creation timestamp');
+assert.match(scoreRepairMigration, /alter column id set default gen_random_uuid\(\)/i, 'new scores must receive a database-generated UUID');
+assert.doesNotMatch(scoreRepairMigration, /plv_is_absent_status\(attendance\.status\)/, 'the repaired insert trigger must not depend on a separately revoked helper');
 assert.match(migration, /activity\.section = new\.section[\s\S]+activity\."subjectCode" = new\."subjectCode"[\s\S]+activity\.date::date = new\.date::date/, 'cleanup must be scoped to the exact class and date');
 assert.doesNotMatch(migration, /disable row level security|alter table[^;]+disable/i, 'absence enforcement must not weaken RLS');
 

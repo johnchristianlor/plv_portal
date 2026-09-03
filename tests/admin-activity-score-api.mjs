@@ -33,10 +33,10 @@ const env = {
 test('activity score API exposes a safe deployment version on preflight', () => {
   const response = onRequestOptions();
   assert.equal(response.status, 204);
-  assert.equal(response.headers.get('x-plv-score-api-version'), '2026-09-03.2');
+  assert.equal(response.headers.get('x-plv-score-api-version'), '2026-09-03.3');
 });
 
-function installSuccessfulFetch({ absent = false, existingScore = false, generatedIdRequired = false } = {}) {
+function installSuccessfulFetch({ absent = false, existingScore = false, generatedIdRequired = false, writeError = null } = {}) {
   const writes = [];
   const serviceHeaders = [];
   const originalFetch = globalThis.fetch;
@@ -60,6 +60,7 @@ function installSuccessfulFetch({ absent = false, existingScore = false, generat
     if (url.pathname === '/rest/v1/scores' && ['POST', 'PATCH', 'DELETE'].includes(init.method)) {
       const body = init.body ? JSON.parse(init.body) : null;
       writes.push({ method: init.method, body });
+      if (init.method === 'POST' && writeError) return jsonResponse(writeError, 400);
       if (init.method === 'POST' && generatedIdRequired && !body.id) {
         return jsonResponse({ code: '23502', message: 'null value in column "id" violates not-null constraint' }, 400);
       }
@@ -135,6 +136,23 @@ test('activity score API falls back to an explicit UUID for older score tables w
     assert.equal(mock.writes.length, 2);
     assert.equal(Object.hasOwn(mock.writes[0].body, 'id'), false);
     assert.match(mock.writes[1].body.id, /^[0-9a-f-]{36}$/i);
+  } finally {
+    mock.restore();
+  }
+});
+
+test('activity score API identifies an integer-only score column instead of returning a generic failure', async () => {
+  const mock = installSuccessfulFetch({
+    writeError: { code: '22P02', message: 'invalid input syntax for type bigint in score' },
+  });
+  try {
+    const response = await onRequestPost({
+      request: request({ action: 'save', activityId: ACTIVITY_ID, studentNo: '25-2900', score: 9.5 }),
+      env,
+    });
+    const body = await response.json();
+    assert.equal(response.status, 422);
+    assert.equal(body.code, 'precision');
   } finally {
     mock.restore();
   }
