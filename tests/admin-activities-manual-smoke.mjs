@@ -117,6 +117,8 @@ assert.match(scoreRepairMigration, /alter column score type numeric/i, 'score st
 assert.match(scoreRepairMigration, /alter column "createdAt" set default now\(\)/i, 'new scores must receive a creation timestamp');
 assert.match(scoreRepairMigration, /alter column id set default gen_random_uuid\(\)/i, 'new scores must receive a database-generated UUID');
 assert.doesNotMatch(scoreRepairMigration, /plv_is_absent_status\(attendance\.status\)/, 'the repaired insert trigger must not depend on a separately revoked helper');
+assert.match(scoreRepairMigration, /create or replace function public\.plv_write_activity_score/i, 'score writes must have one atomic server-only database operation');
+assert.match(scoreRepairMigration, /grant execute on function public\.plv_write_activity_score[\s\S]+to service_role/i, 'only the server database role may execute the score writer');
 assert.match(migration, /activity\.section = new\.section[\s\S]+activity\."subjectCode" = new\."subjectCode"[\s\S]+activity\.date::date = new\.date::date/, 'cleanup must be scoped to the exact class and date');
 assert.doesNotMatch(migration, /disable row level security|alter table[^;]+disable/i, 'absence enforcement must not weaken RLS');
 

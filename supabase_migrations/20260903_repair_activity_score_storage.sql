@@ -84,6 +84,122 @@ for each row execute function public.plv_remove_scores_for_absent_attendance();
 revoke all on function public.plv_reject_absent_activity_score() from public, anon, authenticated;
 revoke all on function public.plv_remove_scores_for_absent_attendance() from public, anon, authenticated;
 
+-- Give the server one narrow, atomic score-write operation. It runs with the
+-- function owner's table privileges, so custom RLS/table grants cannot make
+-- reads succeed while inserts silently fail. The Cloudflare endpoint performs
+-- admin authentication before calling it, and only service_role may execute it.
+create or replace function public.plv_write_activity_score(
+  p_action text,
+  p_activity_id uuid,
+  p_student_no text,
+  p_score numeric default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_activity public.activities%rowtype;
+  v_score public.scores%rowtype;
+begin
+  if p_action not in ('save', 'delete')
+     or p_student_no is null
+     or btrim(p_student_no) = ''
+  then
+    raise exception using errcode = '22023', message = 'Invalid activity score request.';
+  end if;
+
+  select *
+  into v_activity
+  from public.activities
+  where id = p_activity_id;
+
+  if not found then
+    raise exception using errcode = '23503', message = 'The activity no longer exists.';
+  end if;
+
+  if not exists (
+    select 1
+    from public.enrollments enrollment
+    where enrollment."studentNo" = btrim(p_student_no)
+      and enrollment.section = v_activity.section
+      and enrollment."subjectCode" = v_activity."subjectCode"
+  ) then
+    raise exception using errcode = '23503', message = 'The student is not enrolled in this class.';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended(p_activity_id::text || '|' || btrim(p_student_no), 0));
+
+  if p_action = 'delete' then
+    delete from public.scores
+    where "activityId" = p_activity_id
+      and "studentNo" = btrim(p_student_no);
+    return jsonb_build_object('deleted', true);
+  end if;
+
+  if p_score is null
+     or p_score < 0
+     or p_score > v_activity."perfectScore"::numeric
+  then
+    raise exception using errcode = '23514', message = 'The score is outside the activity range.';
+  end if;
+
+  if exists (
+    select 1
+    from public.attendance attendance
+    where attendance."studentNo" = btrim(p_student_no)
+      and attendance.section = v_activity.section
+      and attendance."subjectCode" = v_activity."subjectCode"
+      and attendance.date::date = v_activity.date::date
+      and (
+        upper(trim(coalesce(attendance.status, ''))) = 'A'
+        or upper(trim(coalesce(attendance.status, ''))) like 'ABSENT%'
+      )
+  ) then
+    raise exception using
+      errcode = '23514',
+      message = 'Cannot record an activity score for a student marked absent on the activity date.';
+  end if;
+
+  select *
+  into v_score
+  from public.scores
+  where "activityId" = p_activity_id
+    and "studentNo" = btrim(p_student_no)
+  order by "createdAt" asc nulls last, id asc
+  limit 1;
+
+  if found then
+    update public.scores
+    set score = p_score
+    where id = v_score.id
+    returning * into v_score;
+
+    delete from public.scores
+    where "activityId" = p_activity_id
+      and "studentNo" = btrim(p_student_no)
+      and id <> v_score.id;
+  else
+    insert into public.scores (id, "activityId", "studentNo", score, "createdAt")
+    values (gen_random_uuid(), p_activity_id, btrim(p_student_no), p_score, now())
+    returning * into v_score;
+  end if;
+
+  return jsonb_build_object(
+    'id', v_score.id,
+    'activityId', v_score."activityId",
+    'studentNo', v_score."studentNo",
+    'score', v_score.score
+  );
+end;
+$$;
+
+revoke all on function public.plv_write_activity_score(text, uuid, text, numeric)
+from public, anon, authenticated;
+grant execute on function public.plv_write_activity_score(text, uuid, text, numeric)
+to service_role;
+
 notify pgrst, 'reload schema';
 
 commit;

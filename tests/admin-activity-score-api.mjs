@@ -33,11 +33,12 @@ const env = {
 test('activity score API exposes a safe deployment version on preflight', () => {
   const response = onRequestOptions();
   assert.equal(response.status, 204);
-  assert.equal(response.headers.get('x-plv-score-api-version'), '2026-09-03.3');
+  assert.equal(response.headers.get('x-plv-score-api-version'), '2026-09-03.4');
 });
 
-function installSuccessfulFetch({ absent = false, existingScore = false, generatedIdRequired = false, writeError = null } = {}) {
+function installSuccessfulFetch({ absent = false, existingScore = false, generatedIdRequired = false, writeError = null, rpcAvailable = false } = {}) {
   const writes = [];
+  const rpcWrites = [];
   const serviceHeaders = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (input, init = {}) => {
@@ -54,6 +55,14 @@ function installSuccessfulFetch({ absent = false, existingScore = false, generat
     }]);
     if (url.pathname === '/rest/v1/enrollments') return jsonResponse([{ id: 'enrollment-1' }]);
     if (url.pathname === '/rest/v1/attendance') return jsonResponse(absent ? [{ status: 'Absent' }] : []);
+    if (url.pathname === '/rest/v1/rpc/plv_write_activity_score') {
+      const body = JSON.parse(init.body);
+      rpcWrites.push(body);
+      if (!rpcAvailable) return jsonResponse({ code: 'PGRST202', message: 'Function not found' }, 404);
+      return jsonResponse(body.p_action === 'delete'
+        ? { deleted: true }
+        : { id: '55555555-5555-4555-8555-555555555555', activityId: body.p_activity_id, studentNo: body.p_student_no, score: body.p_score });
+    }
     if (url.pathname === '/rest/v1/scores' && (!init.method || init.method === 'GET')) {
       return jsonResponse(existingScore ? [{ id: '44444444-4444-4444-8444-444444444444', activityId: ACTIVITY_ID, studentNo: '25-2900', score: 30 }] : []);
     }
@@ -71,7 +80,7 @@ function installSuccessfulFetch({ absent = false, existingScore = false, generat
     }
     throw new Error(`Unexpected request: ${init.method || 'GET'} ${url.pathname}`);
   };
-  return { writes, serviceHeaders, restore: () => { globalThis.fetch = originalFetch; } };
+  return { writes, rpcWrites, serviceHeaders, restore: () => { globalThis.fetch = originalFetch; } };
 }
 
 test('activity score API rejects requests without an authenticated admin', async () => {
@@ -99,6 +108,28 @@ test('activity score API validates enrollment and saves through the service role
       studentNo: mock.writes[0].body.studentNo,
       score: mock.writes[0].body.score,
     }, { activityId: ACTIVITY_ID, studentNo: '25-2900', score: 40 });
+  } finally {
+    mock.restore();
+  }
+});
+
+test('activity score API prefers the atomic server-only database function when installed', async () => {
+  const mock = installSuccessfulFetch({ rpcAvailable: true });
+  try {
+    const response = await onRequestPost({
+      request: request({ action: 'save', activityId: ACTIVITY_ID, studentNo: '25-2900', score: 40 }),
+      env,
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.saved, true);
+    assert.deepEqual(mock.rpcWrites, [{
+      p_action: 'save',
+      p_activity_id: ACTIVITY_ID,
+      p_student_no: '25-2900',
+      p_score: 40,
+    }]);
+    assert.equal(mock.writes.length, 0, 'the direct table fallback must not run when the RPC succeeds');
   } finally {
     mock.restore();
   }

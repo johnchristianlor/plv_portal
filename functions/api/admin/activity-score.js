@@ -99,6 +99,24 @@ async function findExistingScore(env, activityId, studentNo) {
   return selectRows(env, 'scores', query);
 }
 
+async function runScoreWriteRpc(env, action, activityId, studentNo, score = null) {
+  const response = await supabaseServiceFetch(env, '/rest/v1/rpc/plv_write_activity_score', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      p_action: action,
+      p_activity_id: activityId,
+      p_student_no: studentNo,
+      p_score: score,
+    }),
+  });
+  const details = await responseJson(response);
+  const code = String(details?.code || '').toUpperCase();
+  if (!response.ok && (response.status === 404 || code === 'PGRST202')) return { available: false };
+  if (!response.ok) return { available: true, error: databaseErrorFromDetails(details, response.status) };
+  return { available: true, value: details };
+}
+
 async function writeScore(env, activity, studentNo, score) {
   if (await isAbsentForActivity(env, activity, studentNo)) {
     return { error: json({ error: 'This student is marked absent for the activity date.', code: 'absent' }, 409) };
@@ -246,16 +264,24 @@ export async function onRequestPost({ request, env }) {
       return json({ error: 'The student is not enrolled in this class.', code: 'reference' }, 409);
     }
 
-    if (action === 'delete') {
-      const error = await deleteScore(env, activityId, studentNo);
-      return error || json({ deleted: true });
-    }
-
     const rawScore = body?.score;
     const score = rawScore === null || rawScore === undefined || String(rawScore).trim() === '' ? Number.NaN : Number(rawScore);
     const maximum = Number(activity.perfectScore);
-    if (!Number.isFinite(score) || !Number.isFinite(maximum) || maximum <= 0 || score < 0 || score > maximum) {
+    if (action === 'save' && (!Number.isFinite(score) || !Number.isFinite(maximum) || maximum <= 0 || score < 0 || score > maximum)) {
       return json({ error: `Enter a score from 0 to ${maximum}.`, code: 'validation' }, 422);
+    }
+
+    const rpcResult = await runScoreWriteRpc(env, action, activityId, studentNo, action === 'save' ? score : null);
+    if (rpcResult.available) {
+      if (rpcResult.error) return rpcResult.error;
+      return json(action === 'delete'
+        ? { deleted: true }
+        : { saved: true, score: rpcResult.value });
+    }
+
+    if (action === 'delete') {
+      const error = await deleteScore(env, activityId, studentNo);
+      return error || json({ deleted: true });
     }
 
     const result = await writeScore(env, activity, studentNo, score);
@@ -269,6 +295,6 @@ export async function onRequestPost({ request, env }) {
 export function onRequestOptions() {
   return new Response(null, {
     status: 204,
-    headers: { 'x-plv-score-api-version': '2026-09-03.3' },
+    headers: { 'x-plv-score-api-version': '2026-09-03.4' },
   });
 }
