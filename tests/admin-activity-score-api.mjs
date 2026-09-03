@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { onRequestOptions, onRequestPost } from '../functions/api/admin/activity-score.js';
+import { onRequestGet, onRequestOptions, onRequestPost } from '../functions/api/admin/activity-score.js';
 
 const AUTH_ID = '11111111-1111-4111-8111-111111111111';
 const ADMIN_ID = '22222222-2222-4222-8222-222222222222';
@@ -33,7 +33,7 @@ const env = {
 test('activity score API exposes a safe deployment version on preflight', () => {
   const response = onRequestOptions();
   assert.equal(response.status, 204);
-  assert.equal(response.headers.get('x-plv-score-api-version'), '2026-09-03.4');
+  assert.equal(response.headers.get('x-plv-score-api-version'), '2026-09-03.5');
 });
 
 function installSuccessfulFetch({ absent = false, existingScore = false, generatedIdRequired = false, writeError = null, rpcAvailable = false } = {}) {
@@ -59,6 +59,7 @@ function installSuccessfulFetch({ absent = false, existingScore = false, generat
       const body = JSON.parse(init.body);
       rpcWrites.push(body);
       if (!rpcAvailable) return jsonResponse({ code: 'PGRST202', message: 'Function not found' }, 404);
+      if (body.p_action === 'probe') return jsonResponse({ code: '22023', message: 'Invalid activity score request.' }, 400);
       return jsonResponse(body.p_action === 'delete'
         ? { deleted: true }
         : { id: '55555555-5555-4555-8555-555555555555', activityId: body.p_activity_id, studentNo: body.p_student_no, score: body.p_score });
@@ -82,6 +83,20 @@ function installSuccessfulFetch({ absent = false, existingScore = false, generat
   };
   return { writes, rpcWrites, serviceHeaders, restore: () => { globalThis.fetch = originalFetch; } };
 }
+
+test('activity score health probe verifies the server can execute the installed writer without changing data', async () => {
+  const mock = installSuccessfulFetch({ rpcAvailable: true });
+  try {
+    const response = await onRequestGet({ env });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.deepEqual(body, { ready: true, version: '2026-09-03.5' });
+    assert.equal(mock.writes.length, 0);
+    assert.equal(mock.rpcWrites[0].p_action, 'probe');
+  } finally {
+    mock.restore();
+  }
+});
 
 test('activity score API rejects requests without an authenticated admin', async () => {
   const response = await onRequestPost({

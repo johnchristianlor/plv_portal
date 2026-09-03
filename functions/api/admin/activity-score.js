@@ -292,9 +292,36 @@ export async function onRequestPost({ request, env }) {
   }
 }
 
+export async function onRequestGet({ env }) {
+  try {
+    const response = await supabaseServiceFetch(env, '/rest/v1/rpc/plv_write_activity_score', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        p_action: 'probe',
+        p_activity_id: '00000000-0000-4000-8000-000000000000',
+        p_student_no: 'health-check',
+        p_score: null,
+      }),
+    });
+    const details = await responseJson(response);
+    const code = String(details?.code || '').toUpperCase();
+    if (code === '22023') return json({ ready: true, version: '2026-09-03.5' });
+    const reason = code === 'PGRST202' || response.status === 404
+      ? 'function_missing'
+      : code === '42501' || response.status === 401 || response.status === 403
+        ? 'function_permission'
+        : 'function_unexpected';
+    return json({ ready: false, version: '2026-09-03.5', reason }, 503);
+  } catch (error) {
+    console.error(JSON.stringify({ event: 'activity_score_health_failed', message: error instanceof Error ? error.message : 'unknown' }));
+    return json({ ready: false, version: '2026-09-03.5', reason: 'server_configuration' }, 503);
+  }
+}
+
 export function onRequestOptions() {
   return new Response(null, {
     status: 204,
-    headers: { 'x-plv-score-api-version': '2026-09-03.4' },
+    headers: { 'x-plv-score-api-version': '2026-09-03.5' },
   });
 }
