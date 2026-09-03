@@ -106,6 +106,10 @@
         .activity-state.empty { color: var(--text-muted); background: rgba(100,116,139,.12); }
         .saved-card-meta { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0; }
         .saved-card-meta span { display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted); font-size: 11px; font-weight: 700; }
+        .saved-card-meta .activity-type-badge { padding: 5px 8px; border-radius: 999px; color: var(--accent-primary); background: var(--accent-light); }
+        .saved-card-meta .activity-type-badge.perf { color: #7c3aed; background: rgba(124,58,237,.1); }
+        .saved-card-meta .activity-type-badge.exam { color: #b45309; background: rgba(245,158,11,.13); }
+        .saved-card-meta .activity-type-badge.other { color: var(--text-muted); background: rgba(100,116,139,.12); }
         .activity-progress-track { width: 100%; height: 7px; overflow: hidden; border-radius: 999px; background: rgba(100,116,139,.15); }
         .activity-progress-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent-primary), #60a5fa); }
         .saved-card-progress { display: flex; justify-content: space-between; gap: 10px; margin: 8px 0 14px; color: var(--text-muted); font-size: 11px; font-weight: 700; }
@@ -124,6 +128,7 @@
         .setup-panel-content { padding: 4px 20px 22px; }
         .score-input { width: 118px; min-height: 46px; padding: 10px 12px; text-align: center; font-size: 17px; font-weight: 800; color: var(--accent-primary); border: 1px solid var(--input-border); border-radius: 10px; background: var(--glass-bg); outline: none; }
         .score-input:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 4px var(--accent-light); }
+        .score-input.score-invalid { border-color: var(--danger); box-shadow: 0 0 0 4px rgba(225,29,72,.1); color: var(--danger); }
         .score-divider { font-size: 13px; color: var(--text-muted); margin-left: 8px; font-weight: 700; white-space: nowrap; }
         .score-table-wrap { max-height: 62vh; overflow: auto; border: 1px solid var(--input-border); border-radius: 16px; }
         .score-table { margin-top: 0; border-spacing: 0 7px; }
@@ -131,6 +136,7 @@
         .score-table th { padding-top: 13px; }
         .student-score-row.graded td { background: rgba(16,185,129,.06); }
         .student-score-row.absent td { background: rgba(225,29,72,.055); }
+        .student-score-row.score-save-error td { background: rgba(225,29,72,.08); }
         .student-score-row.hidden { display: none; }
         .student-name-main { display: block; color: var(--text-main); font-weight: 800; }
         .student-number-mobile { display: none; }
@@ -150,6 +156,14 @@
         .score-save-bar { position: sticky; bottom: 12px; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 18px; padding: 14px 16px; border: 1px solid var(--glass-border); border-radius: 16px; background: var(--bg-body); background: color-mix(in srgb, var(--bg-body) 86%, transparent); backdrop-filter: blur(20px); box-shadow: 0 14px 36px rgba(15,23,42,.16); }
         .score-save-summary strong { display: block; color: var(--text-main); font-size: 13px; }
         .score-save-summary span { display: block; margin-top: 3px; color: var(--text-muted); font-size: 11px; font-weight: 600; }
+        .score-autosave-state { display: inline-flex; align-items: center; gap: 6px; margin-top: 5px; color: var(--text-muted); font-size: 11px; font-weight: 800; }
+        .score-autosave-state i { font-size: 15px; }
+        .score-autosave-state span { display: inline; margin: 0; color: inherit; font-size: inherit; font-weight: inherit; }
+        .score-autosave-state.pending { color: #b45309; }
+        .score-autosave-state.saving { color: var(--accent-primary); }
+        .score-autosave-state.saved { color: var(--success); }
+        .score-autosave-state.error { color: var(--danger); }
+        .dark-theme .score-autosave-state.pending { color: #fbbf24; }
         .score-save-actions { display: flex; gap: 9px; }
         .activity-status { display: none; align-items: flex-start; gap: 12px; margin: 20px 0 4px; padding: 16px 18px; border-radius: 14px; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); color: var(--text-main); }
         .activity-status.visible { display: flex; }
@@ -401,7 +415,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
                 <div id="roster-container" style="display: none; margin-top: 32px; border-top: 1px solid var(--glass-border); padding-top: 24px;">
                     <div class="form-section-title"><i class="ph-bold ph-pencil-simple"></i> Step 2: Enter Scores <span id="scoreProgress" class="score-progress">0 graded</span></div>
-                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Encoding scores for section <strong id="display-section" style="color: var(--accent-primary);"></strong>. Perfect score is <strong id="display-perfect" style="color: var(--accent-primary);"></strong>. Leave unfinished students blank; you can reopen this activity later. Clearing a saved score marks that student as not yet graded.</p>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Encoding scores for section <strong id="display-section" style="color: var(--accent-primary);"></strong>. Perfect score is <strong id="display-perfect" style="color: var(--accent-primary);"></strong>. Historical activities are fully supported, so the activity date does not need to be today. Scores save automatically after entry; clearing a saved score marks that student as not yet graded.</p>
                     <form id="scoreForm">
                         <div class="score-roster-tools">
                             <div class="score-roster-search">
@@ -423,10 +437,10 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                             </table>
                         </div>
                         <div class="score-save-bar">
-                            <div class="score-save-summary"><strong id="scoreSaveSummary">0 of 0 students graded</strong><span>Absent students are locked and never receive an activity score.</span></div>
+                            <div class="score-save-summary"><strong id="scoreSaveSummary">0 of 0 students graded</strong><div id="scoreAutosaveState" class="score-autosave-state saved" role="status" aria-live="polite"><i class="ph-bold ph-cloud-check"></i><span>Autosave ready</span></div><span>Absent students are locked and never receive an activity score.</span></div>
                             <div class="score-save-actions">
                                 <button type="button" class="btn btn-outline" onclick="window.scrollToSavedActivities()"><i class="ph-bold ph-books"></i> Saved Activities</button>
-                                <button type="submit" id="saveScoreBtn" class="btn btn-primary"><i class="ph-bold ph-floppy-disk"></i> Save Scores</button>
+                                <button type="submit" id="saveScoreBtn" class="btn btn-primary"><i class="ph-bold ph-cloud-arrow-up"></i> Save now</button>
                             </div>
                         </div>
                     </form>
@@ -579,8 +593,8 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
     <!-- SUPABASE LOGIC -->
     <script type="module">
         import { supabase } from "./supabase-adapter.js";
-        import { filterSavedActivityRecords, getActivityProgress, planActivityScoreChanges } from "./admin-activities-manual.v2.js";
-        import { getAbsentStudentNumbers, normalizeDateKey } from "./attendance-utils.mjs";
+        import { filterSavedActivityRecords, getActivityProgress, parseActivityScore, planActivityScoreChanges } from "./admin-activities-manual.v2.js";
+        import { getAbsentStudentNumbers, nextDateKey, normalizeDateKey } from "./attendance-utils.mjs";
 
 
 import { startAdminSessionGuard } from "./admin-session.js";
@@ -616,6 +630,10 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         let absentStudentNumbers = new Set();
         let savedActivitiesData = [];
         let scoreRosterFilter = 'all';
+        let scoreAutosaveTimer = null;
+        let scoreSaveQueue = Promise.resolve();
+        let scoreRosterGeneration = 0;
+        let scoreInputRevision = 0;
         document.getElementById('aDate').valueAsDate = new Date();
 
         async function insertRow(table, row) {
@@ -652,6 +670,20 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                 rows.push(...(data || []));
                 if (!data || data.length < pageSize) return rows;
             }
+        }
+
+        async function loadAttendanceForActivityDate(section, subjectCode, dateValue) {
+            const startDate = normalizeDateKey(dateValue);
+            const endDate = nextDateKey(startDate);
+            if (!startDate || !endDate) return [];
+            const { data, error } = await supabase.from('attendance')
+                .select('studentNo,status,date')
+                .eq('section', section)
+                .eq('subjectCode', subjectCode)
+                .gte('date', startDate)
+                .lt('date', endDate);
+            if (error) throw error;
+            return data || [];
         }
 
         // 1. Load Sections Dropdown from 'sections' collection
@@ -710,15 +742,22 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             }
 
             const statusLabels = { 'not-started': 'Not started', 'in-progress': 'In progress', complete: 'Completed', empty: 'No students' };
+            const categoryLabels = { written: 'Written Output', perf: 'Performance Based', exam: 'Major Exam' };
+            const categoryIcons = { written: 'ph-note-pencil', perf: 'ph-person-simple-run', exam: 'ph-exam' };
             grid.innerHTML = records.map(activity => {
                 const isActive = String(activity.id) === String(activeActivityId);
                 const dateLabel = activity.date ? new Date(`${String(activity.date).split('T')[0]}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date';
+                const categoryKey = String(activity.category || '').toLowerCase();
+                const categoryClass = ['written', 'perf', 'exam'].includes(categoryKey) ? categoryKey : 'other';
+                const categoryLabel = categoryLabels[categoryKey] || activity.category || 'Activity';
+                const categoryIcon = categoryIcons[categoryKey] || 'ph-tag';
                 return `<article class="saved-activity-card${isActive ? ' active' : ''}" data-activity-id="${escapeHtml(activity.id)}" role="button" tabindex="0" aria-label="Open ${escapeHtml(activity.title)} for grading">
                     <div class="saved-card-top">
                         <div class="saved-card-title"><h3 title="${escapeHtml(activity.title)}">${escapeHtml(activity.title)}</h3><p>${escapeHtml(activity.subjectCode)} · ${escapeHtml(activity.section || 'No section')}</p></div>
                         <span class="activity-state ${activity.progressStatus}">${statusLabels[activity.progressStatus]}</span>
                     </div>
                     <div class="saved-card-meta">
+                        <span class="activity-type-badge ${categoryClass}"><i class="ph-bold ${categoryIcon}"></i>${escapeHtml(categoryLabel)}</span>
                         <span><i class="ph-bold ph-calendar-blank"></i>${escapeHtml(dateLabel)}</span>
                         <span><i class="ph-bold ph-flag"></i>${activity.term === 'final' ? 'Final Term' : 'Midterm'}</span>
                         <span><i class="ph-bold ph-target"></i>${escapeHtml(activity.perfectScore)} pts</span>
@@ -820,6 +859,144 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             document.getElementById('scoreSaveSummary').textContent = `${graded} graded · ${absent} absent · ${remaining} remaining`;
         }
 
+        function setScoreAutosaveState(state, message) {
+            const indicator = document.getElementById('scoreAutosaveState');
+            if (!indicator) return;
+            const icons = {
+                pending: 'ph-bold ph-clock-countdown',
+                saving: 'ph-bold ph-spinner-gap',
+                saved: 'ph-bold ph-cloud-check',
+                error: 'ph-bold ph-warning-circle'
+            };
+            indicator.className = `score-autosave-state ${state}`;
+            indicator.querySelector('i').className = icons[state] || icons.saved;
+            indicator.querySelector('span').textContent = message;
+        }
+
+        function collectScoreEntries() {
+            return [...document.querySelectorAll('.student-score-row')].map(row => ({
+                studentNo: row.dataset.studentNo,
+                value: row.querySelector('.stud-score')?.value || '',
+                absent: row.dataset.scoreStatus === 'absent'
+            }));
+        }
+
+        async function persistScoreOperations(changes, activityId) {
+            const operations = [
+                ...changes.inserts.map(item => ({
+                    item,
+                    type: 'insert',
+                    run: () => insertRow('scores', { activityId, studentNo: item.studentNo, score: item.score })
+                })),
+                ...changes.updates.map(item => ({
+                    item,
+                    type: 'update',
+                    run: async () => {
+                        const { error } = await supabase.from('scores').update({ score: item.score }).eq('id', item.id);
+                        if (error) throw error;
+                        return item;
+                    }
+                })),
+                ...changes.deletes.map(item => ({
+                    item,
+                    type: 'delete',
+                    run: async () => { await deleteById('scores', item.id); return item; }
+                }))
+            ];
+            const results = await Promise.allSettled(operations.map(operation => operation.run()));
+            const failures = [];
+
+            results.forEach((result, index) => {
+                const operation = operations[index];
+                if (result.status === 'rejected') {
+                    failures.push({ studentNo: operation.item.studentNo, error: result.reason });
+                    return;
+                }
+                if (operation.type === 'delete') existingActivityScores.delete(operation.item.studentNo);
+                else if (operation.type === 'insert') existingActivityScores.set(operation.item.studentNo, result.value);
+                else existingActivityScores.set(operation.item.studentNo, {
+                    ...existingActivityScores.get(operation.item.studentNo),
+                    ...operation.item
+                });
+            });
+
+            return { completed: operations.length - failures.length, failures, total: operations.length };
+        }
+
+        function describeScoreSaveFailure(failures) {
+            const studentNumbers = [...new Set(failures.map(item => item.studentNo))];
+            const firstMessage = String(failures[0]?.error?.message || '').toLowerCase();
+            if (firstMessage.includes('absent')) {
+                return `${studentNumbers.join(', ')} ${studentNumbers.length === 1 ? 'is' : 'are'} marked absent for this activity date, so no score was recorded.`;
+            }
+            if (firstMessage.includes('duplicate') || firstMessage.includes('unique')) {
+                return `A score changed in another session. Reopen the activity before retrying ${studentNumbers.join(', ')}.`;
+            }
+            return `Could not save ${studentNumbers.join(', ')}. The values remain on screen so you can retry.`;
+        }
+
+        async function saveScoreRoster({ manual = false, generation = scoreRosterGeneration, activityId = activeActivityId } = {}) {
+            if (generation !== scoreRosterGeneration || activityId !== activeActivityId) return false;
+            const button = document.getElementById('saveScoreBtn');
+            const entries = collectScoreEntries();
+            const changes = planActivityScoreChanges(entries, existingActivityScores, activeActivity?.perfectScore, absentStudentNumbers);
+            document.querySelectorAll('.student-score-row.score-save-error').forEach(row => row.classList.remove('score-save-error'));
+
+            if (changes.invalid.length) {
+                changes.invalid.forEach(studentNo => {
+                    const row = document.querySelector(`.student-score-row[data-student-no="${CSS.escape(studentNo)}"]`);
+                    row?.classList.add('score-save-error');
+                    row?.querySelector('.stud-score')?.classList.add('score-invalid');
+                });
+                const message = `Check scores for ${changes.invalid.join(', ')}. Values must be from 0 to ${activeActivity?.perfectScore}.`;
+                setScoreAutosaveState('error', message);
+                if (manual) window.showToast(message, 'error');
+                return false;
+            }
+
+            const revision = scoreInputRevision;
+            setScoreAutosaveState('saving', 'Saving score changes…');
+            if (manual) { button.disabled = true; button.innerHTML = '<i class="ph-bold ph-spinner-gap"></i> Saving…'; }
+            try {
+                const result = await persistScoreOperations(changes, activityId);
+                if (generation !== scoreRosterGeneration || activityId !== activeActivityId) return false;
+                if (result.failures.length) {
+                    result.failures.forEach(item => document.querySelector(`.student-score-row[data-student-no="${CSS.escape(item.studentNo)}"]`)?.classList.add('score-save-error'));
+                    const message = describeScoreSaveFailure(result.failures);
+                    setScoreAutosaveState('error', result.completed ? `${result.completed} saved. ${message}` : message);
+                    window.showToast(message, 'error');
+                    return false;
+                }
+
+                const noChanges = result.total === 0;
+                setScoreAutosaveState(scoreInputRevision === revision ? 'saved' : 'pending', noChanges ? 'All changes saved' : `${result.completed} ${result.completed === 1 ? 'score' : 'scores'} autosaved`);
+                if (manual) window.showToast(noChanges ? 'All score changes are already saved.' : `Saved ${result.completed} score ${result.completed === 1 ? 'change' : 'changes'}.`);
+                return true;
+            } finally {
+                if (manual) { button.disabled = false; button.innerHTML = '<i class="ph-bold ph-cloud-arrow-up"></i> Save now'; }
+            }
+        }
+
+        function enqueueScoreSave(options = {}) {
+            const task = () => saveScoreRoster(options);
+            scoreSaveQueue = scoreSaveQueue.then(task, task);
+            return scoreSaveQueue;
+        }
+
+        function scheduleScoreAutosave(delay = 850) {
+            window.clearTimeout(scoreAutosaveTimer);
+            const generation = scoreRosterGeneration;
+            const activityId = activeActivityId;
+            setScoreAutosaveState('pending', 'Changes waiting to autosave…');
+            scoreAutosaveTimer = window.setTimeout(() => {
+                scoreAutosaveTimer = null;
+                enqueueScoreSave({ generation, activityId }).catch(error => {
+                    console.error(error);
+                    setScoreAutosaveState('error', 'Autosave failed. Your entries remain on screen; use Save now to retry.');
+                });
+            }, delay);
+        }
+
         window.filterScoreRoster = function() {
             const query = document.getElementById('scoreRosterSearch').value.trim().toLowerCase();
             const rows = [...document.querySelectorAll('.student-score-row')];
@@ -846,29 +1023,31 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
         async function loadActivityRoster(activity) {
             const tbody = document.getElementById('roster-body');
+            window.clearTimeout(scoreAutosaveTimer);
+            scoreAutosaveTimer = null;
+            scoreRosterGeneration++;
+            scoreInputRevision = 0;
             tbody.innerHTML = '<tr><td colspan="3">Loading student roster...</td></tr>';
             document.getElementById('roster-container').style.display = 'block';
+            setScoreAutosaveState('saving', 'Loading saved scores…');
             document.getElementById('scoreRosterSearch').value = '';
             scoreRosterFilter = 'all';
             document.querySelectorAll('.score-filter-btn').forEach(item => item.classList.toggle('active', item.dataset.scoreFilter === 'all'));
 
             const activityDate = normalizeDateKey(activity.date);
-            const [enrollmentResult, scoreResult, attendanceResult] = await Promise.all([
+            const [enrollmentResult, scoreResult, attendanceRows] = await Promise.all([
                 supabase.from('enrollments').select('id,studentNo,studentName').eq('section', activity.section).eq('subjectCode', activity.subjectCode),
                 supabase.from('scores').select('id,activityId,studentNo,score').eq('activityId', activity.id),
-                activityDate
-                    ? supabase.from('attendance').select('studentNo,status,date').eq('section', activity.section).eq('subjectCode', activity.subjectCode).eq('date', activityDate)
-                    : Promise.resolve({ data: [], error: null })
+                loadAttendanceForActivityDate(activity.section, activity.subjectCode, activityDate)
             ]);
             if (enrollmentResult.error) throw enrollmentResult.error;
             if (scoreResult.error) throw scoreResult.error;
-            if (attendanceResult.error) throw attendanceResult.error;
 
             const uniqueStudents = [...new Map((enrollmentResult.data || []).map(student => [String(student.studentNo).trim(), student])).values()]
                 .filter(student => String(student.studentNo).trim())
                 .sort((a, b) => String(a.studentName || '').localeCompare(String(b.studentName || '')));
             existingActivityScores = new Map((scoreResult.data || []).map(score => [String(score.studentNo).trim(), score]));
-            absentStudentNumbers = getAbsentStudentNumbers(attendanceResult.data || [], activityDate);
+            absentStudentNumbers = getAbsentStudentNumbers(attendanceRows, activityDate);
 
             if (!uniqueStudents.length) {
                 tbody.innerHTML = '<tr><td colspan="3">No enrolled students found for this subject and section. The activity is saved and can be graded after enrollments are added.</td></tr>';
@@ -898,6 +1077,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                 : 'The setup is saved. Scores are optional and may be completed over multiple sessions.';
             updateScoreProgress();
             window.filterScoreRoster();
+            setScoreAutosaveState('saved', 'All changes saved');
         }
 
         document.getElementById('activityForm').addEventListener('submit', async (e) => {
@@ -951,15 +1131,34 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             if (!event.target.matches('.stud-score')) return;
             const row = event.target.closest('.student-score-row');
             const isGraded = event.target.value.trim() !== '';
+            const parsedScore = parseActivityScore(event.target.value, activeActivity?.perfectScore);
+            const isValid = parsedScore.kind !== 'invalid';
+            scoreInputRevision++;
             row.dataset.scoreStatus = isGraded ? 'graded' : 'ungraded';
             row.classList.toggle('graded', isGraded);
             row.classList.toggle('ungraded', !isGraded);
+            row.classList.toggle('score-save-error', !isValid);
+            event.target.classList.toggle('score-invalid', !isValid);
+            event.target.setAttribute('aria-invalid', String(!isValid));
             updateScoreProgress();
+            if (!isValid) {
+                window.clearTimeout(scoreAutosaveTimer);
+                scoreAutosaveTimer = null;
+                setScoreAutosaveState('error', `Enter a score from 0 to ${activeActivity?.perfectScore}.`);
+                return;
+            }
+            scheduleScoreAutosave();
+        });
+
+        document.getElementById('roster-body').addEventListener('change', event => {
+            if (!event.target.matches('.stud-score') || event.target.classList.contains('score-invalid')) return;
+            scheduleScoreAutosave(150);
         });
 
         document.getElementById('roster-body').addEventListener('keydown', event => {
             if (event.key !== 'Enter' || !event.target.matches('.stud-score')) return;
             event.preventDefault();
+            if (!event.target.classList.contains('score-invalid')) scheduleScoreAutosave(120);
             const visibleInputs = [...document.querySelectorAll('.student-score-row:not(.hidden) .stud-score')];
             const nextInput = visibleInputs[visibleInputs.indexOf(event.target) + 1];
             if (nextInput) { nextInput.focus(); nextInput.select(); }
@@ -968,40 +1167,30 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
         document.getElementById('scoreForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const btn = document.getElementById('saveScoreBtn'); btn.innerHTML = 'Saving...'; btn.disabled = true;
-            let scoreWritesCompleted = false;
+            window.clearTimeout(scoreAutosaveTimer);
+            scoreAutosaveTimer = null;
             try {
-                if (!activeActivityId) throw new Error('ACTIVITY_NOT_INITIALIZED');
-                const inputs = [...document.querySelectorAll('.student-score-row')].map(row => ({
-                    studentNo: row.dataset.studentNo,
-                    value: row.querySelector('.stud-score')?.value || '',
-                    absent: row.dataset.scoreStatus === 'absent'
-                }));
-                const changes = planActivityScoreChanges(inputs, existingActivityScores, activeActivity.perfectScore, absentStudentNumbers);
-                if (changes.invalid.length) throw new Error(`INVALID_SCORES:${changes.invalid.join(', ')}`);
-
-                await Promise.all([
-                    ...changes.inserts.map(item => insertRow('scores', { activityId: activeActivityId, studentNo: item.studentNo, score: item.score })),
-                    ...changes.updates.map(item => supabase.from('scores').update({ score: item.score }).eq('id', item.id).then(({ error }) => { if (error) throw error; })),
-                    ...changes.deletes.map(item => deleteById('scores', item.id))
-                ]);
-
-                scoreWritesCompleted = true;
-                await loadActivityRoster(activeActivity);
-                const ungraded = Math.max(0, inputs.length - changes.gradedCount - changes.absentCount);
-                window.showToast(`Scores saved. ${changes.gradedCount} graded, ${changes.absentCount} absent, ${ungraded} still ungraded.`);
-                window.loadActivities();
-                window.loadSavedActivities();
+                const saved = await enqueueScoreSave({
+                    manual: true,
+                    generation: scoreRosterGeneration,
+                    activityId: activeActivityId
+                });
+                if (saved) {
+                    window.loadActivities();
+                    window.loadSavedActivities();
+                }
             } catch(error) {
                 console.error(error);
-                if (error.message.startsWith('INVALID_SCORES:')) window.showToast(`Check scores for: ${error.message.split(':').slice(1).join(':')}`, 'error');
-                else if (scoreWritesCompleted) window.showToast('Scores were saved, but the roster could not be refreshed. Reopen the activity to continue.', 'error');
-                else window.showToast('Failed to save scores. No activity setup was lost.', 'error');
+                setScoreAutosaveState('error', 'Save failed. Your entries remain on screen; try again.');
+                window.showToast('Scores could not be saved. Your entries remain on screen.', 'error');
             }
-            btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Save Scores'; btn.disabled = false;
         });
 
         window.startNewActivity = function() {
+            window.clearTimeout(scoreAutosaveTimer);
+            scoreAutosaveTimer = null;
+            scoreRosterGeneration++;
+            scoreInputRevision = 0;
             document.getElementById('activityForm').reset();
             document.getElementById('aDate').valueAsDate = new Date();
             document.getElementById('roster-container').style.display = 'none';
@@ -1418,11 +1607,8 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                                     });
 
                                     const activityDate = normalizeDateKey(act.date);
-                                    const { data: attendanceRows, error: attendanceError } = activityDate
-                                        ? await supabase.from('attendance').select('studentNo,status,date').eq('section', section).eq('subjectCode', subjectCode).eq('date', activityDate)
-                                        : { data: [], error: null };
-                                    if (attendanceError) throw attendanceError;
-                                    const absentForActivity = getAbsentStudentNumbers(attendanceRows || [], activityDate);
+                                    const attendanceRows = await loadAttendanceForActivityDate(section, subjectCode, activityDate);
+                                    const absentForActivity = getAbsentStudentNumbers(attendanceRows, activityDate);
                                     let savedScores = 0;
                                     let absentSkipped = 0;
                                     for(const row of studentRows) {

@@ -35,6 +35,14 @@ export function normalizeDateKey(value) {
   return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
 }
 
+export function nextDateKey(value) {
+  const dateKey = normalizeDateKey(value);
+  if (!dateKey) return '';
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const next = new Date(Date.UTC(year, month - 1, day + 1));
+  return next.toISOString().slice(0, 10);
+}
+
 export function getAbsentStudentNumbers(records, targetDate = '') {
   const dateKey = normalizeDateKey(targetDate);
   return new Set((records || [])

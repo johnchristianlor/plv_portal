@@ -61,13 +61,20 @@ assert.match(page, /id="savedActivitiesGrid"/, 'manual entry must show initializ
 assert.match(page, /id="scoreRosterSearch"/, 'student score entry must be searchable');
 assert.match(page, /data-score-filter="ungraded"/, 'the roster must support an ungraded-student filter');
 assert.match(page, /data-score-filter="absent"/, 'the roster must clearly separate absent students');
-assert.match(page, /from\('attendance'\)\.select\('studentNo,status,date'\)/, 'activity scoring must load same-day attendance');
+assert.match(page, /from\('attendance'\)[\s\S]+?\.select\('studentNo,status,date'\)/, 'activity scoring must load same-day attendance');
+assert.match(page, /\.gte\('date', startDate\)[\s\S]+\.lt\('date', endDate\)/, 'historical attendance matching must support date and timestamp columns');
 assert.match(page, /absentStudentNumbers/, 'activity scoring must lock absent students');
 assert.match(page, /absentForActivity\.has\(sNo\)/, 'spreadsheet uploads must skip absent students');
+assert.match(page, /id="scoreAutosaveState"/, 'score entry must show an accessible autosave status');
+assert.match(page, /function scheduleScoreAutosave/, 'score entry must debounce automatic saves');
+assert.match(page, /Promise\.allSettled/, 'one failed score must not discard successful score saves');
+assert.match(page, /activity-type-badge/, 'saved activity cards must display the activity type');
+assert.match(page, /written: 'Written Output'[\s\S]+perf: 'Performance Based'[\s\S]+exam: 'Major Exam'/, 'activity type labels must be clear and consistent');
 assert.match(page, /@media \(max-width: 700px\)[\s\S]+score-table tr\.student-score-row/, 'score rows must become mobile-friendly cards');
 assert.match(page, /async function selectAllRows[\s\S]+\.range\(start, start \+ pageSize - 1\)/, 'saved activity progress must include records beyond the first database page');
 assert.doesNotMatch(page, /class="score-input stud-score"[^>]+required/, 'unfinished students must not be forced to receive scores');
 assert.match(page, /if\(scoreRaw === ''[^\n]+continue;/, 'blank spreadsheet scores must remain ungraded');
+assert.doesNotMatch(page, /Failed to save scores\. No activity setup was lost\./, 'score failures must keep entries visible and give a useful retry state');
 
 const studentScoresPage = fs.readFileSync(new URL('../public/student-scores.html', import.meta.url), 'utf8');
 assert.match(studentScoresPage, /from\("attendance"\)\.select\("date,status"\)/, 'student scores must read attendance for the selected class');

@@ -3,6 +3,7 @@ import {
   formatLocalDateInput,
   getAbsentDateKeys,
   getAbsentStudentNumbers,
+  nextDateKey,
   normalizeDateKey,
   normalizeAttendanceStatus,
   summarizeAttendance,
@@ -21,6 +22,8 @@ assert.equal(normalizeAttendanceStatus('Excused absence'), 'E');
 assert.equal(normalizeAttendanceStatus('Pending'), '');
 assert.equal(normalizeDateKey('2026-09-02T08:30:00+08:00'), '2026-09-02');
 assert.equal(normalizeDateKey('not-a-date'), '');
+assert.equal(nextDateKey('2026-09-02'), '2026-09-03');
+assert.equal(nextDateKey('2026-12-31'), '2027-01-01');
 
 const absenceRecords = [
   { studentNo: '2026-001', date: '2026-09-02', status: 'Absent' },
