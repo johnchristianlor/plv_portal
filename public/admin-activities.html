@@ -593,7 +593,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
     <!-- SUPABASE LOGIC -->
     <script type="module">
         import { supabase } from "./supabase-adapter.js";
-        import { filterSavedActivityRecords, getActivityProgress, parseActivityScore, planActivityScoreChanges } from "./admin-activities-manual.v2.js";
+        import { filterSavedActivityRecords, getActivityProgress, getActivityScoreSaveErrorKind, parseActivityScore, planActivityScoreChanges } from "./admin-activities-manual.v2.js";
         import { getAbsentStudentNumbers, nextDateKey, normalizeDateKey } from "./attendance-utils.mjs";
 
 
@@ -881,26 +881,72 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             }));
         }
 
+        async function runScoreMutation(write) {
+            let result = await write();
+            if (!result.error || getActivityScoreSaveErrorKind(result.error) !== 'auth') return result;
+
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (!sessionData?.session) return result;
+            const { error: refreshError } = await supabase.auth.refreshSession();
+            if (refreshError) return result;
+            return write();
+        }
+
+        async function findSavedScore(activityId, studentNo) {
+            const { data, error } = await supabase.from('scores')
+                .select('id,activityId,studentNo,score')
+                .eq('activityId', activityId)
+                .eq('studentNo', studentNo)
+                .limit(1)
+                .maybeSingle();
+            if (error) throw error;
+            return data || null;
+        }
+
+        async function insertScoreRow(row) {
+            const payload = { id: crypto.randomUUID(), ...row };
+            const result = await runScoreMutation(() => supabase.from('scores').insert(payload));
+            if (!result.error) return payload;
+
+            if (getActivityScoreSaveErrorKind(result.error) === 'duplicate') {
+                const existing = await findSavedScore(row.activityId, row.studentNo);
+                if (existing) {
+                    const updateResult = await runScoreMutation(() => supabase.from('scores').update({ score: row.score }).eq('id', existing.id));
+                    if (updateResult.error) throw updateResult.error;
+                    return { ...existing, score: row.score };
+                }
+            }
+            throw result.error;
+        }
+
+        async function updateScoreRow(item) {
+            const result = await runScoreMutation(() => supabase.from('scores').update({ score: item.score }).eq('id', item.id));
+            if (result.error) throw result.error;
+            return item;
+        }
+
+        async function deleteScoreRow(item) {
+            const result = await runScoreMutation(() => supabase.from('scores').delete().eq('id', item.id));
+            if (result.error) throw result.error;
+            return item;
+        }
+
         async function persistScoreOperations(changes, activityId) {
             const operations = [
                 ...changes.inserts.map(item => ({
                     item,
                     type: 'insert',
-                    run: () => insertRow('scores', { activityId, studentNo: item.studentNo, score: item.score })
+                    run: () => insertScoreRow({ activityId, studentNo: item.studentNo, score: item.score })
                 })),
                 ...changes.updates.map(item => ({
                     item,
                     type: 'update',
-                    run: async () => {
-                        const { error } = await supabase.from('scores').update({ score: item.score }).eq('id', item.id);
-                        if (error) throw error;
-                        return item;
-                    }
+                    run: () => updateScoreRow(item)
                 })),
                 ...changes.deletes.map(item => ({
                     item,
                     type: 'delete',
-                    run: async () => { await deleteById('scores', item.id); return item; }
+                    run: () => deleteScoreRow(item)
                 }))
             ];
             const results = await Promise.allSettled(operations.map(operation => operation.run()));
@@ -925,13 +971,18 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
         function describeScoreSaveFailure(failures) {
             const studentNumbers = [...new Set(failures.map(item => item.studentNo))];
-            const firstMessage = String(failures[0]?.error?.message || '').toLowerCase();
-            if (firstMessage.includes('absent')) {
+            const kind = getActivityScoreSaveErrorKind(failures[0]?.error);
+            if (kind === 'absent') {
                 return `${studentNumbers.join(', ')} ${studentNumbers.length === 1 ? 'is' : 'are'} marked absent for this activity date, so no score was recorded.`;
             }
-            if (firstMessage.includes('duplicate') || firstMessage.includes('unique')) {
+            if (kind === 'duplicate') {
                 return `A score changed in another session. Reopen the activity before retrying ${studentNumbers.join(', ')}.`;
             }
+            if (kind === 'validation') return `The server rejected the score for ${studentNumbers.join(', ')}. Confirm it is within the activity's allowed range.`;
+            if (kind === 'auth') return 'Your secure admin session expired. Sign in again, then retry; the entered values remain on screen.';
+            if (kind === 'reference') return `The activity or enrollment changed while you were grading ${studentNumbers.join(', ')}. Refresh the activity and retry.`;
+            if (kind === 'configuration') return 'The score storage configuration is incomplete. Apply the latest database setup before retrying.';
+            if (kind === 'network') return 'The portal could not reach the server. Check your connection and use Save now to retry.';
             return `Could not save ${studentNumbers.join(', ')}. The values remain on screen so you can retry.`;
         }
 

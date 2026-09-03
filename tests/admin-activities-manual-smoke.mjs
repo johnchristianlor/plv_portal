@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import {
     filterSavedActivityRecords,
     getActivityProgress,
+    getActivityScoreSaveErrorKind,
     parseActivityScore,
     planActivityScoreChanges
 } from '../public/admin-activities-manual.v2.js';
@@ -13,6 +14,12 @@ assert.deepEqual(parseActivityScore('37.5', 50), { kind: 'score', value: 37.5 })
 assert.equal(parseActivityScore('51', 50).kind, 'invalid');
 assert.equal(parseActivityScore('-1', 50).kind, 'invalid');
 assert.equal(parseActivityScore('not-a-score', 50).kind, 'invalid');
+assert.equal(getActivityScoreSaveErrorKind({ code: '23514', message: 'Cannot record a score for a student marked absent.' }), 'absent');
+assert.equal(getActivityScoreSaveErrorKind({ code: '23514', message: 'check constraint failed' }), 'validation');
+assert.equal(getActivityScoreSaveErrorKind({ code: '23505', message: 'duplicate key' }), 'duplicate');
+assert.equal(getActivityScoreSaveErrorKind({ code: '42501', message: 'row-level security policy' }), 'auth');
+assert.equal(getActivityScoreSaveErrorKind({ code: '23503', message: 'foreign key violation' }), 'reference');
+assert.equal(getActivityScoreSaveErrorKind(new TypeError('Failed to fetch')), 'network');
 
 const existingScores = new Map([
     ['2026-00001', { id: 101, studentNo: '2026-00001', score: 45 }],
@@ -68,6 +75,11 @@ assert.match(page, /absentForActivity\.has\(sNo\)/, 'spreadsheet uploads must sk
 assert.match(page, /id="scoreAutosaveState"/, 'score entry must show an accessible autosave status');
 assert.match(page, /function scheduleScoreAutosave/, 'score entry must debounce automatic saves');
 assert.match(page, /Promise\.allSettled/, 'one failed score must not discard successful score saves');
+assert.match(page, /const payload = \{ id: crypto\.randomUUID\(\), \.\.\.row \}/, 'new scores must carry their own stable UUID');
+assert.match(page, /from\('scores'\)\.insert\(payload\)/, 'score inserts must not depend on a post-insert select response');
+assert.match(page, /supabase\.auth\.refreshSession\(\)/, 'an expired authenticated session must receive one safe retry');
+assert.match(page, /findSavedScore\(row\.activityId, row\.studentNo\)/, 'a duplicate retry must reconcile with the existing score');
+assert.doesNotMatch(page, /insertRow\('scores'/, 'score inserts must use the resilient score-specific write path');
 assert.match(page, /activity-type-badge/, 'saved activity cards must display the activity type');
 assert.match(page, /written: 'Written Output'[\s\S]+perf: 'Performance Based'[\s\S]+exam: 'Major Exam'/, 'activity type labels must be clear and consistent');
 assert.match(page, /@media \(max-width: 700px\)[\s\S]+score-table tr\.student-score-row/, 'score rows must become mobile-friendly cards');

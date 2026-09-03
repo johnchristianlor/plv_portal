@@ -11,6 +11,20 @@ export function parseActivityScore(rawValue, perfectScore) {
     return { kind: 'score', value };
 }
 
+export function getActivityScoreSaveErrorKind(error) {
+    const code = String(error?.code || error?.status || '').toUpperCase();
+    const message = String(error?.message || '').toLowerCase();
+
+    if (message.includes('marked absent') || message.includes('absent on the activity date')) return 'absent';
+    if (code === '23514' || message.includes('check constraint')) return 'validation';
+    if (code === '23505' || message.includes('duplicate') || message.includes('unique constraint')) return 'duplicate';
+    if (['401', '403', '42501', 'PGRST301'].includes(code) || message.includes('jwt') || message.includes('row-level security')) return 'auth';
+    if (code === '23503' || message.includes('foreign key')) return 'reference';
+    if (code === '23502' || message.includes('null value')) return 'configuration';
+    if (message.includes('failed to fetch') || message.includes('network') || message.includes('offline')) return 'network';
+    return 'unknown';
+}
+
 export function planActivityScoreChanges(entries, existingScores, perfectScore, absentStudentNumbers = new Set()) {
     const absentSet = new Set([...absentStudentNumbers].map(value => String(value ?? '').trim()).filter(Boolean));
     const changes = {
