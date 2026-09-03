@@ -119,10 +119,15 @@ async function writeScore(env, activity, studentNo, score) {
     return { score: { ...existing[0], score } };
   }
 
-  const scoreValues = { activityId: activity.id, studentNo, score };
+  const scoreValues = {
+    activityId: activity.id,
+    studentNo,
+    score,
+    createdAt: new Date().toISOString(),
+  };
   let response = await supabaseServiceFetch(env, '/rest/v1/scores', {
     method: 'POST',
-    headers: { 'content-type': 'application/json', prefer: 'return=representation' },
+    headers: { 'content-type': 'application/json', prefer: 'missing=default,return=representation' },
     body: JSON.stringify(scoreValues),
   });
   let details = await responseJson(response);
@@ -133,7 +138,7 @@ async function writeScore(env, activity, studentNo, score) {
   if (!response.ok && isMissingGeneratedId(details)) {
     response = await supabaseServiceFetch(env, '/rest/v1/scores', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', prefer: 'return=representation' },
+      headers: { 'content-type': 'application/json', prefer: 'missing=default,return=representation' },
       body: JSON.stringify({ id: crypto.randomUUID(), ...scoreValues }),
     });
     details = await responseJson(response);

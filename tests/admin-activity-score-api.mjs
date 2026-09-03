@@ -86,6 +86,7 @@ test('activity score API validates enrollment and saves through the service role
     assert.equal(mock.writes.length, 1);
     assert.equal(mock.writes[0].method, 'POST');
     assert.equal(Object.hasOwn(mock.writes[0].body, 'id'), false, 'the database should normally generate the score id');
+    assert.equal(Number.isNaN(Date.parse(mock.writes[0].body.createdAt)), false, 'new scores must include the live table timestamp');
     assert.deepEqual({
       activityId: mock.writes[0].body.activityId,
       studentNo: mock.writes[0].body.studentNo,
