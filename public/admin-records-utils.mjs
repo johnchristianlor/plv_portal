@@ -82,6 +82,15 @@ export function uniqueSheetName(label, usedNames) {
   return name;
 }
 
+// A plain 0.## Excel mask can show a stray trailing period for whole numbers
+// (for example, "40."). Keep genuinely fractional scores intact instead of
+// rounding underlying grades just to improve display. Native numeric cells
+// remain easy to copy/paste into another workbook.
+export function excelScoreNumberFormat(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && Number.isInteger(number) ? '0' : '0.##########';
+}
+
 // Scores are numeric cells. Their maximum is part of the activity heading,
 // e.g. "[MID] L-EXAM (/40)"; no extra maximum column is necessary.
 export function formatExportMaximum(maximum) {

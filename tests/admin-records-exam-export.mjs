@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {
   summarizeExamPoints, uniqueSheetName, sortRecordRows, escapeCsvCell,
-  buildActivityExportHeader, buildExamTotalHeader, formatExportMaximum, excelColumnName,
+  buildActivityExportHeader, buildExamTotalHeader, formatExportMaximum, excelColumnName, excelScoreNumberFormat,
 } from '../public/admin-records-utils.mjs';
 
 const activities = [
@@ -52,6 +52,10 @@ test('Compact headings include exact maximum and column names reach O/AA',()=>{
   assert.equal(formatExportMaximum('invalid'),'0');
   assert.equal(excelColumnName(15),'O');
   assert.equal(excelColumnName(27),'AA');
+  assert.equal(excelScoreNumberFormat(40),'0');
+  assert.equal(excelScoreNumberFormat(40.0),'0');
+  assert.equal(excelScoreNumberFormat(0),'0');
+  assert.equal(excelScoreNumberFormat(19.5),'0.##########');
 });
 
 test('Sheet names are Excel-safe and distinct',()=>{
@@ -89,9 +93,9 @@ class Workbook {
   constructor(){this.worksheets=[];this.xlsx={writeBuffer:async()=>new Uint8Array([80,75,3,4])};}
   addWorksheet(name,opts){const sh=new Sheet(name,opts);this.worksheets.push(sh);return sh;}
 }
-function setupExport({format='xlsx',includeExam=true,includeActivities=true,includePercent=false,section='',subject='' }={}){
+function setupExport({format='xlsx',includeExam=true,includeActivities=true,includePercent=false,includeGrades=false,section='',subject='' }={}){
   const opts={expSection:section,expSubject:subject,expOrder:'name_asc',
-    expRanking:false,expActivities:includeActivities,expGrades:false,
+    expRanking:false,expActivities:includeActivities,expGrades:includeGrades,
     expStatus:false,expPercent:includePercent,expExamTotals:includeExam};
   const saved={};
   const document={
@@ -114,7 +118,7 @@ function setupExport({format='xlsx',includeExam=true,includeActivities=true,incl
       finGrade:e.finalTermGrade,avg:1.75,totalScore:0,totalMax:0,scorePercent:0,
       rank:1,status:'Passed'})),
     assignRanks:x=>x,sortRecordRows,escapeCsvCell,summarizeExamPoints,uniqueSheetName,
-    buildActivityExportHeader,buildExamTotalHeader,formatExportMaximum,excelColumnName,
+    buildActivityExportHeader,buildExamTotalHeader,formatExportMaximum,excelColumnName,excelScoreNumberFormat,
     setTimeout:()=>{},console,Date,
   };
   // Keep track of the created workbook without opening a real browser.
@@ -144,13 +148,17 @@ test('Styled Excel has one class sheet, colored headers, four exams and one comp
   assert.equal(ws.getRow(1).getCell(8).font.bold,true);
   assert.equal(ws.options.views[0].xSplit,2);
   assert.equal(ws.getRow(2).getCell(3).value,40);
+  assert.equal(ws.getRow(2).getCell(3).numFmt,'0'); // 40, never 40. / 40.00
+  assert.equal(ws.getRow(2).getCell(5).numFmt,'0'); // actual zero is displayed as 0
   assert.equal(ws.getRow(2).getCell(5).value,0);
   assert.equal(ws.getRow(2).getCell(8).value.formula,'SUM(C2,D2,E2,F2)');
   assert.equal(ws.getRow(2).getCell(8).value.result,169);
+  assert.equal(ws.getRow(2).getCell(8).numFmt,'0'); // total is 169, not 169.
   assert.equal(ws.getRow(3).getCell(3).value,0);
   assert.equal(ws.getRow(3).getCell(4).value,'');
   assert.equal(ws.getRow(3).getCell(4).fill.fgColor.argb,'FFFFF1C7');
   assert.equal(ws.getRow(3).getCell(8).value.result,0);
+  assert.equal(ws.getRow(3).getCell(8).numFmt,'0');
   assert.match(ws.getRow(3).getCell(8).note,/3 exam score/);
   assert.equal(ws.getRow(3).getCell(8).fill.fgColor.argb,'FFFFF1C7');
 });
@@ -169,6 +177,19 @@ test('Combined exam score works without individual score columns',async()=>{
   const ws=workbook.worksheets[0];
   assert.deepEqual(Array.from(ws.getRow(1).cells,c=>c.value),['Student No.','Student Name','EXAMS TOTAL (/250)']);
   assert.equal(ws.getRow(2).getCell(3).value,169);
+});
+
+test('Optional university grade equivalents still show two decimal places',async()=>{
+  const {workbook}=await setupExport({section:'A',subject:'IT101',includeActivities:false,includeExam:false,includeGrades:true});
+  const ws=workbook.worksheets[0];
+  assert.deepEqual(Array.from(ws.getRow(1).cells,c=>c.value),[
+    'Student No.','Student Name','Midterm Grade','Final Grade','Average',
+  ]);
+  // These are grade equivalents (1.50 and 2.00), not raw exam scores.
+  assert.equal(ws.getRow(2).getCell(3).value,1.5);
+  assert.equal(ws.getRow(2).getCell(4).value,2);
+  assert.equal(ws.getRow(2).getCell(3).numFmt,'0.00');
+  assert.equal(ws.getRow(2).getCell(4).numFmt,'0.00');
 });
 
 test('When exam total checkbox is off no exam total column is added',async()=>{

@@ -30,3 +30,7 @@ The included `SAMPLE_Compact_Exam_Export.xlsx` contains fictitious students to d
 ## Validation
 
 `node --test tests/*.mjs` — **65 tests passed**, including subject/section isolation, four exam types, pending vs recorded zero, exact `(/max)` headers, Excel formula references, styling, and CSV behavior. This is a browser-mocked export test, **not** an end-to-end production download; verify one exported workbook on your deployed site.
+
+## Numeric display cleanup (2026-10-16)
+
+Whole-number scores, zeroes, and combined exam totals now use Excel's `0` number format, so they display as `40`, `0`, and `169` without a trailing dot or `.00`. The values stay numeric for direct copy/paste into another Excel workbook. True fractional scores remain fractional instead of being silently rounded, and optional Philippine university grade equivalents retain two decimal places. No database migration is required.

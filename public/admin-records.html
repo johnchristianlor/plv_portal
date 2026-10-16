@@ -1218,7 +1218,7 @@ import { supabase } from "./supabase-adapter.js";
 
 import { startAdminSessionGuard } from "./admin-session.js";
 import { loadVendor } from "./vendor-loader.v2.js";
-import { escapeCsvCell, sortRecordRows, summarizeExamPoints, uniqueSheetName, buildActivityExportHeader, buildExamTotalHeader, formatExportMaximum, excelColumnName } from "./admin-records-utils.mjs";
+import { escapeCsvCell, sortRecordRows, summarizeExamPoints, uniqueSheetName, buildActivityExportHeader, buildExamTotalHeader, formatExportMaximum, excelColumnName, excelScoreNumberFormat } from "./admin-records-utils.mjs";
 import { assignClassStanding, sortClassStanding } from "./class-standing-utils.mjs";
 const _u=JSON.parse(localStorage.getItem('loggedInUser'));
 if(!_u||_u.role!=='admin')location.href='index.html';
@@ -1944,7 +1944,7 @@ function addStyledRecordsSheet(workbook,group,options){
     if(incE)push(buildExamTotalHeader(examMax),'total',22);
     const activityTotalIndex=incP?headings.length+1:null;
     if(incP){push('ALL ACTIVITIES (/'+formatExportMaximum(activityMax)+')','total',25);push('Score %','total',13);}
-    if(incG){push('Midterm Grade','profile',17);push('Final Grade','profile',17);push('Average','profile',13);}
+    if(incG){push('Midterm Grade','grade',17);push('Final Grade','grade',17);push('Average','grade',13);}
     if(incS)push('Status','profile',14);
 
     const worksheet=workbook.addWorksheet(uniqueSheetName(group.subject+' - '+group.section,usedNames),{
@@ -1988,7 +1988,7 @@ function addStyledRecordsSheet(workbook,group,options){
             cell.font={name:'Aptos',size:11,color:{argb:EXCEL_PALETTE.text}};
             cell.alignment={horizontal:i<= (incR?3:2)?'left':'center',vertical:'middle',indent:i<= (incR?3:2)?1:0};
             cell.border={bottom:{style:'hair',color:{argb:EXCEL_PALETTE.border}}};
-            if(typeof cell.value==='number')cell.numFmt='0.##';
+            if(typeof cell.value==='number')cell.numFmt=kind[i-1]==='grade'?'0.00':excelScoreNumberFormat(cell.value);
         });
         for(const item of activityColumns){
             const cell=row.getCell(item.index);
@@ -2005,14 +2005,14 @@ function addStyledRecordsSheet(workbook,group,options){
             }
             cell.fill=excelSolid(totals.combined.pending>0?EXCEL_PALETTE.amber:EXCEL_PALETTE.totalPale);
             cell.font={name:'Aptos',size:11,bold:true,color:{argb:totals.combined.pending>0?EXCEL_PALETTE.amberText:EXCEL_PALETTE.total}};
-            cell.numFmt='0.##';
+            cell.numFmt=excelScoreNumberFormat(totals.combined.earned);
             if(totals.combined.pending>0)cell.note=totals.combined.pending+' exam score(s) pending. This is a partial earned total; the header maximum includes all exams.';
         }
         if(activityTotalIndex){
             const cell=row.getCell(activityTotalIndex);
             cell.fill=excelSolid(EXCEL_PALETTE.totalPale);
             cell.font={name:'Aptos',size:11,bold:true,color:{argb:EXCEL_PALETTE.total}};
-            row.getCell(activityTotalIndex+1).numFmt='0.00%';
+            row.getCell(activityTotalIndex+1).numFmt=Number.isInteger(r.scorePercent)?'0%':'0.##########%';
         }
     });
     return worksheet;
