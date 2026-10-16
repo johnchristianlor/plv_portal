@@ -1155,7 +1155,7 @@ body.dark-theme .records-card.freeze-pane-on .grid-table .col-name::after{backgr
 <div id="exportModal" class="modal-overlay">
     <div class="modal-box exp-modal-box glass">
         <div class="modal-head">
-            <div><h3>Smart Export</h3><p>Full grid with activities, scores, rankings &amp; grades.</p></div>
+            <div><h3>Smart Export</h3><p>Clean, color-coded Excel records with maximum scores inside the headers.</p></div>
             <button class="modal-close-btn" onclick="window.closeExportModal()"><i class="ph-bold ph-x"></i></button>
         </div>
         <div style="display:flex;flex-direction:column;gap:16px;">
@@ -1176,13 +1176,13 @@ body.dark-theme .records-card.freeze-pane-on .grid-table .col-name::after{backgr
             </div>
             <div>
                 <label class="form-label">Include in Export</label>
-                <label class="chk-row"><input type="checkbox" id="expRanking" checked> Ranking &amp; Placement column</label>
-                <label class="chk-row"><input type="checkbox" id="expActivities" checked> All activity scores (one column per activity)</label>
-                <label class="chk-row"><input type="checkbox" id="expGrades" checked> Term grades &amp; average</label>
-                <label class="chk-row"><input type="checkbox" id="expStatus" checked> Pass/Fail status</label>
-                <label class="chk-row"><input type="checkbox" id="expPercent" checked> Score percentage</label>
-                <label class="chk-row"><input type="checkbox" id="expExamTotals" checked> Combined exam points / max score (Midterm, Final &amp; Overall)</label>
-                <p style="color:var(--text-muted);font-size:12px;line-height:1.5;margin:5px 0 0 24px;">Adds an Exam Totals worksheet to Excel. All major exams (lab, written, etc.) are summed by subject and section; missing grades are shown as pending, not saved as zero. Percentages are raw exam points, before grading weights.</p>
+                <label class="chk-row"><input type="checkbox" id="expRanking"> Ranking &amp; Placement column</label>
+                <label class="chk-row"><input type="checkbox" id="expActivities" checked> Individual activity scores (one column each, max in header)</label>
+                <label class="chk-row"><input type="checkbox" id="expGrades"> Term grades &amp; average</label>
+                <label class="chk-row"><input type="checkbox" id="expStatus"> Pass/Fail status</label>
+                <label class="chk-row"><input type="checkbox" id="expPercent"> Score percentage</label>
+                <label class="chk-row"><input type="checkbox" id="expExamTotals" checked> One combined exam total (maximum shown in header)</label>
+                <p style="color:var(--text-muted);font-size:12px;line-height:1.5;margin:5px 0 0 24px;">Creates one worksheet per subject and section. Every exam appears once, like [MID] L-EXAM (/40), followed by EXAMS TOTAL (/combined maximum). Unrecorded scores stay blank and are highlighted amber; recorded zero scores stay zero. Optional columns are off by default.</p>
             </div>
             <div>
                 <label class="form-label">Format</label>
@@ -1217,8 +1217,8 @@ body.dark-theme .records-card.freeze-pane-on .grid-table .col-name::after{backgr
 import { supabase } from "./supabase-adapter.js";
 
 import { startAdminSessionGuard } from "./admin-session.js";
-import { loadVendor } from "./vendor-loader.v1.js";
-import { escapeCsvCell, sortRecordRows, summarizeExamPoints, uniqueSheetName } from "./admin-records-utils.mjs";
+import { loadVendor } from "./vendor-loader.v2.js";
+import { escapeCsvCell, sortRecordRows, summarizeExamPoints, uniqueSheetName, buildActivityExportHeader, buildExamTotalHeader, formatExportMaximum, excelColumnName } from "./admin-records-utils.mjs";
 import { assignClassStanding, sortClassStanding } from "./class-standing-utils.mjs";
 const _u=JSON.parse(localStorage.getItem('loggedInUser'));
 if(!_u||_u.role!=='admin')location.href='index.html';
@@ -1897,37 +1897,125 @@ window.openExportModal=()=>{
 };
 window.closeExportModal=()=>document.getElementById('exportModal').classList.remove('open');
 
-// Exam percentages are raw earned / possible points, not the weighted grade.
-// Keeping this as separate columns prevents "Total Score" (all activities)
-// being confused with "Combined Exam Points" (major exams only).
-const examExportHeaders = [
-    'Midterm Exam Points', 'Midterm Exam Max',
-    'Final Exam Points', 'Final Exam Max',
-    'Combined Exam Points', 'Combined Exam Max', 'Combined Exam %',
-    'Exams Graded', 'Exams Pending'
-];
-const examExportCells=(totals,format)=>{
-    const { midterm, final, combined }=totals;
-    const percentage=combined.percentage===null?'':format==='xlsx'
-        ? combined.percentage/100 : combined.percentage.toFixed(2)+'%';
-    return [midterm.earned,midterm.max,final.earned,final.max,
-        combined.earned,combined.max,percentage,
-        combined.graded,combined.pending];
+// Keep maximum points in the column heading instead of a second max column.
+// Exam totals include only category === 'exam' within the current subject/section.
+// Blank scores are pending and must never be exported as recorded zeros.
+const examTotalValue=totals=>totals.combined.max>0?totals.combined.earned:'';
+const activityScore=(activity,row,scoreMap)=>{
+    if(activity.section!==row.section||activity.subjectCode!==row.subjectCode)return '';
+    const value=scoreMap[activity.id+'||'+row.studentNo]?.score;
+    return value===null||value===undefined||value===''||!Number.isFinite(Number(value))?'':Number(value);
 };
 
-// xlsx: store percentages as real numeric Excel percentages, allowing calculations.
-function decorateExportWorksheet(ws,columns,examColumnStart){
-    ws['!cols']=columns.map(width=>({wch:width}));
-    ws['!autofilter']={ref:ws['!ref']};
-    ws['!freeze']={xSplit:Math.min(4,columns.length),ySplit:1};
-    if(examColumnStart<0)return;
-    const percentIndex=examColumnStart+6;
-    const col=XLSX.utils.encode_col(percentIndex);
-    const range=XLSX.utils.decode_range(ws['!ref']);
-    for(let r=1;r<=range.e.r;r++){
-        const cell=ws[col+(r+1)];
-        if(cell&&typeof cell.v==='number')cell.z='0.00%';
+const EXCEL_PALETTE={
+    ink:'FF17233C',mid:'FF174EA6',fin:'FF6D37AD',total:'FF00675D',
+    white:'FFFFFFFF',pale:'FFF3F7FC',border:'FFDDE6F0',
+    text:'FF1F2937',muted:'FF64748B',amber:'FFFFF1C7',amberText:'FF8D5600',
+    totalPale:'FFE7F5F2',
+};
+const excelSolid=argb=>({type:'pattern',pattern:'solid',fgColor:{argb}});
+
+function addStyledRecordsSheet(workbook,group,options){
+    const {incR,incA,incE,incP,incG,incS,scoreMap,examFor,usedNames}=options;
+    const acts=options.activities.filter(a=>a.section===group.section&&a.subjectCode===group.subject);
+    const selectedActs=[...acts.filter(a=>a.term==='midterm'),...acts.filter(a=>a.term==='final')];
+    const exams=selectedActs.filter(a=>a.category==='exam'&&Number(a.perfectScore)>0);
+    const examMax=exams.reduce((sum,a)=>sum+Number(a.perfectScore),0);
+    const activityMax=selectedActs.reduce((sum,a)=>sum+(Number(a.perfectScore)||0),0);
+    const headings=[];
+    const kind=[];
+    const widths=[];
+    const push=(heading,type,width)=>{headings.push(heading);kind.push(type);widths.push(width);};
+
+    if(incR)push('Rank','profile',8);
+    push('Student No.','profile',18);
+    push('Student Name','profile',32);
+    const examScoreColumns=[];
+    const activityColumns=[];
+    if(incA)selectedActs.forEach(a=>{
+        const i=headings.length+1;
+        const header=buildActivityExportHeader(a);
+        const isExam=a.category==='exam'&&Number(a.perfectScore)>0;
+        if(isExam)examScoreColumns.push(i);
+        activityColumns.push({activity:a,index:i});
+        push(header,a.term==='midterm'?'mid':'fin',Math.min(34,Math.max(16,header.length+2)));
+    });
+    const examTotalIndex=incE?headings.length+1:null;
+    if(incE)push(buildExamTotalHeader(examMax),'total',22);
+    const activityTotalIndex=incP?headings.length+1:null;
+    if(incP){push('ALL ACTIVITIES (/'+formatExportMaximum(activityMax)+')','total',25);push('Score %','total',13);}
+    if(incG){push('Midterm Grade','profile',17);push('Final Grade','profile',17);push('Average','profile',13);}
+    if(incS)push('Status','profile',14);
+
+    const worksheet=workbook.addWorksheet(uniqueSheetName(group.subject+' - '+group.section,usedNames),{
+        properties:{tabColor:{argb:EXCEL_PALETTE.mid}},
+        views:[{state:'frozen',xSplit:incR?3:2,ySplit:1,showGridLines:false}],
+        pageSetup:{paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0},
+    });
+    worksheet.columns=headings.map((heading,i)=>({header:heading,key:'col'+i,width:widths[i]}));
+    worksheet.getRow(1).height=34;
+    worksheet.printTitlesRow='1:1';
+    worksheet.autoFilter={from:{row:1,column:1},to:{row:Math.max(1,group.rows.length+1),column:headings.length}};
+    worksheet.getRow(1).eachCell((cell,i)=>{
+        const type=kind[i-1];
+        const color=type==='total'?EXCEL_PALETTE.total:type==='mid'?EXCEL_PALETTE.mid:type==='fin'?EXCEL_PALETTE.fin:EXCEL_PALETTE.ink;
+        cell.fill=excelSolid(color);
+        cell.font={name:'Aptos',size:11,bold:true,color:{argb:EXCEL_PALETTE.white}};
+        cell.alignment={vertical:'middle',horizontal:i<= (incR?3:2)?'left':'center',wrapText:true,indent:i<= (incR?3:2)?1:0};
+        cell.border={bottom:{style:'medium',color:{argb:EXCEL_PALETTE.border}}};
+    });
+    if(examTotalIndex){
+        worksheet.getRow(1).getCell(examTotalIndex).note='Combined earned points for all major exams. The maximum in the header includes every exam in this class. Amber cells indicate one or more scores are still pending. A recorded 0 remains a numeric zero.';
     }
+    group.rows.forEach((r,idx)=>{
+        const totals=examFor(r);
+        const values=[];
+        if(incR)values.push(r.rank??'');
+        values.push(r.studentNo,r.studentName);
+        if(incA)selectedActs.forEach(a=>values.push(activityScore(a,r,scoreMap)));
+        if(incE)values.push(examTotalValue(totals));
+        if(incP)values.push(r.totalScore??'',r.totalMax>0?r.scorePercent/100:'');
+        if(incG)values.push(
+            r.midGrade==null?'':Number(r.midGrade.toFixed(2)),
+            r.finGrade==null?'':Number(r.finGrade.toFixed(2)),
+            r.avg==null?'':Number(r.avg.toFixed(2)));
+        if(incS)values.push(r.status||'');
+        const row=worksheet.addRow(values);
+        row.height=24;
+        const alternate=idx%2===0?EXCEL_PALETTE.white:EXCEL_PALETTE.pale;
+        row.eachCell({includeEmpty:true},(cell,i)=>{
+            cell.fill=excelSolid(alternate);
+            cell.font={name:'Aptos',size:11,color:{argb:EXCEL_PALETTE.text}};
+            cell.alignment={horizontal:i<= (incR?3:2)?'left':'center',vertical:'middle',indent:i<= (incR?3:2)?1:0};
+            cell.border={bottom:{style:'hair',color:{argb:EXCEL_PALETTE.border}}};
+            if(typeof cell.value==='number')cell.numFmt='0.##';
+        });
+        for(const item of activityColumns){
+            const cell=row.getCell(item.index);
+            if(cell.value===''||cell.value===null){
+                cell.fill=excelSolid(EXCEL_PALETTE.amber);
+                cell.font={name:'Aptos',size:11,color:{argb:EXCEL_PALETTE.amberText}};
+            }
+        }
+        if(examTotalIndex){
+            const cell=row.getCell(examTotalIndex);
+            if(examScoreColumns.length&&examMax>0){
+                const formula='SUM('+examScoreColumns.map(i=>excelColumnName(i)+row.number).join(',')+')';
+                cell.value={formula,result:totals.combined.earned};
+            }
+            cell.fill=excelSolid(totals.combined.pending>0?EXCEL_PALETTE.amber:EXCEL_PALETTE.totalPale);
+            cell.font={name:'Aptos',size:11,bold:true,color:{argb:totals.combined.pending>0?EXCEL_PALETTE.amberText:EXCEL_PALETTE.total}};
+            cell.numFmt='0.##';
+            if(totals.combined.pending>0)cell.note=totals.combined.pending+' exam score(s) pending. This is a partial earned total; the header maximum includes all exams.';
+        }
+        if(activityTotalIndex){
+            const cell=row.getCell(activityTotalIndex);
+            cell.fill=excelSolid(EXCEL_PALETTE.totalPale);
+            cell.font={name:'Aptos',size:11,bold:true,color:{argb:EXCEL_PALETTE.total}};
+            row.getCell(activityTotalIndex+1).numFmt='0.00%';
+        }
+    });
+    return worksheet;
 }
 
 window.doExport=async(fmt)=>{
@@ -1943,8 +2031,7 @@ window.doExport=async(fmt)=>{
 
     const fe=enrollments.filter(e=>(!expSec||e.section===expSec)&&(!expSub||e.subjectCode===expSub));
     const fa=activities.filter(a=>(!expSec||a.section===expSec)&&(!expSub||a.subjectCode===expSub));
-    const midA=fa.filter(a=>a.term==='midterm'),finA=fa.filter(a=>a.term==='final');
-    const allA=[...midA,...finA];
+    const allA=[...fa.filter(a=>a.term==='midterm'),...fa.filter(a=>a.term==='final')];
     const sm=buildSMap();
     let rows=assignRanks(computeRows(fe,allA,sm));
     rows=sortRecordRows(rows,expOrder);
@@ -1955,98 +2042,71 @@ window.doExport=async(fmt)=>{
         if(!examCache.has(row))examCache.set(row,summarizeExamPoints(allA,sm,row.studentNo,row.section,row.subjectCode));
         return examCache.get(row);
     };
-    const ord=n=>{const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);};
-    const rankHeaders=['Rank','Placement','Ranking Basis','Standing Value'];
-    const profileHeaders=['Student No.','Student Name','Section','Subject'];
-    const gradeHeaders=['Midterm Grade','Final Grade','Average'];
-    const rankCells=r=>[r.rank||'',r.rank?ord(r.rank)+' Place':'N/A',r.standingLabel,r.standingValue!==null?Number(r.standingValue.toFixed(2)):''];
-    const profileCells=r=>[r.studentNo,r.studentName,r.section,r.subjectCode];
-    const gradeCells=r=>[r.midGrade===null?'':Number(r.midGrade.toFixed(2)),r.finGrade===null?'':Number(r.finGrade.toFixed(2)),r.avg===null?'':Number(r.avg.toFixed(2))];
-    const activityScore=(a,r)=>{
-        if(a.section!==r.section||a.subjectCode!==r.subjectCode)return '';
-        const val=sm[a.id+'||'+r.studentNo]?.score;
-        return val===null||val===undefined||val===''?'':Number(val);
-    };
+    const groups=new Map();
+    rows.forEach(r=>{
+        const key=JSON.stringify([r.subjectCode,r.section]);
+        if(!groups.has(key))groups.set(key,{subject:r.subjectCode,section:r.section,rows:[]});
+        groups.get(key).rows.push(r);
+    });
 
     if(fmt==='xlsx'){
-        try{await loadVendor('xlsx');}catch(error){window.showToast('Excel tools could not be loaded.','err');return;}
-        const wb=XLSX.utils.book_new();
-        const usedNames=new Set();
-        if(incE){
-            const headers=[...profileHeaders,...examExportHeaders];
-            const data=[headers,...rows.map(r=>[...profileCells(r),...examExportCells(examFor(r),'xlsx')])];
-            const ws=XLSX.utils.aoa_to_sheet(data);
-            decorateExportWorksheet(ws,[15,30,20,18,18,18,18,18,22,20,19,15,16],4);
-            XLSX.utils.book_append_sheet(wb,ws,uniqueSheetName('Exam Totals',usedNames));
-        }
-        // Each sheet is one section + subject. This avoids combining two classes
-        // that happen to use the same subject code but different exam activities.
-        const groups=new Map();
-        rows.forEach(r=>{
-            const key=JSON.stringify([r.subjectCode,r.section]);
-            if(!groups.has(key))groups.set(key,{subject:r.subjectCode,section:r.section,rows:[]});
-            groups.get(key).rows.push(r);
-        });
-        for(const group of groups.values()){
-            const acts=allA.filter(a=>a.section===group.section&&a.subjectCode===group.subject);
-            const sMid=acts.filter(a=>a.term==='midterm'),sFin=acts.filter(a=>a.term==='final');
-            const selectedActs=[...sMid,...sFin];
-            const headers=[];
-            if(incR)headers.push(...rankHeaders);
-            headers.push(...profileHeaders);
-            if(incA)selectedActs.forEach(a=>headers.push('['+(a.term==='midterm'?'MID':'FIN')+'] '+a.title+' (/'+a.perfectScore+')'));
-            const examColumnStart=incE?headers.length:-1;
-            if(incE)headers.push(...examExportHeaders);
-            if(incP)headers.push('Total Score','Total Max','Score %');
-            if(incG)headers.push(...gradeHeaders);
-            if(incS)headers.push('Status');
-            const data=[headers];
-            for(const r of group.rows){
-                const row=[];
-                if(incR)row.push(...rankCells(r));
-                row.push(...profileCells(r));
-                if(incA)selectedActs.forEach(a=>row.push(activityScore(a,r)));
-                if(incE)row.push(...examExportCells(examFor(r),'xlsx'));
-                if(incP)row.push(r.totalScore,r.totalMax,r.totalMax>0?r.scorePercent.toFixed(2)+'%':'N/A');
-                if(incG)row.push(...gradeCells(r));
-                if(incS)row.push(r.status);
-                data.push(row);
+        let ExcelJS;
+        try{ExcelJS=await loadVendor('exceljs');}
+        catch(error){window.showToast('Excel tools could not be loaded. Please check your connection.','err');return;}
+        try{
+            const workbook=new ExcelJS.Workbook();
+            workbook.creator='PLV Grades Portal';
+            workbook.created=new Date();
+            const usedNames=new Set();
+            for(const group of groups.values()){
+                addStyledRecordsSheet(workbook,group,{incR,incA,incE,incP,incG,incS,
+                    activities:allA,scoreMap:sm,examFor,usedNames});
             }
-            const ws=XLSX.utils.aoa_to_sheet(data);
-            const cw=[...(incR?[7,14,24,16]:[]),15,30,20,18,
-                ...(incA?selectedActs.map(()=>26):[]),
-                ...(incE?[18,18,18,18,22,20,19,15,16]:[]),
-                ...(incP?[14,13,13]:[]),...(incG?[15,15,12]:[]),...(incS?[12]:[])];
-            decorateExportWorksheet(ws,cw,examColumnStart);
-            XLSX.utils.book_append_sheet(wb,ws,uniqueSheetName(group.subject+' - '+group.section,usedNames));
+            const buffer=await workbook.xlsx.writeBuffer();
+            const blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+            const href=URL.createObjectURL(blob);
+            const link=document.createElement('a');
+            link.href=href;
+            link.download='MasterRecords_'+(expSec||'All')+'_'+(expSub||'AllSubs')+'_'+new Date().toISOString().slice(0,10)+'.xlsx';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(()=>URL.revokeObjectURL(href),60000);
+            window.showToast('Exported '+workbook.worksheets.length+' color-coded worksheet(s)!');
+        }catch(error){
+            console.error('Excel export failed:',error);
+            window.showToast('Could not generate Excel. Please try again.','err');
+            return;
         }
-        XLSX.writeFile(wb,'MasterRecords_'+(expSec||'All')+'_'+(expSub||'AllSubs')+'_'+new Date().toISOString().slice(0,10)+'.xlsx');
-        window.showToast('Exported '+wb.SheetNames.length+' sheet(s) with combined exam totals!');
     }else{
-        const headers=[];
-        if(incR)headers.push(...rankHeaders);
-        headers.push(...profileHeaders);
-        if(incA)allA.forEach(a=>headers.push('['+a.section+' / '+a.subjectCode+'] '+a.title+' (/'+a.perfectScore+')'));
-        if(incE)headers.push(...examExportHeaders);
-        if(incP)headers.push('Total Score','Total Max','Score %');
-        if(incG)headers.push(...gradeHeaders);
+        // CSV remains a single flat table: no color support, but it mirrors
+        // the concise score (/max) headings from the Excel workbook.
+        const headers=['Student No.','Student Name','Section','Subject'];
+        if(incR)headers.unshift('Rank');
+        if(incA)allA.forEach(a=>headers.push('['+a.section+' / '+a.subjectCode+'] '+buildActivityExportHeader(a)));
+        if(incE)headers.push(groups.size===1?buildExamTotalHeader(examFor(rows[0]).combined.max):'EXAMS TOTAL (max varies by class)');
+        if(incP)headers.push('ALL ACTIVITIES','Score %');
+        if(incG)headers.push('Midterm Grade','Final Grade','Average');
         if(incS)headers.push('Status');
         const lines=[headers.map(escapeCsvCell).join(',')];
         rows.forEach(r=>{
-            const row=[];
-            if(incR)row.push(...rankCells(r));
-            row.push(...profileCells(r));
-            if(incA)allA.forEach(a=>row.push(activityScore(a,r)));
-            if(incE)row.push(...examExportCells(examFor(r),'csv'));
-            if(incP)row.push(r.totalScore,r.totalMax,r.totalMax>0?r.scorePercent.toFixed(2)+'%':'N/A');
-            if(incG)row.push(...gradeCells(r));
-            if(incS)row.push(r.status);
+            const row=[r.studentNo,r.studentName,r.section,r.subjectCode];
+            if(incR)row.unshift(r.rank??'');
+            if(incA)allA.forEach(a=>row.push(activityScore(a,r,sm)));
+            if(incE)row.push(examTotalValue(examFor(r)));
+            if(incP)row.push(r.totalScore,r.totalMax>0?r.scorePercent.toFixed(2)+'%':'');
+            if(incG)row.push(r.midGrade??'',r.finGrade??'',r.avg??'');
+            if(incS)row.push(r.status||'');
             lines.push(row.map(escapeCsvCell).join(','));
         });
         const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
-        const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-        a.download='MasterRecords_'+(expSec||'All')+'_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
-        window.showToast('Exported as CSV with combined exam totals!');
+        const link=document.createElement('a');
+        const href=URL.createObjectURL(blob);
+        link.href=href;
+        link.download='MasterRecords_'+(expSec||'All')+'_'+new Date().toISOString().slice(0,10)+'.csv';
+        document.body.appendChild(link);link.click();link.remove();
+        setTimeout(()=>URL.revokeObjectURL(href),60000);
+        window.showToast('Exported simplified CSV.');
     }
     window.closeExportModal();
 };

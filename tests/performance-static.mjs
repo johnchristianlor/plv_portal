@@ -158,7 +158,7 @@ test('class standing uses one shared fair ranking model across student and admin
 
     assert.match(records, /relevantActivities=acList\.filter\(a=>a\.section===e\.section&&a\.subjectCode===e\.subjectCode\)/);
     assert.match(records, /let rows=assignRanks\(computeRows\(cohortEnrollments,fa,sm\),term\);[\s\S]{0,280}rows=rows\.filter/);
-    assert.match(records, /Ranking Basis','Standing Value/);
+    assert.match(records, /if\(incR\)push\('Rank','profile',8\)/); // Compact export intentionally omits verbose ranking detail columns.
 });
 
 test('inline and shared browser modules remain syntactically valid', () => {
@@ -171,7 +171,7 @@ test('inline and shared browser modules remain syntactically valid', () => {
             catch (error) { failures.push(`${file} inline module ${index + 1}: ${error.message}`); }
         }
     }
-    for (const file of ['student-data.js', 'student-notifications.js', 'vendor-loader.v1.js']) {
+    for (const file of ['student-data.js', 'student-notifications.js', 'vendor-loader.v1.js', 'vendor-loader.v2.js']) {
         const body = read(file)
             .replace(/^\s*import\s+[^;]+;\s*$/gm, '')
             .replace(/\bexport\s+(?=(?:const|function|class)\b)/g, '');

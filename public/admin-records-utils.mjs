@@ -81,3 +81,32 @@ export function uniqueSheetName(label, usedNames) {
   usedNames.add(name.toLowerCase());
   return name;
 }
+
+// Scores are numeric cells. Their maximum is part of the activity heading,
+// e.g. "[MID] L-EXAM (/40)"; no extra maximum column is necessary.
+export function formatExportMaximum(maximum) {
+  const number = Number(maximum);
+  return Number.isFinite(number) && number >= 0 ? String(number) : '0';
+}
+
+export function buildActivityExportHeader(activity) {
+  const term = activity?.term === 'midterm' ? 'MID' : 'FIN';
+  const name = String(activity?.title || 'Activity').trim();
+  return '[' + term + '] ' + name + ' (/' + formatExportMaximum(activity?.perfectScore) + ')';
+}
+
+export function buildExamTotalHeader(maximum) {
+  return 'EXAMS TOTAL (/' + formatExportMaximum(maximum) + ')';
+}
+
+// Excel column number (1-based) => A, O, AA. Needed for sum formulas.
+export function excelColumnName(column) {
+  if (!Number.isInteger(column) || column < 1) throw new RangeError('Excel columns start at 1');
+  let name = '';
+  while (column > 0) {
+    column -= 1;
+    name = String.fromCharCode(65 + column % 26) + name;
+    column = Math.floor(column / 26);
+  }
+  return name;
+}
