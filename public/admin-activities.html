@@ -172,7 +172,21 @@
         .score-table thead { position: sticky; top: 0; z-index: 3; background: var(--bg-body); }
         .score-table th { padding-top: 13px; }
         .student-score-row.graded td { background: rgba(16,185,129,.06); }
-        .student-score-row.absent td { background: rgba(225,29,72,.055); }
+        .student-score-row.attendance-absent td { background: rgba(225,29,72,.045); }
+        .student-score-row.attendance-excused td { background: rgba(245,158,11,.055); }
+        .attendance-label { display:inline-flex; align-items:center; gap:5px; margin-top:4px; padding:3px 7px; border-radius:6px; font-size:10px; font-weight:800; }
+        .attendance-label.absent { color:#be123c; background:rgba(225,29,72,.1); }
+        .attendance-label.excused { color:#92400e; background:rgba(245,158,11,.12); }
+        .exam-totals-panel { margin-top:24px; padding:20px; border:1px solid var(--input-border); background:var(--glass-bg); border-radius:18px; }
+        .exam-totals-panel[hidden] { display:none; }
+        .exam-totals-heading { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; }
+        .exam-totals-heading h3 { font-size:17px; color:var(--text-main); }
+        .exam-totals-heading h3 i { color:var(--accent-primary); }
+        .exam-totals-heading p, .exam-totals-footnote { color:var(--text-muted); font-size:12px; line-height:1.6; margin-top:7px; }
+        #examTotalsMaximum { color:var(--accent-primary); font-size:18px; }
+        .exam-totals-table-wrap { max-height:420px; overflow:auto; margin-top:16px; }
+        #examTotalsHead th { min-width:110px; }
+        .exam-pending-label { display:block; color:var(--text-muted); font-size:10px; margin-top:3px; }
         .student-score-row.score-save-error td { background: rgba(225,29,72,.08); }
         .student-score-row.hidden { display: none; }
         .student-name-main { display: block; color: var(--text-main); font-weight: 800; }
@@ -186,7 +200,7 @@
         .score-roster-search { flex: 1 1 260px; max-width: 420px; position: relative; }
         .score-roster-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
         .score-roster-search input { width: 100%; padding-left: 42px; }
-        .score-filter-group { display: flex; padding: 4px; border-radius: 12px; background: rgba(100,116,139,.1); }
+        .score-filter-group { display: flex; padding: 4px; border-radius: 12px; background: rgba(100,116,139,.1); max-width:100%; overflow-x:auto; }
         .score-filter-btn { padding: 8px 13px; border: 0; border-radius: 9px; background: transparent; color: var(--text-muted); font-size: 12px; font-weight: 800; cursor: pointer; }
         .score-filter-btn.active { background: var(--input-bg); color: var(--accent-primary); box-shadow: 0 3px 8px rgba(15,23,42,.08); }
         .roster-result-count { color: var(--text-muted); font-size: 12px; font-weight: 700; }
@@ -472,6 +486,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                                 <button type="button" class="score-filter-btn" data-score-filter="ungraded" onclick="window.setScoreFilter('ungraded', this)">Ungraded</button>
                                 <button type="button" class="score-filter-btn" data-score-filter="graded" onclick="window.setScoreFilter('graded', this)">Graded</button>
                                 <button type="button" class="score-filter-btn" data-score-filter="absent" onclick="window.setScoreFilter('absent', this)">Absent</button>
+                                <button type="button" class="score-filter-btn" data-score-filter="excused" onclick="window.setScoreFilter('excused', this)">Excused</button>
                             </div>
                             <span id="rosterResultCount" class="roster-result-count">0 students</span>
                         </div>
@@ -482,13 +497,18 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                             </table>
                         </div>
                         <div class="score-save-bar">
-                            <div class="score-save-summary"><strong id="scoreSaveSummary">0 of 0 students graded</strong><div id="scoreAutosaveState" class="score-autosave-state saved" role="status" aria-live="polite"><i class="ph-bold ph-cloud-check"></i><span>Autosave ready</span></div><span>Absent students are locked and never receive an activity score.</span></div>
+                            <div class="score-save-summary"><strong id="scoreSaveSummary">0 of 0 students graded</strong><div id="scoreAutosaveState" class="score-autosave-state saved" role="status" aria-live="polite"><i class="ph-bold ph-cloud-check"></i><span>Autosave ready</span></div><span>Attendance status is preserved. Absent and excused students may submit during completion week and receive a score.</span></div>
                             <div class="score-save-actions">
                                 <button type="button" class="btn btn-outline" onclick="window.scrollToSavedActivities()"><i class="ph-bold ph-books"></i> Saved Activities</button>
                                 <button type="submit" id="saveScoreBtn" class="btn btn-primary"><i class="ph-bold ph-cloud-arrow-up"></i> Save now</button>
                             </div>
                         </div>
                     </form>
+                    <section id="examTotalsPanel" class="exam-totals-panel" hidden aria-label="Combined major exam totals">
+                        <div class="exam-totals-heading"><div><h3><i class="ph-bold ph-calculator"></i> Combined Major Exams</h3><p id="examTotalsDescription">Lab and written exam totals for this subject, section, and period.</p></div><strong id="examTotalsMaximum">—</strong></div>
+                        <div class="table-container exam-totals-table-wrap"><table class="modern-table"><thead id="examTotalsHead"></thead><tbody id="examTotalsBody"></tbody></table></div>
+                        <p class="exam-totals-footnote">Scores add together across exams: total earned ÷ total possible. An ungraded exam is labeled Pending, not recorded as a zero. The student score page uses the same combined maximum.</p>
+                    </section>
                 </div>
                 </div>
             </div>
@@ -671,7 +691,8 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
     <script type="module">
         import { supabase } from "./supabase-adapter.js";
         import { filterAndSortManagedActivities, filterSavedActivityRecords, getActivityProgress, getActivityScoreSaveErrorKind, parseActivityScore, planActivityScoreChanges } from "./admin-activities-manual.v2.js";
-        import { getAbsentStudentNumbers, nextDateKey, normalizeDateKey } from "./attendance-utils.mjs";
+        import { getAttendanceStatusByStudent, nextDateKey, normalizeDateKey } from "./attendance-utils.mjs";
+        import { aggregateExamTotals } from "./exam-total-utils.mjs";
 
 
 import { startAdminSessionGuard } from "./admin-session.js";
@@ -704,7 +725,9 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         let activeActivityId = null;
         let activeActivity = null;
         let existingActivityScores = new Map();
-        let absentStudentNumbers = new Set();
+        let activityAttendanceStatus = new Map();
+        let currentRosterStudents = [];
+        let examTotalsRequest = 0;
         let savedActivitiesData = [];
         let scoreRosterFilter = 'all';
         let scoreAutosaveTimer = null;
@@ -930,10 +953,11 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             const rows = [...document.querySelectorAll('.student-score-row')];
             const inputs = [...document.querySelectorAll('.stud-score')];
             const graded = inputs.filter(input => input.value.trim() !== '').length;
-            const absent = rows.filter(row => row.dataset.scoreStatus === 'absent').length;
-            const remaining = Math.max(0, rows.length - graded - absent);
-            document.getElementById('scoreProgress').textContent = `${graded} graded · ${absent} absent`;
-            document.getElementById('scoreSaveSummary').textContent = `${graded} graded · ${absent} absent · ${remaining} remaining`;
+            const absent = rows.filter(row => row.dataset.attendanceStatus === 'A').length;
+            const excused = rows.filter(row => row.dataset.attendanceStatus === 'E').length;
+            const remaining = Math.max(0, rows.length - graded);
+            document.getElementById('scoreProgress').textContent = `${graded} graded · ${remaining} pending`;
+            document.getElementById('scoreSaveSummary').textContent = `${graded} graded · ${remaining} pending · ${absent} absent · ${excused} excused`;
         }
 
         function setScoreAutosaveState(state, message) {
@@ -953,8 +977,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         function collectScoreEntries() {
             return [...document.querySelectorAll('.student-score-row')].map(row => ({
                 studentNo: row.dataset.studentNo,
-                value: row.querySelector('.stud-score')?.value || '',
-                absent: row.dataset.scoreStatus === 'absent'
+                value: row.querySelector('.stud-score')?.value || ''
             }));
         }
 
@@ -1043,7 +1066,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             const studentNumbers = [...new Set(failures.map(item => item.studentNo))];
             const kind = getActivityScoreSaveErrorKind(failures[0]?.error);
             if (kind === 'absent') {
-                return `${studentNumbers.join(', ')} ${studentNumbers.length === 1 ? 'is' : 'are'} marked absent for this activity date, so no score was recorded.`;
+                return `The database still blocks grading absent students (${studentNumbers.join(', ')}). Run the 20261016 attendance-score migration in Supabase, then retry.`;
             }
             if (kind === 'duplicate') {
                 return `A score changed in another session. Reopen the activity before retrying ${studentNumbers.join(', ')}.`;
@@ -1061,7 +1084,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             if (generation !== scoreRosterGeneration || activityId !== activeActivityId) return false;
             const button = document.getElementById('saveScoreBtn');
             const entries = collectScoreEntries();
-            const changes = planActivityScoreChanges(entries, existingActivityScores, activeActivity?.perfectScore, absentStudentNumbers);
+            const changes = planActivityScoreChanges(entries, existingActivityScores, activeActivity?.perfectScore);
             document.querySelectorAll('.student-score-row.score-save-error').forEach(row => row.classList.remove('score-save-error'));
 
             if (changes.invalid.length) {
@@ -1093,6 +1116,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                 const noChanges = result.total === 0;
                 setScoreAutosaveState(scoreInputRevision === revision ? 'saved' : 'pending', noChanges ? 'All changes saved' : `${result.completed} ${result.completed === 1 ? 'score' : 'scores'} autosaved`);
                 if (manual) window.showToast(noChanges ? 'All score changes are already saved.' : `Saved ${result.completed} score ${result.completed === 1 ? 'change' : 'changes'}.`);
+                if (activeActivity?.category === 'exam' && !noChanges) refreshExamTotals(activeActivity, currentRosterStudents, generation);
                 return true;
             } finally {
                 if (manual) { button.disabled = false; button.innerHTML = '<i class="ph-bold ph-cloud-arrow-up"></i> Save now'; }
@@ -1125,7 +1149,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             let visible = 0;
             rows.forEach(row => {
                 const matchesSearch = !query || row.dataset.search.includes(query);
-                const matchesStatus = scoreRosterFilter === 'all' || row.dataset.scoreStatus === scoreRosterFilter;
+                const matchesStatus = scoreRosterFilter === 'all' || (scoreRosterFilter === 'absent' ? row.dataset.attendanceStatus === 'A' : scoreRosterFilter === 'excused' ? row.dataset.attendanceStatus === 'E' : row.dataset.scoreStatus === scoreRosterFilter);
                 const show = matchesSearch && matchesStatus;
                 row.classList.toggle('hidden', !show);
                 if (show) visible++;
@@ -1141,6 +1165,40 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
         window.scrollToSavedActivities = function() {
             document.getElementById('savedActivitiesPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        async function refreshExamTotals(activity, roster = currentRosterStudents, generation = scoreRosterGeneration) {
+            const requestId = ++examTotalsRequest;
+            const panel = document.getElementById('examTotalsPanel');
+            if (activity?.category !== 'exam') { panel.hidden = true; return; }
+            panel.hidden = false;
+            document.getElementById('examTotalsDescription').textContent = 'Loading exams for this subject, section and grading period…';
+            try {
+                const { data: exams, error: examError } = await supabase.from('activities')
+                    .select('id,title,category,perfectScore').eq('subjectCode', activity.subjectCode)
+                    .eq('section', activity.section).eq('term', activity.term).eq('category', 'exam');
+                if (examError) throw examError;
+                const allScores = [];
+                const ids = (exams || []).map(exam => exam.id);
+                for (let index = 0; index < ids.length; index += 50) {
+                    const { data, error } = await supabase.from('scores').select('activityId,studentNo,score').in('activityId', ids.slice(index, index + 50));
+                    if (error) throw error;
+                    allScores.push(...(data || []));
+                }
+                if (requestId !== examTotalsRequest || generation !== scoreRosterGeneration || String(activity.id) !== String(activeActivityId)) return;
+                const totals = aggregateExamTotals(exams, allScores, roster);
+                const fmt = number => Number(number).toLocaleString(undefined, { maximumFractionDigits: 2 });
+                document.getElementById('examTotalsMaximum').textContent = `${fmt(totals.maxScore)} total pts`;
+                document.getElementById('examTotalsDescription').textContent = `${totals.examCount} exam${totals.examCount === 1 ? '' : 's'} (e.g. written + lab) · ${activity.subjectCode} · ${activity.section} · ${activity.term === 'final' ? 'Final Term' : 'Midterm'}`;
+                document.getElementById('examTotalsHead').innerHTML = `<tr><th>Student</th>${totals.activities.map(exam => `<th>${escapeHtml(exam.title)} <small>/${fmt(exam.perfectScore)}</small></th>`).join('')}<th>Combined Score</th><th>Raw %</th></tr>`;
+                document.getElementById('examTotalsBody').innerHTML = totals.rows.map(row => `<tr><td><strong>${escapeHtml(row.studentName)}</strong><span class="exam-pending-label">${escapeHtml(row.studentNo)}</span></td>${row.components.map(c => `<td>${c.score === null ? '<span class="exam-pending-label">Pending</span>' : fmt(c.score)}</td>`).join('')}<td><strong>${fmt(row.earned)} / ${fmt(row.maxScore)}</strong>${row.pending ? `<span class="exam-pending-label">${row.pending} exam${row.pending === 1 ? '' : 's'} pending</span>` : ''}</td><td>${row.percentage === null ? '—' : row.percentage.toFixed(2) + '%'}</td></tr>`).join('') || '<tr><td colspan="10">No enrolled students found.</td></tr>';
+            } catch (error) {
+                if (requestId !== examTotalsRequest || generation !== scoreRosterGeneration) return;
+                console.error('Exam totals load failed', error);
+                document.getElementById('examTotalsDescription').textContent = 'Unable to load combined exam totals. Reopen the activity to retry.';
+                document.getElementById('examTotalsHead').innerHTML = '';
+                document.getElementById('examTotalsBody').innerHTML = '';
+            }
         }
 
         async function loadActivityRoster(activity) {
@@ -1169,7 +1227,8 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                 .filter(student => String(student.studentNo).trim())
                 .sort((a, b) => String(a.studentName || '').localeCompare(String(b.studentName || '')));
             existingActivityScores = new Map((scoreResult.data || []).map(score => [String(score.studentNo).trim(), score]));
-            absentStudentNumbers = getAbsentStudentNumbers(attendanceRows, activityDate);
+            activityAttendanceStatus = getAttendanceStatusByStudent(attendanceRows, activityDate);
+            currentRosterStudents = uniqueStudents;
 
             if (!uniqueStudents.length) {
                 tbody.innerHTML = '<tr><td colspan="3">No enrolled students found for this subject and section. The activity is saved and can be graded after enrollments are added.</td></tr>';
@@ -1180,12 +1239,11 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                     const studentName = String(student.studentName || '').toUpperCase();
                     const saved = existingActivityScores.get(studentNo);
                     const value = saved && saved.score !== null && saved.score !== undefined ? escapeHtml(saved.score) : '';
-                    const isAbsent = absentStudentNumbers.has(studentNo);
-                    const status = isAbsent ? 'absent' : value === '' ? 'ungraded' : 'graded';
-                    const scoreControl = isAbsent
-                        ? `<div class="absence-score-state" role="status" aria-label="${escapeHtml(studentName)} is absent"><i class="ph-fill ph-user-minus"></i><div><strong>Absent</strong><span>No score recorded</span></div></div>`
-                        : `<div class="score-entry-box"><input type="number" inputmode="decimal" class="score-input stud-score" data-sno="${escapeHtml(studentNo)}" min="0" max="${activity.perfectScore}" step="any" value="${value}" placeholder="—" aria-label="Score for ${escapeHtml(studentName)}"><span class="score-divider">/ ${escapeHtml(activity.perfectScore)}</span></div>`;
-                    return `<tr class="student-score-row ${status}" data-student-no="${escapeHtml(studentNo)}" data-search="${escapeHtml(`${studentNo} ${studentName}`.toLowerCase())}" data-score-status="${status}"><td class="student-no-cell">${escapeHtml(studentNo)}</td><td class="student-name-cell"><span class="student-name-main">${escapeHtml(studentName)}</span><span class="student-number-mobile">${escapeHtml(studentNo)}</span></td><td class="score-cell">${scoreControl}</td></tr>`;
+                    const attendanceCode = activityAttendanceStatus.get(studentNo) || '';
+                    const attendanceLabel = attendanceCode === 'A' ? '<span class="attendance-label absent"><i class="ph-bold ph-user-minus"></i> Absent on activity date</span>' : attendanceCode === 'E' ? '<span class="attendance-label excused"><i class="ph-bold ph-info"></i> Excused on activity date</span>' : '';
+                    const status = value === '' ? 'ungraded' : 'graded';
+                    const scoreControl = `<div class="score-entry-box"><input type="number" inputmode="decimal" class="score-input stud-score" data-sno="${escapeHtml(studentNo)}" min="0" max="${activity.perfectScore}" step="any" value="${value}" placeholder="—" aria-label="Score for ${escapeHtml(studentName)}"><span class="score-divider">/ ${escapeHtml(activity.perfectScore)}</span></div>`;
+                    return `<tr class="student-score-row ${status} ${attendanceCode === 'A' ? 'attendance-absent' : attendanceCode === 'E' ? 'attendance-excused' : ''}" data-student-no="${escapeHtml(studentNo)}" data-search="${escapeHtml(`${studentNo} ${studentName}`.toLowerCase())}" data-score-status="${status}" data-attendance-status="${attendanceCode}"><td class="student-no-cell">${escapeHtml(studentNo)}</td><td class="student-name-cell"><span class="student-name-main">${escapeHtml(studentName)}</span>${attendanceLabel}<span class="student-number-mobile">${escapeHtml(studentNo)}</span></td><td class="score-cell">${scoreControl}</td></tr>`;
                 }).join('');
                 document.getElementById('saveScoreBtn').disabled = false;
             }
@@ -1194,9 +1252,8 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             document.getElementById('display-perfect').innerText = activity.perfectScore;
             document.getElementById('activityStatus').classList.add('visible');
             document.getElementById('activityStatusTitle').textContent = `Activity ready: ${activity.title}`;
-            document.getElementById('activityStatusText').textContent = absentStudentNumbers.size
-                ? `${absentStudentNumbers.size} absent student${absentStudentNumbers.size === 1 ? '' : 's'} locked for this date. Their activity scores remain unrecorded.`
-                : 'The setup is saved. Scores are optional and may be completed over multiple sessions.';
+            document.getElementById('activityStatusText').textContent = 'Scores can be entered or updated later, including for absent or excused students. Original attendance status remains unchanged.';
+            refreshExamTotals(activity, uniqueStudents, scoreRosterGeneration);
             updateScoreProgress();
             window.filterScoreRoster();
             setScoreAutosaveState('saved', 'All changes saved');
@@ -1319,7 +1376,10 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             document.getElementById('activityStatus').classList.remove('visible');
             document.getElementById('roster-body').innerHTML = '';
             existingActivityScores = new Map();
-            absentStudentNumbers = new Set();
+            activityAttendanceStatus = new Map();
+            currentRosterStudents = [];
+            examTotalsRequest++;
+            document.getElementById('examTotalsPanel').hidden = true;
             setManualMode(null);
             document.getElementById('activitySetupPanel').open = true;
             window.filterSavedActivities();
@@ -1728,23 +1788,18 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                                         date: act.date
                                     });
 
-                                    const activityDate = normalizeDateKey(act.date);
-                                    const attendanceRows = await loadAttendanceForActivityDate(section, subjectCode, activityDate);
-                                    const absentForActivity = getAbsentStudentNumbers(attendanceRows, activityDate);
                                     let savedScores = 0;
-                                    let absentSkipped = 0;
                                     for(const row of studentRows) {
                                         const sNo = String(row[0] || '').trim();
                                         const scoreRaw = row[act.colIdx];
                                         if(!sNo) continue;
-                                        if(absentForActivity.has(sNo)) { absentSkipped++; continue; }
                                         if(scoreRaw === '' || scoreRaw === undefined || scoreRaw === null) continue;
                                         const score = Number(scoreRaw);
                                         if(!Number.isFinite(score) || score < 0 || score > act.perfect) continue;
                                         await insertScoreRow({ activityId: actRef.id, studentNo: sNo, score });
                                         savedScores++;
                                     }
-                                    logLines.push(`✅ "${act.title}" (${subjectCode}) — saved with ${savedScores} student scores${absentSkipped ? `; ${absentSkipped} absent skipped` : ''}.`);
+                                    logLines.push(`✅ "${act.title}" (${subjectCode}) — saved with ${savedScores} student scores; attendance statuses preserved.`);
                                     totalSaved++;
                                 } catch(innerErr) {
                                     console.error(innerErr);

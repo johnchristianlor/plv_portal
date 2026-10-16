@@ -33,7 +33,7 @@ const env = {
 test('activity score API exposes a safe deployment version on preflight', () => {
   const response = onRequestOptions();
   assert.equal(response.status, 204);
-  assert.equal(response.headers.get('x-plv-score-api-version'), '2026-09-03.6');
+  assert.equal(response.headers.get('x-plv-score-api-version'), '2026-10-16.1');
 });
 
 function installSuccessfulFetch({ absent = false, existingScore = false, generatedIdRequired = false, writeError = null, rpcAvailable = false, rpcError = null } = {}) {
@@ -91,7 +91,7 @@ test('activity score health probe verifies the server can execute the installed 
     const response = await onRequestGet({ env });
     const body = await response.json();
     assert.equal(response.status, 200);
-    assert.deepEqual(body, { ready: true, version: '2026-09-03.6', mode: 'rpc' });
+    assert.deepEqual(body, { ready: true, version: '2026-10-16.1', mode: 'rpc' });
     assert.equal(mock.writes.length, 0);
     assert.equal(mock.rpcWrites[0].p_action, 'probe');
   } finally {
@@ -268,7 +268,7 @@ test('activity score API deletes a cleared score by activity and student', async
   }
 });
 
-test('activity score API preserves the same-day absence rule', async () => {
+test('activity score API saves completion scores without changing an absent attendance record', async () => {
   const mock = installSuccessfulFetch({ absent: true });
   try {
     const response = await onRequestPost({
@@ -276,9 +276,10 @@ test('activity score API preserves the same-day absence rule', async () => {
       env,
     });
     const body = await response.json();
-    assert.equal(response.status, 409);
-    assert.equal(body.code, 'absent');
-    assert.equal(mock.writes.length, 0);
+    assert.equal(response.status, 200);
+    assert.equal(body.saved, true);
+    assert.equal(mock.writes.length, 1);
+    assert.equal(mock.writes[0].method, 'POST');
   } finally {
     mock.restore();
   }

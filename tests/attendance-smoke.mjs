@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {
   formatLocalDateInput,
   getAbsentDateKeys,
+  getAttendanceStatusByDate,
+  getAttendanceStatusByStudent,
   getAbsentStudentNumbers,
   nextDateKey,
   normalizeDateKey,
@@ -50,3 +52,16 @@ assert.equal(mixed.rateDenominator, 2);
 assert.equal(mixed.rate, 50);
 
 console.log('Attendance normalization and rate checks passed.');
+
+assert.deepEqual([...getAttendanceStatusByDate([
+  { date: '2026-09-02', status: 'Absent' }, { date: '2026-09-03', status: 'Excused absence' },
+])], [['2026-09-02','A'],['2026-09-03','E']]);
+assert.deepEqual([...getAttendanceStatusByStudent([
+  { studentNo: '1', date:'2026-09-02', status: 'Absent' },
+  { studentNo: '2', date:'2026-09-02', status: 'Excused' },
+], '2026-09-02')], [['1','A'], ['2','E']]);
+
+assert.equal(getAttendanceStatusByDate([
+  { date: '2026-09-02', status: 'Absent' },
+  { date: '2026-09-02', status: 'Present' }
+]).get('2026-09-02'), 'A', 'an absent mark should remain visible even with conflicting same-day rows');

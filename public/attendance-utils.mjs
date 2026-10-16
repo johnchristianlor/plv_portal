@@ -86,3 +86,32 @@ export function summarizeAttendance(records) {
     : 0;
   return summary;
 }
+
+// Attendance is informational, not a permission to grade. Keep both A and E
+// with their original date, regardless of completion-week submissions.
+function preferAttendanceStatus(previous, next) {
+  const priority = { '': 0, P: 1, L: 2, E: 3, A: 4 };
+  return (priority[next] || 0) >= (priority[previous] || 0) ? next : previous;
+}
+
+export function getAttendanceStatusByDate(records) {
+  const statuses = new Map();
+  for (const record of records || []) {
+    const date = normalizeDateKey(record?.date);
+    const status = normalizeAttendanceStatus(record?.status);
+    if (date && status) statuses.set(date, preferAttendanceStatus(statuses.get(date), status));
+  }
+  return statuses;
+}
+
+export function getAttendanceStatusByStudent(records, targetDate = '') {
+  const date = normalizeDateKey(targetDate);
+  const statuses = new Map();
+  for (const record of records || []) {
+    if (date && normalizeDateKey(record?.date) !== date) continue;
+    const student = String(record?.studentNo ?? '').trim();
+    const status = normalizeAttendanceStatus(record?.status);
+    if (student && status) statuses.set(student, preferAttendanceStatus(statuses.get(student), status));
+  }
+  return statuses;
+}

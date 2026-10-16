@@ -136,7 +136,8 @@
 .theme-toggle.theme-spin i{transform:rotate(360deg) scale(.82);opacity:.55;}
 body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,165,250,.34), rgba(96,165,250,0) 68%);}
 
-</style>
+        .grade-scale-note { font-size: 12px; color: var(--text-muted); margin: 5px 0 14px; line-height: 1.6; }
+    </style>
 <link rel="stylesheet" href="./plv-responsive.css?v=20260826global1">
 <script src="./plv-navigation.v1.js" defer></script>
 </head>
@@ -218,9 +219,10 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
             <div class="card glass card-legend">
                 <h3><i class="ph-fill ph-info"></i> Number System Grading</h3>
+                <p class="grade-scale-note">Percentages use exact cutoffs. For example, 96.99 is 1.25; 97.00 is 1.00; any result below 75.00 is 5.00. Decimal scores are not rounded before conversion.</p>
                 <div class="legend-grid">
-                    <div class="legend-item"><span class="legend-val">1.00</span><span class="legend-desc">97 - 100</span></div><div class="legend-item"><span class="legend-val">1.25</span><span class="legend-desc">94 - 96</span></div><div class="legend-item"><span class="legend-val">1.50</span><span class="legend-desc">91 - 93</span></div><div class="legend-item"><span class="legend-val">1.75</span><span class="legend-desc">88 - 90</span></div><div class="legend-item"><span class="legend-val">2.00</span><span class="legend-desc">85 - 87</span></div>
-                    <div class="legend-item"><span class="legend-val">2.25</span><span class="legend-desc">82 - 84</span></div><div class="legend-item"><span class="legend-val">2.50</span><span class="legend-desc">79 - 81</span></div><div class="legend-item"><span class="legend-val">2.75</span><span class="legend-desc">76 - 78</span></div><div class="legend-item"><span class="legend-val">3.00</span><span class="legend-desc">75</span></div><div class="legend-item failed-item"><span class="legend-val" style="color: #e11d48;">5.00</span><span class="legend-desc" style="color: #e11d48;">Failed</span></div>
+                    <div class="legend-item"><span class="legend-val">1.00</span><span class="legend-desc">97–100</span></div><div class="legend-item"><span class="legend-val">1.25</span><span class="legend-desc">94 to &lt;97</span></div><div class="legend-item"><span class="legend-val">1.50</span><span class="legend-desc">91 to &lt;94</span></div><div class="legend-item"><span class="legend-val">1.75</span><span class="legend-desc">88 to &lt;91</span></div><div class="legend-item"><span class="legend-val">2.00</span><span class="legend-desc">85 to &lt;88</span></div>
+                    <div class="legend-item"><span class="legend-val">2.25</span><span class="legend-desc">82 to &lt;85</span></div><div class="legend-item"><span class="legend-val">2.50</span><span class="legend-desc">79 to &lt;82</span></div><div class="legend-item"><span class="legend-val">2.75</span><span class="legend-desc">76 to &lt;79</span></div><div class="legend-item"><span class="legend-val">3.00</span><span class="legend-desc">75 to &lt;76</span></div><div class="legend-item failed-item"><span class="legend-val" style="color: #e11d48;">5.00</span><span class="legend-desc" style="color: #e11d48;">Below 75</span></div>
                 </div>
             </div>
 
@@ -238,6 +240,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         import { startStudentPresence } from "./student-presence.js";
         import { startStudentSessionGuard } from "./student-session.js";
         import { getStudentEnrollments, getSubject } from "./student-data.js";
+        import { transmutePercentage } from "./grade-scale.mjs";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'student') window.location.href = 'index.html';
@@ -262,20 +265,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000);
         }
 
-        function transmute(rawGrade) {
-            if (!rawGrade && rawGrade !== 0) return null;
-            const g = Number(rawGrade);
-            if (g >= 97) return 1.00;
-            if (g >= 94) return 1.25;
-            if (g >= 91) return 1.50;
-            if (g >= 88) return 1.75;
-            if (g >= 85) return 2.00;
-            if (g >= 82) return 2.25;
-            if (g >= 79) return 2.50;
-            if (g >= 76) return 2.75;
-            if (g >= 75) return 3.00;
-            return 5.00;
-        }
+        function transmute(rawGrade) { return transmutePercentage(rawGrade); }
 
         function badge(transmuted) {
             if(!transmuted) return "--";
@@ -294,17 +284,19 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 if(subject) document.getElementById('subTitle').innerText = `${subject.subjectCode}: ${subject.subjectName}`;
 
                 // Support both raw grade (0-100) and already-transmuted (1.00-5.00) storage
-                const mRaw = enroll.midtermRawGrade ?? enroll.midtermGrade;
-                const fRaw = enroll.finalTermRawGrade ?? enroll.finalTermGrade;
+                const mHasExplicitRaw = enroll.midtermRawGrade !== null && enroll.midtermRawGrade !== undefined;
+                const fHasExplicitRaw = enroll.finalTermRawGrade !== null && enroll.finalTermRawGrade !== undefined;
+                const mRaw = mHasExplicitRaw ? enroll.midtermRawGrade : enroll.midtermGrade;
+                const fRaw = fHasExplicitRaw ? enroll.finalTermRawGrade : enroll.finalTermGrade;
 
-                // Determine if stored value is raw (>5) or already transmuted (<=5)
-                function isRaw(val) { return val !== null && val !== undefined && val > 5; }
+                // Explicit raw grade fields are percentages, including 0–5; legacy <=5 values are numeric grades.
+                function isRaw(val, hasExplicitRaw) { return hasExplicitRaw || (Number(val) > 5); }
 
                 let mTransmuted = null, fTransmuted = null;
                 let mRawDisplay = null, fRawDisplay = null;
 
                 if (mRaw !== null && mRaw !== undefined) {
-                    if (isRaw(mRaw)) {
+                    if (isRaw(mRaw, mHasExplicitRaw)) {
                         mRawDisplay = mRaw;
                         mTransmuted = transmute(mRaw);
                     } else {
@@ -312,7 +304,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                     }
                 }
                 if (fRaw !== null && fRaw !== undefined) {
-                    if (isRaw(fRaw)) {
+                    if (isRaw(fRaw, fHasExplicitRaw)) {
                         fRawDisplay = fRaw;
                         fTransmuted = transmute(fRaw);
                     } else {

@@ -518,6 +518,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
 import { startAdminSessionGuard } from "./admin-session.js";
 import { loadVendor } from "./vendor-loader.v1.js";
+import { transmutePercentage } from "./grade-scale.mjs";
 const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
 
@@ -651,19 +652,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         });
 
         // --- TRANSMUTE FUNCTION ---
-        function transmute(rawGrade) {
-            const g = Number(rawGrade);
-            if (g >= 97) return 1.00;
-            if (g >= 94) return 1.25;
-            if (g >= 91) return 1.50;
-            if (g >= 88) return 1.75;
-            if (g >= 85) return 2.00;
-            if (g >= 82) return 2.25;
-            if (g >= 79) return 2.50;
-            if (g >= 76) return 2.75;
-            if (g >= 75) return 3.00;
-            return 5.00;
-        }
+        function transmute(rawGrade) { return transmutePercentage(rawGrade); }
 
         function showPreview(inputId, previewId) {
             const val = document.getElementById(inputId).value;

@@ -6,7 +6,7 @@ import {
 
 const STUDENT_NUMBER_PATTERN = /^[a-z0-9][a-z0-9._-]{1,49}$/i;
 const RECORD_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{5,127}$/i;
-const SCORE_API_VERSION = '2026-09-03.6';
+const SCORE_API_VERSION = '2026-10-16.1';
 
 async function responseJson(response) {
   return response.json().catch(() => ({}));
@@ -42,18 +42,6 @@ async function selectRows(env, table, query) {
   return Array.isArray(rows) ? rows : [];
 }
 
-function nextDateKey(dateKey) {
-  const date = new Date(`${dateKey}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) return '';
-  date.setUTCDate(date.getUTCDate() + 1);
-  return date.toISOString().slice(0, 10);
-}
-
-function isAbsent(status) {
-  const value = String(status || '').trim().toUpperCase();
-  return value === 'A' || value.startsWith('ABSENT');
-}
-
 async function loadActivity(env, activityId) {
   const query = new URLSearchParams({
     select: 'id,section,subjectCode,date,perfectScore',
@@ -72,22 +60,6 @@ async function assertEnrollment(env, activity, studentNo) {
     limit: '1',
   });
   return Boolean((await selectRows(env, 'enrollments', query))[0]);
-}
-
-async function isAbsentForActivity(env, activity, studentNo) {
-  const startDate = String(activity.date || '').slice(0, 10);
-  const endDate = nextDateKey(startDate);
-  if (!startDate || !endDate) return false;
-  const query = new URLSearchParams({
-    select: 'status',
-    studentNo: `eq.${studentNo}`,
-    section: `eq.${activity.section}`,
-    subjectCode: `eq.${activity.subjectCode}`,
-    date: `gte.${startDate}`,
-    limit: '20',
-  });
-  query.append('date', `lt.${endDate}`);
-  return (await selectRows(env, 'attendance', query)).some((row) => isAbsent(row.status));
 }
 
 async function findExistingScore(env, activityId, studentNo) {
@@ -136,10 +108,6 @@ async function runScoreWriteRpc(env, action, activityId, studentNo, score = null
 }
 
 async function writeScore(env, activity, studentNo, score) {
-  if (await isAbsentForActivity(env, activity, studentNo)) {
-    return { error: json({ error: 'This student is marked absent for the activity date.', code: 'absent' }, 409) };
-  }
-
   const existing = await findExistingScore(env, activity.id, studentNo);
   if (existing.length) {
     const query = new URLSearchParams({

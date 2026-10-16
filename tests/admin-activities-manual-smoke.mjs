@@ -45,12 +45,12 @@ assert.deepEqual(changes.inserts, [{ studentNo: '2026-00004', score: 0 }], 'zero
 assert.equal(changes.gradedCount, 3);
 
 const absenceChanges = planActivityScoreChanges([
-    { studentNo: '2026-00001', value: '45' },
-    { studentNo: '2026-00004', value: '25' }
+    { studentNo: '2026-00001', value: '45', absent: true },
+    { studentNo: '2026-00004', value: '25', absent: true }
 ], existingScores, 50, new Set(['2026-00001', '2026-00004']));
-assert.deepEqual(absenceChanges.deletes, [{ id: 101, studentNo: '2026-00001' }], 'a saved score must be removed after same-day absence');
-assert.deepEqual(absenceChanges.inserts, [], 'absent students must never receive a new score');
-assert.equal(absenceChanges.absentCount, 2);
+assert.deepEqual(absenceChanges.deletes, [], 'attendance status must never delete an existing score');
+assert.deepEqual(absenceChanges.inserts, [{ studentNo: '2026-00004', score: 25 }], 'absent students may submit completion work');
+assert.equal(absenceChanges.unchangedCount, 1);
 
 assert.deepEqual(getActivityProgress(20, 0), { total: 20, graded: 0, percent: 0, status: 'not-started' });
 assert.deepEqual(getActivityProgress(20, 7), { total: 20, graded: 7, percent: 35, status: 'in-progress' });
@@ -82,8 +82,9 @@ assert.match(page, /data-score-filter="ungraded"/, 'the roster must support an u
 assert.match(page, /data-score-filter="absent"/, 'the roster must clearly separate absent students');
 assert.match(page, /from\('attendance'\)[\s\S]+?\.select\('studentNo,status,date'\)/, 'activity scoring must load same-day attendance');
 assert.match(page, /\.gte\('date', startDate\)[\s\S]+\.lt\('date', endDate\)/, 'historical attendance matching must support date and timestamp columns');
-assert.match(page, /absentStudentNumbers/, 'activity scoring must lock absent students');
-assert.match(page, /absentForActivity\.has\(sNo\)/, 'spreadsheet uploads must skip absent students');
+assert.match(page, /getAttendanceStatusByStudent/, 'attendance must be shown independently of grading');
+assert.match(page, /data-score-filter="excused"/, 'teachers should be able to find excused students');
+assert.doesNotMatch(page, /absentForActivity\.has\(sNo\)/, 'spreadsheet uploads must allow scores for absent students');
 assert.match(page, /id="scoreAutosaveState"/, 'score entry must show an accessible autosave status');
 assert.match(page, /function scheduleScoreAutosave/, 'score entry must debounce automatic saves');
 assert.match(page, /Promise\.allSettled/, 'one failed score must not discard successful score saves');
@@ -105,12 +106,17 @@ assert.doesNotMatch(page, /Failed to save scores\. No activity setup was lost\./
 
 const studentScoresPage = fs.readFileSync(new URL('../public/student-scores.html', import.meta.url), 'utf8');
 assert.match(studentScoresPage, /from\("attendance"\)\.select\("date,status"\)/, 'student scores must read attendance for the selected class');
-assert.match(studentScoresPage, /getAbsentDateKeys/, 'student scores must map absences by activity date');
-assert.match(studentScoresPage, /Attendance marked absent · no score recorded/, 'students must see a clear absent state instead of a numeric score');
+assert.match(studentScoresPage, /getAttendanceStatusByDate/, 'student scores must display A and E dates');
+assert.match(studentScoresPage, /Completion score recorded/, 'students must see the completion grade alongside absence status');
 
 const migration = fs.readFileSync(new URL('../supabase_migrations/20260902_absent_activity_scores.sql', import.meta.url), 'utf8');
-assert.match(migration, /scores_reject_absent_activity/, 'the database must reject a score for same-day absence');
-assert.match(migration, /attendance_remove_same_day_activity_scores/, 'marking attendance absent must remove an existing same-day score');
+assert.match(migration, /scores_reject_absent_activity/, 'the historical blocking trigger is present in the prior migration');
+assert.match(migration, /attendance_remove_same_day_activity_scores/, 'the historical deletion trigger is present in the prior migration');
+const attendanceFix = fs.readFileSync(new URL('../supabase_migrations/20261016_scores_independent_of_attendance.sql', import.meta.url), 'utf8');
+assert.match(attendanceFix, /drop trigger if exists scores_reject_absent_activity/i);
+assert.match(attendanceFix, /drop trigger if exists attendance_remove_same_day_activity_scores/i);
+assert.doesNotMatch(attendanceFix, /raise exception.*absent/is, 'the current writer must not enforce an absence ban');
+assert.match(page, /id="examTotalsPanel"/, 'admin exams must combine scores');
 
 const scoreRepairMigration = fs.readFileSync(new URL('../supabase_migrations/20260903_repair_activity_score_storage.sql', import.meta.url), 'utf8');
 assert.match(scoreRepairMigration, /alter column score type numeric/i, 'score storage must support precise decimal scores');

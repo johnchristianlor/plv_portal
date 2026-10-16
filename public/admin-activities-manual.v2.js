@@ -26,8 +26,7 @@ export function getActivityScoreSaveErrorKind(error) {
     return 'unknown';
 }
 
-export function planActivityScoreChanges(entries, existingScores, perfectScore, absentStudentNumbers = new Set()) {
-    const absentSet = new Set([...absentStudentNumbers].map(value => String(value ?? '').trim()).filter(Boolean));
+export function planActivityScoreChanges(entries, existingScores, perfectScore) {
     const changes = {
         inserts: [],
         updates: [],
@@ -43,12 +42,6 @@ export function planActivityScoreChanges(entries, existingScores, perfectScore, 
         if (!studentNo) continue;
 
         const existing = existingScores.get(studentNo);
-        if (absentSet.has(studentNo) || entry.absent === true) {
-            changes.absentCount++;
-            if (existing?.id) changes.deletes.push({ id: existing.id, studentNo });
-            continue;
-        }
-
         const parsed = parseActivityScore(entry.value, perfectScore);
 
         if (parsed.kind === 'invalid') {

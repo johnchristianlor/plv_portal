@@ -268,6 +268,12 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             </div>
         </div>
 
+        <div class="card glass card-activities card-recent-scores">
+            <div class="card-header"><h3>Recent Activity Scores</h3><i class="ph-fill ph-list-checks"></i></div>
+            <div id="recentScoresContainer"><p style="font-size:12px;color:var(--text-muted);">Loading recent scores...</p></div>
+            <a href="student-scores.html" style="display:inline-block;margin-top:12px;color:var(--accent-primary);font-size:12px;font-weight:800;">See all scores →</a>
+        </div>
+
         <div class="card glass card-announcements">
             <div class="card-header"><h3>Announcements</h3><i class="ph-fill ph-megaphone" style="color: var(--accent-primary);"></i></div>
             <div class="announce-list" id="announceContainer">
@@ -334,6 +340,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
     import { getGlobalSettings, getRecentAnnouncements, getRecentDeadlines, getStudentEnrollments, getSubject } from "./student-data.js";
     import { normalizeStudentName } from "./student-name.js";
     import { assignClassStanding } from "./class-standing-utils.mjs";
+    import { getAttendanceStatusByDate, normalizeDateKey } from "./attendance-utils.mjs";
 
     const user = JSON.parse(localStorage.getItem('loggedInUser'));
     if (!user || user.role !== 'student') window.location.href = 'index.html';
@@ -636,11 +643,44 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         return n + (s[(v - 20) % 10] || s[v] || s[0]);
     }
 
+    async function loadRecentScores(enroll) {
+        const container = document.getElementById('recentScoresContainer');
+        if (!enroll) { container.textContent = 'No subject enrolled.'; return; }
+        try {
+            const [activityResult, attendanceResult] = await Promise.all([
+                supabase.from('activities').select('id,title,date,perfectScore').eq('subjectCode',enroll.subjectCode).eq('section',enroll.section).order('date',{ascending:false}).limit(5),
+                supabase.from('attendance').select('date,status').eq('studentNo',user.studentNo).eq('subjectCode',enroll.subjectCode).eq('section',enroll.section)
+            ]);
+            if (activityResult.error) throw activityResult.error;
+            if (attendanceResult.error) throw attendanceResult.error;
+            const activities = activityResult.data || [];
+            if (!activities.length) { container.textContent = 'No activities posted yet.'; return; }
+            const {data:scores,error} = await supabase.from('scores').select('activityId,score').eq('studentNo',user.studentNo).in('activityId', activities.map(a=>a.id));
+            if (error) throw error;
+            const scoreMap = new Map((scores || []).map(score => [String(score.activityId),score.score]));
+            const statusByDate = getAttendanceStatusByDate(attendanceResult.data || []);
+            const safe = val => String(val ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]);
+            container.innerHTML = activities.map(activity => {
+                const score = scoreMap.get(String(activity.id));
+                const isGraded = score !== undefined && score !== null;
+                const attendance = statusByDate.get(normalizeDateKey(activity.date));
+                const attendanceLabel = attendance === 'A' ? 'Absent on date' : attendance === 'E' ? 'Excused on date' : '';
+                const date = normalizeDateKey(activity.date);
+                const scoreLabel = isGraded ? `${safe(score)} / ${safe(activity.perfectScore)}` : 'Pending';
+                return `<div class="activity-item"><div class="act-info"><h4>${safe(activity.title)}</h4><p>${safe(date)}${attendanceLabel ? ` · <strong style="color:${attendance === 'A' ? '#e11d48' : '#b45309'}">${attendanceLabel}</strong>` : ''}</p></div><div class="act-status ${isGraded ? 'status-done' : 'status-pending'}">${scoreLabel}</div></div>`;
+            }).join('');
+        } catch (error) {
+            console.warn('Recent score summary unavailable',error);
+            container.textContent = 'Recent scores are temporarily unavailable. Open Scores to try again.';
+        }
+    }
+
     async function loadData() {
         try {
             // Load the enrollment dependency first, then issue independent reads together.
             const myEnrollments = await getStudentEnrollments(supabase, user.studentNo);
             const enroll = myEnrollments[0] || null;
+            loadRecentScores(enroll);
             const [sub, settings, deadlines, recentAnnouncements] = await Promise.all([
                 enroll ? getSubject(supabase, enroll.subjectCode) : Promise.resolve(null),
                 getGlobalSettings(supabase),
