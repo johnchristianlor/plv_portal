@@ -1181,6 +1181,8 @@ body.dark-theme .records-card.freeze-pane-on .grid-table .col-name::after{backgr
                 <label class="chk-row"><input type="checkbox" id="expGrades" checked> Term grades &amp; average</label>
                 <label class="chk-row"><input type="checkbox" id="expStatus" checked> Pass/Fail status</label>
                 <label class="chk-row"><input type="checkbox" id="expPercent" checked> Score percentage</label>
+                <label class="chk-row"><input type="checkbox" id="expExamTotals" checked> Combined exam points / max score (Midterm, Final &amp; Overall)</label>
+                <p style="color:var(--text-muted);font-size:12px;line-height:1.5;margin:5px 0 0 24px;">Adds an Exam Totals worksheet to Excel. All major exams (lab, written, etc.) are summed by subject and section; missing grades are shown as pending, not saved as zero. Percentages are raw exam points, before grading weights.</p>
             </div>
             <div>
                 <label class="form-label">Format</label>
@@ -1216,7 +1218,7 @@ import { supabase } from "./supabase-adapter.js";
 
 import { startAdminSessionGuard } from "./admin-session.js";
 import { loadVendor } from "./vendor-loader.v1.js";
-import { escapeCsvCell, sortRecordRows } from "./admin-records-utils.mjs";
+import { escapeCsvCell, sortRecordRows, summarizeExamPoints, uniqueSheetName } from "./admin-records-utils.mjs";
 import { assignClassStanding, sortClassStanding } from "./class-standing-utils.mjs";
 const _u=JSON.parse(localStorage.getItem('loggedInUser'));
 if(!_u||_u.role!=='admin')location.href='index.html';
@@ -1239,16 +1241,29 @@ window.showToast=(msg,type='ok')=>{
 };
 
 // ========== LOAD ALL DATA ==========
+// PostgREST limits a single SELECT to about 1,000 rows. Four exams across
+// several classes easily exceed that, so a one-page scores query silently
+// undercounts exported points. Fetch all pages in stable id order instead.
+async function selectAllRows(table, fields){
+    const pageSize=1000, rows=[];
+    for(let start=0;;start+=pageSize){
+        const {data,error}=await supabase.from(table).select(fields)
+            .order('id',{ascending:true}).range(start,start+pageSize-1);
+        if(error)throw error;
+        rows.push(...(data||[]));
+        if(!data||data.length<pageSize)return rows;
+    }
+}
 async function loadAll(){
     document.getElementById('gridBody').innerHTML='<tr class="loading-msg"><td colspan="12"><span class="spin"></span> Loading all records...</td></tr>';
     try{
-        const[{data:eRows,error:eErr},{data:aRows,error:aErr},{data:sRows,error:sErr},{data:settings,error:settingsErr}]=await Promise.all([
-            supabase.from('enrollments').select('id,studentNo,studentName,section,subjectCode,midtermRawGrade,midtermGrade,finalTermRawGrade,finalTermGrade'),
-            supabase.from('activities').select('id,subjectCode,section,term,category,title,date,perfectScore'),
-            supabase.from('scores').select('id,activityId,studentNo,score'),
+        const[eRows,aRows,sRows,{data:settings,error:settingsErr}]=await Promise.all([
+            selectAllRows('enrollments','id,studentNo,studentName,section,subjectCode,midtermRawGrade,midtermGrade,finalTermRawGrade,finalTermGrade'),
+            selectAllRows('activities','id,subjectCode,section,term,category,title,date,perfectScore'),
+            selectAllRows('scores','id,activityId,studentNo,score'),
             supabase.from('settings').select('showStanding').eq('id','global').limit(1).maybeSingle()
         ]);
-        if(eErr)throw eErr;if(aErr)throw aErr;if(sErr)throw sErr;if(settingsErr)throw settingsErr;
+        if(settingsErr)throw settingsErr;
         enrollments=eRows||[];
         activities=(aRows||[]).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
         scores=sRows||[];
@@ -1882,6 +1897,39 @@ window.openExportModal=()=>{
 };
 window.closeExportModal=()=>document.getElementById('exportModal').classList.remove('open');
 
+// Exam percentages are raw earned / possible points, not the weighted grade.
+// Keeping this as separate columns prevents "Total Score" (all activities)
+// being confused with "Combined Exam Points" (major exams only).
+const examExportHeaders = [
+    'Midterm Exam Points', 'Midterm Exam Max',
+    'Final Exam Points', 'Final Exam Max',
+    'Combined Exam Points', 'Combined Exam Max', 'Combined Exam %',
+    'Exams Graded', 'Exams Pending'
+];
+const examExportCells=(totals,format)=>{
+    const { midterm, final, combined }=totals;
+    const percentage=combined.percentage===null?'':format==='xlsx'
+        ? combined.percentage/100 : combined.percentage.toFixed(2)+'%';
+    return [midterm.earned,midterm.max,final.earned,final.max,
+        combined.earned,combined.max,percentage,
+        combined.graded,combined.pending];
+};
+
+// xlsx: store percentages as real numeric Excel percentages, allowing calculations.
+function decorateExportWorksheet(ws,columns,examColumnStart){
+    ws['!cols']=columns.map(width=>({wch:width}));
+    ws['!autofilter']={ref:ws['!ref']};
+    ws['!freeze']={xSplit:Math.min(4,columns.length),ySplit:1};
+    if(examColumnStart<0)return;
+    const percentIndex=examColumnStart+6;
+    const col=XLSX.utils.encode_col(percentIndex);
+    const range=XLSX.utils.decode_range(ws['!ref']);
+    for(let r=1;r<=range.e.r;r++){
+        const cell=ws[col+(r+1)];
+        if(cell&&typeof cell.v==='number')cell.z='0.00%';
+    }
+}
+
 window.doExport=async(fmt)=>{
     const expSec=document.getElementById('expSection').value;
     const expSub=document.getElementById('expSubject').value;
@@ -1891,94 +1939,114 @@ window.doExport=async(fmt)=>{
     const incG=document.getElementById('expGrades').checked;
     const incS=document.getElementById('expStatus').checked;
     const incP=document.getElementById('expPercent').checked;
+    const incE=document.getElementById('expExamTotals').checked;
 
-    let fe=enrollments.filter(e=>(!expSec||e.section===expSec)&&(!expSub||e.subjectCode===expSub));
-    let fa=activities.filter(a=>(!expSec||a.section===expSec)&&(!expSub||a.subjectCode===expSub));
-    const midA=fa.filter(a=>a.term==='midterm');const finA=fa.filter(a=>a.term==='final');const allA=[...midA,...finA];
+    const fe=enrollments.filter(e=>(!expSec||e.section===expSec)&&(!expSub||e.subjectCode===expSub));
+    const fa=activities.filter(a=>(!expSec||a.section===expSec)&&(!expSub||a.subjectCode===expSub));
+    const midA=fa.filter(a=>a.term==='midterm'),finA=fa.filter(a=>a.term==='final');
+    const allA=[...midA,...finA];
     const sm=buildSMap();
-    let rows=computeRows(fe,allA,sm);
-    rows=assignRanks(rows);
+    let rows=assignRanks(computeRows(fe,allA,sm));
     rows=sortRecordRows(rows,expOrder);
     if(!rows.length){window.showToast('No data to export.','err');return;}
+
+    const examCache=new WeakMap();
+    const examFor=row=>{
+        if(!examCache.has(row))examCache.set(row,summarizeExamPoints(allA,sm,row.studentNo,row.section,row.subjectCode));
+        return examCache.get(row);
+    };
+    const ord=n=>{const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);};
+    const rankHeaders=['Rank','Placement','Ranking Basis','Standing Value'];
+    const profileHeaders=['Student No.','Student Name','Section','Subject'];
+    const gradeHeaders=['Midterm Grade','Final Grade','Average'];
+    const rankCells=r=>[r.rank||'',r.rank?ord(r.rank)+' Place':'N/A',r.standingLabel,r.standingValue!==null?Number(r.standingValue.toFixed(2)):''];
+    const profileCells=r=>[r.studentNo,r.studentName,r.section,r.subjectCode];
+    const gradeCells=r=>[r.midGrade===null?'':Number(r.midGrade.toFixed(2)),r.finGrade===null?'':Number(r.finGrade.toFixed(2)),r.avg===null?'':Number(r.avg.toFixed(2))];
+    const activityScore=(a,r)=>{
+        if(a.section!==r.section||a.subjectCode!==r.subjectCode)return '';
+        const val=sm[a.id+'||'+r.studentNo]?.score;
+        return val===null||val===undefined||val===''?'':Number(val);
+    };
 
     if(fmt==='xlsx'){
         try{await loadVendor('xlsx');}catch(error){window.showToast('Excel tools could not be loaded.','err');return;}
         const wb=XLSX.utils.book_new();
-        const bySub={};rows.forEach(r=>{if(!bySub[r.subjectCode])bySub[r.subjectCode]=[];bySub[r.subjectCode].push(r);});
-        Object.entries(bySub).forEach(([sc,sRows])=>{
-            const sA=allA.filter(a=>a.subjectCode===sc);
-            const sMid=sA.filter(a=>a.term==='midterm');const sFin=sA.filter(a=>a.term==='final');
-            const hdr=[];
-            if(incR)hdr.push('Rank','Placement','Ranking Basis','Standing Value');
-            hdr.push('Student No.','Student Name','Section','Subject');
-            if(incA){sMid.forEach(a=>hdr.push('[MID] '+a.title+' (/'+a.perfectScore+')'));sFin.forEach(a=>hdr.push('[FIN] '+a.title+' (/'+a.perfectScore+')'));}
-            if(incP)hdr.push('Total Score','Total Max','Score %');
-            if(incG)hdr.push('Midterm Grade','Final Grade','Average');
-            if(incS)hdr.push('Status');
-            const data=[hdr];
-            sRows.forEach((r,idx)=>{
+        const usedNames=new Set();
+        if(incE){
+            const headers=[...profileHeaders,...examExportHeaders];
+            const data=[headers,...rows.map(r=>[...profileCells(r),...examExportCells(examFor(r),'xlsx')])];
+            const ws=XLSX.utils.aoa_to_sheet(data);
+            decorateExportWorksheet(ws,[15,30,20,18,18,18,18,18,22,20,19,15,16],4);
+            XLSX.utils.book_append_sheet(wb,ws,uniqueSheetName('Exam Totals',usedNames));
+        }
+        // Each sheet is one section + subject. This avoids combining two classes
+        // that happen to use the same subject code but different exam activities.
+        const groups=new Map();
+        rows.forEach(r=>{
+            const key=JSON.stringify([r.subjectCode,r.section]);
+            if(!groups.has(key))groups.set(key,{subject:r.subjectCode,section:r.section,rows:[]});
+            groups.get(key).rows.push(r);
+        });
+        for(const group of groups.values()){
+            const acts=allA.filter(a=>a.section===group.section&&a.subjectCode===group.subject);
+            const sMid=acts.filter(a=>a.term==='midterm'),sFin=acts.filter(a=>a.term==='final');
+            const selectedActs=[...sMid,...sFin];
+            const headers=[];
+            if(incR)headers.push(...rankHeaders);
+            headers.push(...profileHeaders);
+            if(incA)selectedActs.forEach(a=>headers.push('['+(a.term==='midterm'?'MID':'FIN')+'] '+a.title+' (/'+a.perfectScore+')'));
+            const examColumnStart=incE?headers.length:-1;
+            if(incE)headers.push(...examExportHeaders);
+            if(incP)headers.push('Total Score','Total Max','Score %');
+            if(incG)headers.push(...gradeHeaders);
+            if(incS)headers.push('Status');
+            const data=[headers];
+            for(const r of group.rows){
                 const row=[];
-                if(incR){
-                    row.push(r.rank||'');
-                    // Placement label
-                    const ord=(n)=>{const s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);};
-                    row.push(r.rank?ord(r.rank)+' Place':'N/A');
-                    row.push(r.standingLabel);
-                    row.push(r.standingValue!==null?r.standingValue.toFixed(2):'');
-                }
-                row.push(r.studentNo,r.studentName,r.section,r.subjectCode);
-                if(incA)[...sMid,...sFin].forEach(a=>{const s=sm[a.id+'||'+r.studentNo];row.push(s!==undefined?s.score:'');});
-                if(incP){
-                    row.push(r.totalScore);
-                    row.push(r.totalMax);
-                    row.push(r.totalMax>0?r.scorePercent.toFixed(2)+'%':'N/A');
-                }
-                if(incG)row.push(r.midGrade!==null?r.midGrade.toFixed(2):'',r.finGrade!==null?r.finGrade.toFixed(2):'',r.avg!==null?r.avg.toFixed(2):'');
+                if(incR)row.push(...rankCells(r));
+                row.push(...profileCells(r));
+                if(incA)selectedActs.forEach(a=>row.push(activityScore(a,r)));
+                if(incE)row.push(...examExportCells(examFor(r),'xlsx'));
+                if(incP)row.push(r.totalScore,r.totalMax,r.totalMax>0?r.scorePercent.toFixed(2)+'%':'N/A');
+                if(incG)row.push(...gradeCells(r));
                 if(incS)row.push(r.status);
                 data.push(row);
-            });
+            }
             const ws=XLSX.utils.aoa_to_sheet(data);
-            const cw=[];
-            if(incR)cw.push({wch:6},{wch:14},{wch:24},{wch:14});
-            cw.push({wch:14},{wch:28},{wch:12},{wch:10});
-            if(incA)sA.forEach(()=>cw.push({wch:24}));
-            if(incP)[12,10,10].forEach(w=>cw.push({wch:w}));
-            if(incG)[12,12,12].forEach(w=>cw.push({wch:w}));
-            if(incS)cw.push({wch:10});
-            ws['!cols']=cw;ws['!freeze']={xSplit:incR?6:3,ySplit:1};
-            XLSX.utils.book_append_sheet(wb,ws,sc.substring(0,31));
-        });
+            const cw=[...(incR?[7,14,24,16]:[]),15,30,20,18,
+                ...(incA?selectedActs.map(()=>26):[]),
+                ...(incE?[18,18,18,18,22,20,19,15,16]:[]),
+                ...(incP?[14,13,13]:[]),...(incG?[15,15,12]:[]),...(incS?[12]:[])];
+            decorateExportWorksheet(ws,cw,examColumnStart);
+            XLSX.utils.book_append_sheet(wb,ws,uniqueSheetName(group.subject+' - '+group.section,usedNames));
+        }
         XLSX.writeFile(wb,'MasterRecords_'+(expSec||'All')+'_'+(expSub||'AllSubs')+'_'+new Date().toISOString().slice(0,10)+'.xlsx');
-        window.showToast('Exported '+wb.SheetNames.length+' sheet(s)!');
+        window.showToast('Exported '+wb.SheetNames.length+' sheet(s) with combined exam totals!');
     }else{
-        const hdr=[];
-        if(incR)hdr.push('Rank','Placement','Ranking Basis','Standing Value');
-        hdr.push('Student No.','Student Name','Section','Subject');
-        if(incA)allA.forEach(a=>hdr.push(a.title+' (/'+a.perfectScore+')'));
-        if(incP)hdr.push('Total Score','Total Max','Score %');
-        if(incG)hdr.push('Midterm Grade','Final Grade','Average');
-        if(incS)hdr.push('Status');
-        const lines=[hdr.map(escapeCsvCell).join(',')];
+        const headers=[];
+        if(incR)headers.push(...rankHeaders);
+        headers.push(...profileHeaders);
+        if(incA)allA.forEach(a=>headers.push('['+a.section+' / '+a.subjectCode+'] '+a.title+' (/'+a.perfectScore+')'));
+        if(incE)headers.push(...examExportHeaders);
+        if(incP)headers.push('Total Score','Total Max','Score %');
+        if(incG)headers.push(...gradeHeaders);
+        if(incS)headers.push('Status');
+        const lines=[headers.map(escapeCsvCell).join(',')];
         rows.forEach(r=>{
             const row=[];
-            if(incR){
-                const ord=(n)=>{const s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);};
-                row.push(r.rank||'');
-                row.push(r.rank?ord(r.rank)+' Place':'N/A');
-                row.push(r.standingLabel);
-                row.push(r.standingValue!==null?r.standingValue.toFixed(2):'');
-            }
-            row.push(r.studentNo,r.studentName,r.section,r.subjectCode);
-            if(incA)allA.forEach(a=>{const s=sm[a.id+'||'+r.studentNo];row.push(s!==undefined?s.score:'');});
-            if(incP){row.push(r.totalScore);row.push(r.totalMax);row.push(r.totalMax>0?r.scorePercent.toFixed(2)+'%':'N/A');}
-            if(incG)row.push(r.midGrade?.toFixed(2)||'',r.finGrade?.toFixed(2)||'',r.avg?.toFixed(2)||'');
+            if(incR)row.push(...rankCells(r));
+            row.push(...profileCells(r));
+            if(incA)allA.forEach(a=>row.push(activityScore(a,r)));
+            if(incE)row.push(...examExportCells(examFor(r),'csv'));
+            if(incP)row.push(r.totalScore,r.totalMax,r.totalMax>0?r.scorePercent.toFixed(2)+'%':'N/A');
+            if(incG)row.push(...gradeCells(r));
             if(incS)row.push(r.status);
             lines.push(row.map(escapeCsvCell).join(','));
         });
-        const blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+        const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
         const a=document.createElement('a');a.href=URL.createObjectURL(blob);
         a.download='MasterRecords_'+(expSec||'All')+'_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
-        window.showToast('Exported as CSV!');
+        window.showToast('Exported as CSV with combined exam totals!');
     }
     window.closeExportModal();
 };

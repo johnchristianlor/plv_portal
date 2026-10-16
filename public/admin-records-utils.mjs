@@ -33,3 +33,51 @@ export function escapeCsvCell(value) {
   const text = value == null ? '' : String(value);
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
+
+// Computes major-exam raw points independently from grades, weights, and
+// other activity categories. Section and subject are mandatory so unrelated
+// cohorts are never added together (including matching activity titles).
+// Missing scores contribute 0 earned points but remain explicitly pending;
+// a saved score of 0 counts as graded.
+export function summarizeExamPoints(activities, scoreMap, studentNo, section, subjectCode) {
+  const result = {
+    midterm: { earned: 0, max: 0, graded: 0, pending: 0 },
+    final: { earned: 0, max: 0, graded: 0, pending: 0 },
+    combined: { earned: 0, max: 0, graded: 0, pending: 0, percentage: null },
+  };
+  for (const activity of activities || []) {
+    if (activity.category !== 'exam' || activity.section !== section || activity.subjectCode !== subjectCode) continue;
+    const max = Number(activity.perfectScore);
+    if (!Number.isFinite(max) || max <= 0) continue;
+    const term = activity.term === 'midterm' ? result.midterm : activity.term === 'final' ? result.final : null;
+    const raw = scoreMap?.[activity.id + '||' + studentNo]?.score;
+    const value = raw === null || raw === undefined || raw === '' ? null : Number(raw);
+    const scored = value !== null && Number.isFinite(value);
+    for (const bucket of [result.combined, term].filter(Boolean)) {
+      bucket.max += max;
+      if (scored) {
+        bucket.earned += value;
+        bucket.graded++;
+      } else {
+        bucket.pending++;
+      }
+    }
+  }
+  result.combined.percentage = result.combined.max > 0
+    ? result.combined.earned / result.combined.max * 100 : null;
+  return result;
+}
+
+// Excel sheet names cannot exceed 31 characters or contain \ / ? * [ ] : .
+// Guarantee distinct sheet names when subject/section names are truncated.
+export function uniqueSheetName(label, usedNames) {
+  const base = (String(label ?? '').replace(/[\\/?*\[\]:]/g, '-').trim() || 'Records').slice(0, 31);
+  let name = base;
+  let index = 2;
+  while (usedNames.has(name.toLowerCase())) {
+    const suffix = ' (' + index++ + ')';
+    name = base.slice(0, 31 - suffix.length) + suffix;
+  }
+  usedNames.add(name.toLowerCase());
+  return name;
+}
