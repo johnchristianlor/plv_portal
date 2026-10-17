@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+const base=join(dirname(fileURLToPath(import.meta.url)),'..','public');
+const html=readFileSync(join(base,'admin-incentives.html'),'utf8');
+const css=readFileSync(join(base,'admin-incentives.css'),'utf8');
+const js=readFileSync(join(base,'admin-incentives.js'),'utf8');
+
+assert.match(html, /class="logo-container"/,'same PLV logo and navigation shell as other admin menus');
+assert.match(html, /class="main-wrapper"/,'consistent admin page wrapper');
+assert.match(html, /class="header"/,'same heading and theme button layout');
+assert.match(html, /\.\/recitation\.css\?/,'shared recitation/admin design tokens');
+assert.match(html, /\.\/plv-responsive\.css\?/,'shared responsive navigation');
+assert.match(html, /<script src="\.\/plv-navigation\.v1\.js" defer><\/script>/,'shared mobile nav');
+assert.match(html, /href="admin-incentives\.html" class="active" aria-current="page"/,'desktop navigation active');
+assert.match(html, /id="mnav-inc" class="active" aria-current="page"/,'mobile navigation active');
+assert.match(html, /id="logoutButton"/,'desktop logout action retained');
+assert.match(html, /id="mobileLogoutButton"/,'mobile logout action provided');
+assert.match(js, /mobileLogoutButton'\)\.addEventListener\('click',logoutFromIncentives\)/,'mobile signout uses audited logout');
+assert.match(html, /id="batchModal"/,'explicit batch confirmation modal preserved');
+assert.match(html, /id="recitationTracker"/,'recitation spreadsheet preserved');
+assert.match(html, /id="historyBody"/,'conversion audit trail preserved');
+assert.match(css, /\.admin-incentives-page\.dark-theme \.status-dot\.pending/,'high-contrast dark pending state');
+assert.match(css, /\.admin-incentives-page\.dark-theme \.status-dot\.converted/,'high-contrast dark converted state');
+assert.match(css, /\.admin-incentives-page \.tracker-title\{display:grid/,'narrow mobile tracker heading fixed');
+// No accidental removal of JS-targeted IDs during HTML restructuring.
+const declaredIds=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]));
+const referencedIds=new Set([...js.matchAll(/\$\('([a-zA-Z][a-zA-Z0-9]*)'\)/g)].map(m=>m[1]));
+for(const id of referencedIds) assert.ok(declaredIds.has(id),`Missing DOM control ${id}`);
+assert.equal(declaredIds.size,[...html.matchAll(/\bid="[^"]+"/g)].length,'IDs must not be duplicated');
+console.log('Exam Incentives design, responsive nav, and DOM compatibility checks passed');

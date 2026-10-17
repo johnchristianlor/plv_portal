@@ -271,6 +271,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         import { startStudentPresence } from "./student-presence.js";
         import { startStudentSessionGuard } from "./student-session.js";
         import { getStudentEnrollments, getSubject } from "./student-data.js";
+        import { bonusMapFromRows, examBonusKey, effectiveExamScore, fetchExamIncentiveTotals } from "./exam-incentive-utils.mjs";
         import { getAttendanceStatusByDate, normalizeDateKey } from "./attendance-utils.mjs";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
@@ -298,6 +299,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
         let scoresData = { midterm: { written: [], perf: [], exam: [] }, final: { written: [], perf: [], exam: [] } };
         let scoresMap = {};
+        let incentiveTotals = new Map();
         let attendanceByDate = new Map();
         let currentTerm = 'midterm';
         let sortState = { written: 'newest', perf: 'newest', exam: 'newest' };
@@ -309,11 +311,12 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
                 const enroll = enrollments[0];
                 const studentSection = enroll.section; // Get Student's Section
-                const [subject, scoresResult, activitiesResult, attendanceResult] = await Promise.all([
+                const [subject, scoresResult, activitiesResult, attendanceResult, incentiveResult] = await Promise.all([
                     getSubject(supabase, enroll.subjectCode),
                     supabase.from("scores").select("activityId,score").eq("studentNo", user.studentNo),
                     supabase.from("activities").select("id,term,category,title,date,perfectScore").eq("subjectCode", enroll.subjectCode).eq("section", studentSection),
-                    supabase.from("attendance").select("date,status").eq("studentNo", user.studentNo).eq("subjectCode", enroll.subjectCode).eq("section", studentSection)
+                    supabase.from("attendance").select("date,status").eq("studentNo", user.studentNo).eq("subjectCode", enroll.subjectCode).eq("section", studentSection),
+                    fetchExamIncentiveTotals(supabase, { p_student_no: user.studentNo, p_student_session_token: user.activeSessionToken || user.sessionToken || null })
                 ]);
                 if(subject) document.getElementById('hSubject').innerText = `${subject.subjectCode}: ${subject.subjectName}`;
 
@@ -325,6 +328,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 if (activitiesError) throw activitiesError;
                 const { data: attendance, error: attendanceError } = attendanceResult;
                 if (attendanceError) throw attendanceError;
+                incentiveTotals = bonusMapFromRows(incentiveResult || []);
                 attendanceByDate = getAttendanceStatusByDate(attendance || []);
 
                 (activities || []).forEach(a => {
@@ -356,9 +360,9 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 const currentSort = sortState[cat];
 
                 list.sort((a, b) => {
-                    const scoreA = scoresMap[a.id] || 0;
+                    const scoreA = effectiveExamScore(a, scoresMap[a.id], incentiveTotals.get(examBonusKey(a.id,user.studentNo)) || 0) || 0;
                     const percentA = a.perfectScore > 0 ? (scoreA / a.perfectScore) : 0;
-                    const scoreB = scoresMap[b.id] || 0;
+                    const scoreB = effectiveExamScore(b, scoresMap[b.id], incentiveTotals.get(examBonusKey(b.id,user.studentNo)) || 0) || 0;
                     const percentB = b.perfectScore > 0 ? (scoreB / b.perfectScore) : 0;
 
                     switch(currentSort) {
@@ -377,16 +381,18 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                     const dateKey = normalizeDateKey(act.date);
                     const attendanceStatus = attendanceByDate.get(dateKey);
                     const hasScore = scoresMap[act.id] !== undefined && scoresMap[act.id] !== null;
-                    const myScore = hasScore ? Number(scoresMap[act.id]) : 0;
+                    const bonus = cat === 'exam' ? incentiveTotals.get(examBonusKey(act.id,user.studentNo)) || 0 : 0;
+                    const myScore = hasScore ? effectiveExamScore(act, scoresMap[act.id], bonus) : 0;
                     totalScore += myScore;
                     totalPerfect += Number(act.perfectScore) || 0;
 
                     const pct = act.perfectScore > 0 ? Math.min(100, Math.max(0, myScore / act.perfectScore * 100)) : 0;
                     const dStr = dateKey ? new Date(`${dateKey}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Date unavailable';
                     const attendanceNote = attendanceStatus === 'A' ? '<span class="absence-note"><i class="ph-fill ph-user-minus"></i> Absent on this date' + (hasScore ? ' · Completion score recorded' : ' · Score pending') + '</span>' : attendanceStatus === 'E' ? '<span class="absence-note excused-note"><i class="ph-fill ph-info"></i> Excused on this date' + (hasScore ? ' · Score recorded' : ' · Score pending') + '</span>' : '';
+                    const incentiveNote = bonus ? `<span class="absence-note excused-note">+${bonus} exam incentive${hasScore ? ' applied' : ' reserved until score is graded'}</span>` : '';
                     const scoreDisplay = `<div class="act-score-area">${hasScore ? `<span class="score-num">${myScore}</span>` : '<span class="score-num" style="font-size:12px;">Pending</span>'}<span class="score-div">/</span><span class="score-total">${act.perfectScore}</span></div>`;
                     const safeTitle = String(act.title || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
-                    container.innerHTML += `<div class="activity-item ${cat}${attendanceStatus === 'A' ? ' absent' : attendanceStatus === 'E' ? ' excused' : ''}"><div class="act-top"><div class="act-title-area"><h4>${safeTitle}</h4><span class="act-date"><i class="ph-fill ph-calendar-blank"></i> ${dStr}</span>${attendanceNote}</div>${scoreDisplay}</div><div class="progress-wrapper"><div class="progress-fill" style="width: ${pct}%;"></div></div></div>`;
+                    container.innerHTML += `<div class="activity-item ${cat}${attendanceStatus === 'A' ? ' absent' : attendanceStatus === 'E' ? ' excused' : ''}"><div class="act-top"><div class="act-title-area"><h4>${safeTitle}</h4><span class="act-date"><i class="ph-fill ph-calendar-blank"></i> ${dStr}</span>${attendanceNote}${incentiveNote}</div>${scoreDisplay}</div><div class="progress-wrapper"><div class="progress-fill" style="width: ${pct}%;"></div></div></div>`;
                 });
 
                 if(list.length === 0) container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No scores yet.</p>';

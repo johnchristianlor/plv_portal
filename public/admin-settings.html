@@ -224,6 +224,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             <li class="nav-item"><a href="admin-grades.html"><i class="ph-fill ph-exam"></i> Input Grades</a></li>
             <li class="nav-item"><a href="admin-attendance.html"><i class="ph-fill ph-calendar-check"></i> Attendance</a></li>
             <li class="nav-item"><a href="admin-recitation.html"><i class="ph-fill ph-coin-vertical"></i> Recitation</a></li>
+            <li class="nav-item"><a href="admin-incentives.html"><i class="ph-fill ph-gift"></i> Exam Incentives</a></li>
             <li class="nav-item"><a href="admin-settings.html" class="active"><i class="ph-fill ph-gear"></i> System Settings</a></li>
             <li class="nav-item" style="margin-top:auto;"><a onclick="window.logout()"><i class="ph ph-sign-out"></i> Logout</a></li>
         </ul>
@@ -394,7 +395,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
 
         const adminSessionGuard = startAdminSessionGuard(supabase, user);
-        window.logout = async function() { adminSessionGuard.stop(); try { await supabase.auth.signOut(); } catch (error) {} localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
+        window.logout = async function() { adminSessionGuard.stop(); try { if (user?.activeSessionToken || user?.sessionToken) await supabase.rpc('admin_log_session_event', { p_admin_session_token: user.activeSessionToken || user.sessionToken, p_action: 'logout' }); } catch (error) { console.warn('Admin logout audit unavailable', error); } try { await supabase.auth.signOut(); } catch (error) {} localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
 
         const B2_UPLOAD_ENDPOINT = '/api/b2-upload';
 
@@ -974,6 +975,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             <li><a href="admin-grades.html" id="mnav-grd"><i class="ph-fill ph-exam"></i>Grades</a></li>
             <li><a href="admin-attendance.html" id="mnav-att"><i class="ph-fill ph-calendar-check"></i>Attendance</a></li>
             <li><a href="admin-recitation.html" id="mnav-rct"><i class="ph-fill ph-coin-vertical"></i>Recitation</a></li>
+            <li><a href="admin-incentives.html" id="mnav-inc"><i class="ph-fill ph-gift"></i>Incentives</a></li>
             <li><a href="admin-settings.html" id="mnav-set" class="active"><i class="ph-fill ph-gear"></i>Settings</a></li>
             <li><a href="#" onclick="window.logout()" id="mnav-out"><i class="ph ph-sign-out"></i>Logout</a></li>
         </ul>

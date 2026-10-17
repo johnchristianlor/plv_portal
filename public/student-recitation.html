@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/bold/style.css">
   <link rel="stylesheet" href="./recitation.css?v=20260827rec3">
   <link rel="stylesheet" href="./plv-responsive.css?v=20260826global1">
+  <link rel="stylesheet" href="./student-conversion-status.css?v=20261018manual2">
   <script src="./plv-navigation.v1.js" defer></script>
 </head>
 <body class="student-recitation-page">
@@ -82,6 +83,13 @@
         <div class="activity-list" id="activityList"><div class="empty"><span class="loading"></span><b>Loading activity</b></div></div>
       </article>
     </section>
+
+    <section class="card glass conversion-status-card" id="examConversionStatus" aria-label="Exam recitation conversion status">
+      <div class="conversion-heading"><div><span class="conversion-kicker"><i class="ph-fill ph-shield-check"></i> MANUAL CONVERSION TRACKER</span><h2>My Recitation → Exam Points</h2><p>See which recitation chips are still waiting for your instructor and which have already been converted. Only your administrator can approve conversions.</p></div><button type="button" class="btn btn-soft" id="refreshConversionStatus"><i class="ph-bold ph-arrow-clockwise"></i> Refresh</button></div>
+      <div class="conversion-status-guide"><span class="conversion-badge pending"><i class="ph-fill ph-circle"></i> Yellow · Not converted</span><span class="conversion-badge converted"><i class="ph-fill ph-circle"></i> Green · Converted</span><span class="conversion-clarification">Wallet chips are shared across subjects. A conversion uses chips only when the instructor approves it.</span></div>
+      <div class="conversion-table-wrap" role="region" tabindex="0" aria-label="Scrollable exam conversion status sheet"><table class="conversion-table"><thead><tr><th>Exam</th><th>Required rate</th><th>Converted exam points</th><th>Recitation chips spent</th><th>Conversion status</th><th>Last converted</th></tr></thead><tbody id="studentConversionRows"><tr><td colspan="6" class="conversion-empty">Loading your conversion status…</td></tr></tbody></table></div>
+      <div class="conversion-footer" id="conversionFooter">Yellow does not reduce your wallet balance. Green confirms a completed conversion.</div>
+    </section>
   </main>
 
   <nav class="mobile-nav-bar" aria-label="Student navigation"><ul>
@@ -137,7 +145,7 @@
   </div>
 
   <div class="toast" id="toast"><i class="ph-fill ph-check-circle"></i><span id="toastMessage"></span></div>
-  <script type="module" src="./student-recitation.js?v=20260827rec4"></script>
+  <script type="module" src="./student-recitation.js?v=20261018manual2"></script>
   <script type="module" src="./student-notifications.js"></script>
 </body>
 </html>

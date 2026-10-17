@@ -1,0 +1,180 @@
+/* Exam Incentives: PLV admin visual system. Uses recitation.css for the shared
+   logo, navigation, page header, glass surfaces, font, and mobile navigation. */
+.admin-incentives-page{--incentive-soft:var(--accent-light);--incentive-line:var(--input-border)}
+.admin-incentives-page .main-wrapper{max-width:1800px;width:100%;gap:22px}
+.admin-incentives-page .header{margin-bottom:0}
+.admin-incentives-page .header-actions .icon-btn:focus-visible,
+.admin-incentives-page a:focus-visible,
+.admin-incentives-page button:focus-visible{outline:3px solid color-mix(in srgb,var(--accent-primary) 42%,transparent);outline-offset:3px}
+/* Header and hero reflect Recitation's blue-gradient style. */
+.admin-incentives-page .incentives-hero{min-height:250px;grid-template-columns:minmax(0,1.3fr) minmax(285px,.9fr);gap:30px;padding:35px 38px}
+.incentives-hero .hero-copy h2{margin:16px 0 12px;font-size:clamp(23px,2.55vw,35px);font-weight:800;letter-spacing:-1.1px;line-height:1.22;max-width:590px}
+.incentives-hero .hero-copy h2 span{color:#f8d979}
+.incentives-hero .hero-copy>p{font-size:13px;font-weight:550;line-height:1.75;max-width:560px}
+.hero-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px}
+.hero-link{color:#002866;background:#f4d56d;padding:11px 14px;display:inline-flex;align-items:center;gap:8px;border-radius:13px;text-decoration:none;font-size:12px;font-weight:800;transition:transform .2s,background .2s;position:relative;z-index:3}
+.hero-link:hover{background:#ffe590;transform:translateY(-1px)}
+.approval-label{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:750;color:#eaf4ff;position:relative;z-index:2}
+.approval-label i{font-size:16px;color:#93e4b4}
+.incentives-overview{position:relative;z-index:2;padding:21px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);border-radius:24px;backdrop-filter:blur(10px)}
+.overview-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;color:#e5eefa;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.75px}
+.overview-top span{display:flex;align-items:center;gap:8px}.overview-top i{font-size:19px}
+.incentives-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.incentives-metrics>div{background:rgba(0,30,83,.25);border:1px solid rgba(255,255,255,.1);padding:14px 10px;border-radius:15px;min-width:0}
+.incentives-metrics span{display:block;color:#e6efff;font-size:10px;line-height:1.45;font-weight:700;min-height:29px}
+.incentives-metrics strong{font-size:24px;font-weight:800;letter-spacing:-.7px;display:block;margin-top:10px;line-height:1.1;font-variant-numeric:tabular-nums}
+.workflow-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 18px;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:18px;box-shadow:var(--glass-shadow);font-size:11px;font-weight:800;color:var(--text-muted)}
+.workflow-bar>div{display:flex;align-items:center;gap:9px}.workflow-bar span{display:grid;place-items:center;width:28px;height:28px;flex:none;background:var(--accent-light);color:var(--accent-primary);border-radius:9px;font-weight:800;font-size:11px}
+.workflow-bar>i{font-size:13px;color:var(--accent-primary);opacity:.7}
+/* Cards mirror the glass panels used throughout PLV admin. */
+.admin-incentives-page .layout{display:grid;grid-template-columns:minmax(310px,.92fr) minmax(430px,1.24fr);gap:23px;align-items:start}
+.admin-incentives-page .stack{display:grid;gap:22px;min-width:0}
+.admin-incentives-page .panel{min-width:0;max-width:100%;padding:26px;border-radius:26px;color:var(--text-main)}
+.admin-incentives-page .panel-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:23px;min-width:0}
+.admin-incentives-page .panel-head>div:nth-child(2){min-width:0;flex:1}
+.admin-incentives-page .panel-head h2{font-size:19px;font-weight:800;letter-spacing:-.4px;line-height:1.3;margin:0 0 5px}
+.admin-incentives-page .panel-head p{color:var(--text-muted);font-size:12px;font-weight:600;line-height:1.6;margin:0}
+.admin-incentives-page .step{flex:0 0 44px;width:44px;height:44px;display:grid;place-items:center;background:var(--accent-light);color:var(--accent-primary);border-radius:14px;font-size:14px;font-weight:800}
+.admin-incentives-page .step i{font-size:21px}
+.admin-incentives-page .fields{display:grid;gap:14px;margin-bottom:14px}
+.admin-incentives-page .fields.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.admin-incentives-page .panel label:not(.check-confirm){display:block;font-size:11px;text-transform:uppercase;letter-spacing:.55px;font-weight:800;color:var(--text-muted);line-height:1.55}
+.admin-incentives-page .panel input:not([type=checkbox]),
+.admin-incentives-page .panel select,
+.admin-incentives-page .panel textarea{display:block;width:100%;min-width:0;min-height:47px;margin-top:7px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--text-main);border-radius:14px;padding:11px 14px;outline:0;font-size:13px;font-weight:650;text-transform:none;letter-spacing:normal;transition:border-color .2s,box-shadow .2s}
+.admin-incentives-page .panel textarea{min-height:84px;resize:vertical;line-height:1.6}
+.admin-incentives-page .panel input:focus,.admin-incentives-page .panel select:focus,.admin-incentives-page .panel textarea:focus{border-color:var(--accent-primary);box-shadow:0 0 0 4px var(--accent-light)}
+.admin-incentives-page .panel input::placeholder{color:var(--text-muted);opacity:.85}
+.selected-exam{font-size:12px;line-height:1.7;color:var(--text-muted);background:var(--accent-light);border:1px dashed color-mix(in srgb,var(--accent-primary) 32%,transparent);border-radius:14px;padding:15px 17px;margin-top:18px}
+.selected-exam strong{display:block;font-size:13px;color:var(--accent-primary);margin-bottom:2px}
+.preview{background:var(--success-bg);color:var(--success);border:1px solid color-mix(in srgb,var(--success) 20%,transparent);display:flex;align-items:center;padding:13px 15px;min-height:47px;border-radius:14px;font-size:12px;font-weight:800;margin-top:24px;line-height:1.55}
+.manual-assurance{display:flex;gap:12px;align-items:flex-start;background:var(--accent-light);border:1px solid color-mix(in srgb,var(--accent-primary) 20%,transparent);border-radius:16px;padding:16px;margin:18px 0;color:var(--accent-primary)}
+.manual-assurance>i{font-size:26px;flex:0 0 auto}.manual-assurance b,.manual-assurance span{display:block}.manual-assurance b{font-size:13px}.manual-assurance span{color:var(--text-muted);font-size:11px;line-height:1.65;font-weight:650;margin-top:5px}
+.inline-note{display:flex;gap:9px;color:var(--text-muted);font-size:11px;font-weight:600;line-height:1.6;margin:0 0 18px}.inline-note i{font-size:18px;color:var(--accent-primary);flex:0 0 auto}
+.admin-incentives-page .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:45px;padding:12px 16px;font-size:12px;border-radius:14px;font-weight:800;border:1px solid transparent;white-space:normal;line-height:1.4;text-align:center;cursor:pointer;transition:background .18s,color .18s,transform .18s}
+.admin-incentives-page .btn i{font-size:18px}.admin-incentives-page .btn.primary{background:var(--accent-primary);color:#fff;box-shadow:0 10px 22px -13px var(--accent-primary)}
+.admin-incentives-page .btn.primary:hover:not(:disabled){background:var(--accent-hover);transform:translateY(-1px)}
+.admin-incentives-page .btn.outline{background:var(--accent-light);color:var(--accent-primary);border-color:color-mix(in srgb,var(--accent-primary) 15%,transparent)}
+.admin-incentives-page .btn.outline:hover:not(:disabled){background:color-mix(in srgb,var(--accent-primary) 17%,var(--input-bg));transform:translateY(-1px)}
+.admin-incentives-page .btn:disabled{opacity:.52;cursor:not-allowed;transform:none}.admin-incentives-page .btn.full{width:100%}
+.student-snapshot{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:18px 0 20px}
+.student-snapshot>div{background:var(--accent-light);border:1px solid var(--input-border);padding:15px 13px;border-radius:16px;min-width:0}
+.student-snapshot small{display:block;color:var(--text-muted);font-weight:700;font-size:10px;line-height:1.4}
+.student-snapshot strong{display:block;font-size:20px;font-weight:800;letter-spacing:-.7px;font-variant-numeric:tabular-nums;margin-top:10px;word-break:break-word}
+.student-snapshot>div:nth-child(3){background:var(--success-bg);border-color:color-mix(in srgb,var(--success) 20%,transparent)}
+.student-snapshot>div:nth-child(3) strong{color:var(--success)}
+.actions-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.actions-grid>form,.redeem-card{background:var(--input-bg);border:1px solid var(--input-border);border-radius:19px;padding:20px;min-width:0;display:flex;flex-direction:column;align-items:stretch}
+.actions-grid h3{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:800;line-height:1.4;margin:0 0 8px}.actions-grid h3 i{font-size:20px;color:var(--accent-primary)}
+.actions-grid p{color:var(--text-muted);font-size:11px;font-weight:600;line-height:1.65;margin:0 0 18px}
+.actions-grid label{margin-bottom:12px}.actions-grid .btn{margin-top:auto}
+.redeem-outcome{background:var(--accent-light);border:1px solid var(--input-border);border-radius:14px;padding:17px 16px;margin:auto 0 15px}
+.redeem-outcome small,.redeem-outcome strong{display:block}.redeem-outcome small{font-size:11px;font-weight:700;color:var(--text-muted)}.redeem-outcome strong{font-size:23px;font-weight:800;letter-spacing:-.7px;margin-top:8px}
+/* Spreadsheet and status colors: sufficient contrast in light and dark. */
+.tracker-panel,.history-panel{width:100%;scroll-margin-top:30px}
+.admin-incentives-page .tracker-title{flex-wrap:wrap;align-items:center}
+.tracker-legend{margin-left:auto;display:flex;flex-wrap:wrap;gap:8px}
+.tracker-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 21px}
+.tracker-kpis>div{border:1px solid var(--input-border);background:var(--input-bg);border-radius:17px;padding:18px}
+.tracker-kpis small,.tracker-kpis strong{display:block}.tracker-kpis small{color:var(--text-muted);font-weight:700;font-size:11px;line-height:1.5}
+.tracker-kpis strong{font-size:26px;font-weight:800;letter-spacing:-.8px;margin-top:8px;font-variant-numeric:tabular-nums}
+.tracker-tools{display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px;margin-bottom:15px}
+.admin-incentives-page .tracker-tools label{min-width:170px;flex:0 1 200px;margin:0}
+.admin-incentives-page .tracker-tools .tracker-search{flex:1 1 240px}
+.tracker-tools .btn{min-height:47px;white-space:nowrap}.tracker-tools .batch-button{margin-left:auto}
+.tracker-context{background:var(--accent-light);border-left:4px solid var(--accent-primary);padding:13px 16px;border-radius:12px;font-size:12px;font-weight:650;color:var(--text-muted);line-height:1.6;margin:0 0 17px}
+.table-scroll{overflow:auto;max-width:100%;border-radius:16px;border:1px solid var(--input-border);background:var(--input-bg);scrollbar-width:thin;outline-offset:3px}
+.table-scroll:focus-visible{outline:3px solid var(--accent-light)}
+.roster-scroll{max-height:620px}
+.admin-incentives-page table{border-collapse:separate;border-spacing:0;min-width:850px;width:100%;text-align:left;font-variant-numeric:tabular-nums}
+.admin-incentives-page .roster-table{min-width:1040px}
+.admin-incentives-page th{position:sticky;top:0;z-index:3;background:color-mix(in srgb,var(--accent-primary) 6%,var(--input-bg));border-bottom:1px solid var(--input-border);padding:15px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.65px;color:var(--text-muted);line-height:1.55;white-space:nowrap}
+.admin-incentives-page td{font-size:12px;padding:15px;vertical-align:middle;border-bottom:1px solid var(--input-border);font-weight:650;line-height:1.5;color:var(--text-main)}
+.admin-incentives-page tbody tr:last-child td{border-bottom:0}.admin-incentives-page tbody tr:hover{background:var(--accent-light)}
+.admin-incentives-page td strong,.admin-incentives-page td small{display:block}.admin-incentives-page td strong{font-size:12px;font-weight:800}.admin-incentives-page td small{font-size:10px;font-weight:650;color:var(--text-muted);line-height:1.45;margin-top:5px}
+.admin-incentives-page td.chip-cell{font-size:15px;font-weight:800}.admin-incentives-page .row-action{font-size:11px;min-height:38px;padding:7px 13px;white-space:nowrap}
+.status-dot{display:inline-flex;align-items:center;gap:7px;border:1px solid transparent;border-radius:99px;padding:8px 11px;font-size:10px;font-weight:800;white-space:nowrap}
+.status-dot:before{content:"";flex:none;height:8px;width:8px;border-radius:50%;background:currentColor}
+.status-dot.pending{color:#8b5200;background:#fff1bf;border-color:#ebd48e}
+.status-dot.converted{color:#12633e;background:#ddf5e8;border-color:#aadfc0}
+.status-dot.neutral{color:#566579;background:#ecf0f5;border-color:#d9e1ea}
+.tracker-foot{font-size:11px;font-weight:600;line-height:1.7;color:var(--text-muted);margin-top:14px}
+.history-head{flex-wrap:wrap;align-items:center}.history-actions{margin-left:auto;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.admin-incentives-page .history-actions input:not([type=checkbox]),.admin-incentives-page .history-actions select{margin:0;width:auto;max-width:250px;min-height:44px;font-size:12px}.history-actions .btn{white-space:nowrap}
+.history-foot{font-size:11px;font-weight:650;color:var(--text-muted);margin-top:13px}
+.pill{display:inline-block;vertical-align:middle;border-radius:99px;padding:7px 11px;font-size:10px;font-weight:800;color:var(--accent-primary);background:var(--accent-light);white-space:nowrap}
+.pill.green{color:#176d47;background:#ddf5e8}.pill.amber{color:#8b5200;background:#fff1bf}
+.positive{font-weight:800;font-size:14px;color:var(--success)}.empty{text-align:center!important;color:var(--text-muted)!important;padding:38px 18px!important}
+.admin-incentives-page footer{color:var(--text-muted);font-size:11px;font-weight:650;text-align:center;padding:0 0 4px}
+.error{background:var(--danger-bg);border:1px solid color-mix(in srgb,var(--danger) 25%,transparent);color:var(--danger);padding:15px;border-radius:14px;line-height:1.6;font-size:13px;font-weight:650}
+.error[hidden]{display:none}
+.toast{position:fixed;bottom:24px;right:24px;max-width:min(420px,calc(100vw - 32px));padding:15px 18px;z-index:1400;border-radius:14px;display:none;background:#116741;color:#fff;font-size:12px;font-weight:750;line-height:1.5;box-shadow:0 16px 35px rgba(0,0,0,.2)}
+.toast.show{display:block}.toast.error{background:#ad2947;color:#fff}
+/* Reusable confirmation modal, consistent with other PLV admin dialogs. */
+.confirm-overlay[hidden]{display:none!important}
+.confirm-overlay{position:fixed;inset:0;z-index:1300;background:rgba(4,12,29,.7);display:grid;place-items:center;padding:16px;backdrop-filter:blur(5px)}
+.confirm-dialog{width:min(100%,540px);max-height:90vh;overflow:auto;background:var(--glass-bg);backdrop-filter:blur(27px);border:1px solid var(--glass-border);box-shadow:0 25px 80px rgba(0,20,60,.3);border-radius:26px;padding:29px;color:var(--text-main)}
+.confirm-icon{display:grid;place-items:center;width:52px;height:52px;margin-bottom:17px;border-radius:16px;background:var(--accent-light);color:var(--accent-primary);font-size:26px}
+.confirm-dialog h2{font-size:21px;letter-spacing:-.5px;font-weight:800;margin-bottom:10px}.confirm-dialog p{font-size:12px;line-height:1.75;color:var(--text-muted);font-weight:600}
+.confirm-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:21px 0}
+.confirm-metrics>div{background:var(--accent-light);padding:15px;border-radius:14px}.confirm-metrics small{display:block;font-size:10px;font-weight:700;color:var(--text-muted);line-height:1.5}.confirm-metrics strong{display:block;font-size:24px;font-weight:800;margin-top:8px}
+.check-confirm{display:flex;align-items:flex-start;gap:11px;font-size:12px;font-weight:700;line-height:1.7;cursor:pointer;margin:14px 0 20px;color:var(--text-main)}
+.check-confirm input{flex:none;width:18px;height:18px;margin:2px 0 0;accent-color:var(--accent-primary)}
+.confirm-buttons{display:flex;justify-content:flex-end;gap:10px}.confirm-buttons .btn{flex:1}
+.admin-incentives-page.dark-theme .status-dot.pending{background:#513f1b;color:#ffe6a0;border-color:#917035}
+.admin-incentives-page.dark-theme .status-dot.converted{background:#173d32;color:#adf4cd;border-color:#357354}
+.admin-incentives-page.dark-theme .status-dot.neutral{background:#283348;color:#d2dbec;border-color:#4a5870}
+.admin-incentives-page.dark-theme .pill.green{background:#173d32;color:#adf4cd}
+.admin-incentives-page.dark-theme .pill.amber{background:#513f1b;color:#ffe6a0}
+.admin-incentives-page.dark-theme .incentives-overview{background:rgba(0,0,0,.18)}
+@media(max-width:1430px){
+  .admin-incentives-page .layout{grid-template-columns:minmax(310px,.94fr) minmax(380px,1.06fr)}
+  .student-snapshot{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .actions-grid{grid-template-columns:1fr}
+  .redeem-outcome{margin:12px 0 16px}
+}
+@media(max-width:1180px){
+  .admin-incentives-page .layout{grid-template-columns:1fr}
+  .admin-incentives-page .stack{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+  .admin-incentives-page .stack:nth-child(2){grid-template-columns:1fr}
+  .actions-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .student-snapshot{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media(max-width:980px){
+  .admin-incentives-page .incentives-hero{grid-template-columns:1fr;gap:20px;min-height:0}
+  .incentives-overview{max-width:100%}
+  .admin-incentives-page .stack{grid-template-columns:1fr}
+  .tracker-tools .batch-button{margin-left:0}
+}
+@media(max-width:720px){
+  .admin-incentives-page .incentives-hero{grid-template-columns:1fr;padding:25px 21px;gap:21px}
+  .incentives-hero .hero-copy h2{font-size:26px;line-height:1.2}
+  .incentives-overview{padding:15px}
+  .incentives-metrics strong{font-size:22px}
+  .workflow-bar{justify-content:space-between;gap:8px;padding:12px}
+  .workflow-bar>div{font-size:10px;gap:6px}.workflow-bar span{width:25px;height:25px}.workflow-bar>i{display:none}
+  .admin-incentives-page .panel{padding:20px;border-radius:22px}
+  .student-snapshot{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .actions-grid{grid-template-columns:1fr}
+  .tracker-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .admin-incentives-page .tracker-tools label{flex:1 1 100%}
+  .admin-incentives-page .tracker-tools .btn{flex:1 1 auto}
+  .tracker-legend{margin-left:0}
+  .history-actions{margin-left:0;flex:1 1 100%}
+  .history-actions input:not([type=checkbox]){flex:1 1 170px}
+  .confirm-dialog{padding:22px;border-radius:20px}.confirm-buttons{flex-direction:column-reverse}
+}
+@media(max-width:480px){
+  .admin-incentives-page .fields.two{grid-template-columns:1fr}
+  .preview{margin-top:0}
+  .workflow-bar{display:grid;grid-template-columns:1fr;gap:9px}
+  .tracker-kpis>div{padding:13px}.tracker-kpis strong{font-size:23px}
+  .incentives-metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+  .incentives-metrics>div{padding:11px 8px}.incentives-metrics strong{font-size:20px}.incentives-metrics span{font-size:9px}
+  .confirm-metrics{grid-template-columns:1fr}.confirm-metrics>div{display:flex;align-items:center;justify-content:space-between;gap:10px}.confirm-metrics strong{margin:0}
+}
+@media(max-width:720px){
+  .admin-incentives-page .tracker-title{display:grid;grid-template-columns:44px minmax(0,1fr);align-items:start;column-gap:12px;row-gap:12px}
+  .admin-incentives-page .tracker-title>div:nth-child(2){min-width:0;overflow-wrap:break-word}
+  .admin-incentives-page .tracker-title .tracker-legend{grid-column:1/-1;justify-content:flex-start;width:100%;margin:0}
+}

@@ -384,6 +384,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             <li class="nav-item"><a href="admin-grades.html"><i class="ph-fill ph-exam"></i> Input Grades</a></li>
             <li class="nav-item"><a href="admin-attendance.html"><i class="ph-fill ph-calendar-check"></i> Attendance</a></li>
             <li class="nav-item"><a href="admin-recitation.html"><i class="ph-fill ph-coin-vertical"></i> Recitation</a></li>
+            <li class="nav-item"><a href="admin-incentives.html"><i class="ph-fill ph-gift"></i> Exam Incentives</a></li>
             <li class="nav-item"><a href="admin-settings.html"><i class="ph-fill ph-gear"></i> System Settings</a></li>
             <li class="nav-item" style="margin-top:auto;"><a onclick="window.logout()"><i class="ph ph-sign-out"></i> Logout</a></li>
         </ul>
@@ -505,6 +506,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                         </div>
                     </form>
                     <section id="examTotalsPanel" class="exam-totals-panel" hidden aria-label="Combined major exam totals">
+                        <div style="text-align:right;margin-bottom:9px;"><a href="admin-incentives.html" style="font-weight:800;font-size:12px;color:var(--accent-primary);text-decoration:none;"><i class="ph-bold ph-gift"></i> Add exam bonus / convert recitation ↗</a></div>
                         <div class="exam-totals-heading"><div><h3><i class="ph-bold ph-calculator"></i> Combined Major Exams</h3><p id="examTotalsDescription">Lab and written exam totals for this subject, section, and period.</p></div><strong id="examTotalsMaximum">—</strong></div>
                         <div class="table-container exam-totals-table-wrap"><table class="modern-table"><thead id="examTotalsHead"></thead><tbody id="examTotalsBody"></tbody></table></div>
                         <p class="exam-totals-footnote">Scores add together across exams: total earned ÷ total possible. An ungraded exam is labeled Pending, not recorded as a zero. The student score page uses the same combined maximum.</p>
@@ -693,6 +695,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         import { filterAndSortManagedActivities, filterSavedActivityRecords, getActivityProgress, getActivityScoreSaveErrorKind, parseActivityScore, planActivityScoreChanges } from "./admin-activities-manual.v2.js";
         import { getAttendanceStatusByStudent, nextDateKey, normalizeDateKey } from "./attendance-utils.mjs";
         import { aggregateExamTotals } from "./exam-total-utils.mjs";
+        import { fetchExamIncentiveTotals } from "./exam-incentive-utils.mjs";
 
 
 import { startAdminSessionGuard } from "./admin-session.js";
@@ -701,7 +704,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         if (!user || user.role !== 'admin') window.location.href = 'index.html';
 
         const adminSessionGuard = startAdminSessionGuard(supabase, user);
-        window.logout = async function() { adminSessionGuard.stop(); try { await supabase.auth.signOut(); } catch (error) {} localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
+        window.logout = async function() { adminSessionGuard.stop(); try { if (user?.activeSessionToken || user?.sessionToken) await supabase.rpc('admin_log_session_event', { p_admin_session_token: user.activeSessionToken || user.sessionToken, p_action: 'logout' }); } catch (error) { console.warn('Admin logout audit unavailable', error); } try { await supabase.auth.signOut(); } catch (error) {} localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; }
 
         // UI & Tab Handling
         window.toggleTab = function(showId, element) {
@@ -1186,12 +1189,15 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                     allScores.push(...(data || []));
                 }
                 if (requestId !== examTotalsRequest || generation !== scoreRosterGeneration || String(activity.id) !== String(activeActivityId)) return;
-                const totals = aggregateExamTotals(exams, allScores, roster);
+                const incentiveRows = await fetchExamIncentiveTotals(supabase, {
+                    p_admin_session_token: user.activeSessionToken || user.sessionToken || null
+                });
+                const totals = aggregateExamTotals(exams, allScores, roster, incentiveRows || []);
                 const fmt = number => Number(number).toLocaleString(undefined, { maximumFractionDigits: 2 });
                 document.getElementById('examTotalsMaximum').textContent = `${fmt(totals.maxScore)} total pts`;
                 document.getElementById('examTotalsDescription').textContent = `${totals.examCount} exam${totals.examCount === 1 ? '' : 's'} (e.g. written + lab) · ${activity.subjectCode} · ${activity.section} · ${activity.term === 'final' ? 'Final Term' : 'Midterm'}`;
-                document.getElementById('examTotalsHead').innerHTML = `<tr><th>Student</th>${totals.activities.map(exam => `<th>${escapeHtml(exam.title)} <small>/${fmt(exam.perfectScore)}</small></th>`).join('')}<th>Combined Score</th><th>Raw %</th></tr>`;
-                document.getElementById('examTotalsBody').innerHTML = totals.rows.map(row => `<tr><td><strong>${escapeHtml(row.studentName)}</strong><span class="exam-pending-label">${escapeHtml(row.studentNo)}</span></td>${row.components.map(c => `<td>${c.score === null ? '<span class="exam-pending-label">Pending</span>' : fmt(c.score)}</td>`).join('')}<td><strong>${fmt(row.earned)} / ${fmt(row.maxScore)}</strong>${row.pending ? `<span class="exam-pending-label">${row.pending} exam${row.pending === 1 ? '' : 's'} pending</span>` : ''}</td><td>${row.percentage === null ? '—' : row.percentage.toFixed(2) + '%'}</td></tr>`).join('') || '<tr><td colspan="10">No enrolled students found.</td></tr>';
+                document.getElementById('examTotalsHead').innerHTML = `<tr><th>Student</th>${totals.activities.map(exam => `<th>${escapeHtml(exam.title)} <small>/${fmt(exam.perfectScore)}</small></th>`).join('')}<th>Combined Score</th><th>Effective %</th></tr>`;
+                document.getElementById('examTotalsBody').innerHTML = totals.rows.map(row => `<tr><td><strong>${escapeHtml(row.studentName)}</strong><span class="exam-pending-label">${escapeHtml(row.studentNo)}</span></td>${row.components.map(c => `<td>${c.score === null ? '<span class="exam-pending-label">Pending</span>' : fmt(c.score)}${c.bonus ? `<span class="exam-pending-label">+${fmt(c.bonus)} incentive</span>` : ''}</td>`).join('')}<td><strong>${fmt(row.earned)} / ${fmt(row.maxScore)}</strong>${row.pending ? `<span class="exam-pending-label">${row.pending} exam${row.pending === 1 ? '' : 's'} pending</span>` : ''}</td><td>${row.percentage === null ? '—' : row.percentage.toFixed(2) + '%'}</td></tr>`).join('') || '<tr><td colspan="10">No enrolled students found.</td></tr>';
             } catch (error) {
                 if (requestId !== examTotalsRequest || generation !== scoreRosterGeneration) return;
                 console.error('Exam totals load failed', error);
@@ -2102,6 +2108,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             <li><a href="admin-grades.html" id="mnav-grd"><i class="ph-fill ph-exam"></i>Grades</a></li>
             <li><a href="admin-attendance.html" id="mnav-att"><i class="ph-fill ph-calendar-check"></i>Attendance</a></li>
             <li><a href="admin-recitation.html" id="mnav-rct"><i class="ph-fill ph-coin-vertical"></i>Recitation</a></li>
+            <li><a href="admin-incentives.html" id="mnav-inc"><i class="ph-fill ph-gift"></i>Incentives</a></li>
             <li><a href="admin-settings.html" id="mnav-set"><i class="ph-fill ph-gear"></i>Settings</a></li>
             <li><a href="#" onclick="window.logout()" id="mnav-out"><i class="ph ph-sign-out"></i>Logout</a></li>
         </ul>

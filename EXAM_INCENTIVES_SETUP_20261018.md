@@ -1,0 +1,31 @@
+# PLV Portal — Exam Incentives and Administrator Access Trail
+
+## Rollout sequence (important)
+
+1. **Back up your Supabase database**. Prefer testing in a staging copy before deploying to production.
+2. Open **Supabase > SQL Editor** and run `supabase_migrations/20261018_exam_incentives_and_admin_audit.sql` **once before deploying the new web files**. The script creates tables, secure RPC functions, conversion functions (manual only), and audit functions. It requires your previous recitation wallet migrations and the administrator single-session migration (`supabase_student_avatar_session.sql`) to already be installed.
+3. Run `supabase_migrations/20261018_manual_recitation_conversion.sql` as a second migration. This removes any previously installed automatic trigger, disables automatic configuration, and adds section conversion plus student status RPCs. If the base migration was previously applied, **run only this second SQL migration**.
+4. Deploy the updated `public/` folder to Cloudflare Pages, retaining all `.mjs`, `.js`, and `.css` files. If connecting Git to Cloudflare Pages, deploy this updated project folder as the new source.
+5. Log in as an administrator and go to **Exam Incentives** (sidebar, Activities or Recitation shortcut). Select the existing exam, set the conversion rate (default **3 chips = +1 exam point**) and manually convert one student or select **Convert whole section** after reviewing the confirmation summary.
+6. Test with a non-production student and an existing exam in the same subject and section. Award recitation chips on Recitation and verify the wallet's available balance, the exam incentive trail, the student's score breakdown, and the combined exam export.
+7. Sign out explicitly; log back in and review the **Administrator Access Trail** on the dashboard.
+
+## Behavior and safety
+
+- **Manual exam bonus**: Add +1 or more points to an existing exam without creating another activity or spending recitation chips.
+- **Manual recitation conversion**: Choose an enrolled student and an exam with a saved rule; convert *all currently eligible whole multiples* of chips. The transaction and wallet deduction occur atomically on the database.
+- **No automatic conversion**: Awarding recitation chips never triggers an exam conversion. The database trigger has been removed and automatic settings are rejected. Previously recorded automatic conversion history remains available for auditing; it cannot be erased by this migration.
+- **Whole-section manual conversion**: The administrator selects an existing exam (which determines subject and section) and explicitly confirms a bulk operation. Every enrolled student is checked; eligible students are converted through the same transaction-safe wallet function as single-student conversions. Ineligible students are skipped. A repeated batch does not spend previously converted chips again.
+- **Conversion sheet and student visibility**: The admin Incentives page has a searchable exam-specific roster with wallet chips, eligible points, previously converted points, chips spent, and yellow/green status. Students see a read-only version in their Recitation page. Yellow indicates remaining/unconverted wallet chips, green confirms a prior conversion when no whole new conversion is available; gray indicates no chips or a full exam. Completed conversions remain visible in the immutable ledger.
+- **Shared wallet**: Existing Recitation balances are global, **not separated by subject**. Conversions spend the student's available overall wallet balance. Manual conversion destinations are selected by the administrator each time; no exam receives points automatically.
+- **Rate flexibility**: The teacher can set any integer rate from 1 to 1000 recitation chips per exam point, per existing exam. Changes do not rewrite previous conversions: each history entry stores its applied rate and amount.
+- **Capped points**: Earned exam scores reflect `min(exam maximum, raw score + recorded bonus)`. Credits are restricted by available exam headroom when granted/redeemed. A bonus allocated **before** the raw exam score is recorded remains reserved and only becomes effective when the instructor enters the original score. Later grading may leave some reserved points unapplied if the score reaches the maximum; original marks remain unchanged.
+- **Immutable transaction trail**: `exam_incentive_ledger` stores the type (manual or conversion), student, exam, points, chips spent, historical rate, actor and server timestamp. It is not directly editable by client-side code; use caution because there is currently **no reversal workflow**.
+- **Administrator audit**: `admin_session_events` records successful **explicit** sign-ins and sign-outs by administrator, on the server. Unexpected browser closure, disconnected sessions, and past activity before deployment will not appear as a completed sign-out. No password or raw session token is stored in the audit table.
+- **Reporting**: Student Scores, Admin Activities combined exam totals, Student Records totals and Excel/CSV export show effective exam points. Original raw marks remain editable in the existing grading screens. Stored official grades in the `enrollments` table are **not automatically overwritten** when an exam incentive is issued; update/recalculate official grades through the existing grading workflow.
+- **Security**: Database writes are server-validated with an active administrator session and student enrollment checks; Row Level Security is enabled for the new tables. Never place a Supabase service role key in the browser.
+- **Deployment dependency**: The new student and administrator score views call the new Supabase RPC function. Deploying the frontend first **without applying this migration** will cause those views to report a loading failure.
+
+## Testing
+
+The updated project includes `tests/exam-incentives.mjs` and `tests/manual-recitation-conversions.mjs`. Run the existing smoke tests locally using `node tests/<test-filename>.mjs` or run all `.mjs` files in the `tests/` directory. All tests passed in the build environment; **no real Supabase database was connected**, so the SQL migration and end-to-end transactions still require staging verification.

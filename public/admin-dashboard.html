@@ -170,6 +170,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             <li class="nav-item"><a href="admin-grades.html"><i class="ph-fill ph-exam"></i> Input Grades</a></li>
             <li class="nav-item"><a href="admin-attendance.html"><i class="ph-fill ph-calendar-check"></i> Attendance</a></li>
             <li class="nav-item"><a href="admin-recitation.html"><i class="ph-fill ph-coin-vertical"></i> Recitation</a></li>
+            <li class="nav-item"><a href="admin-incentives.html"><i class="ph-fill ph-gift"></i> Exam Incentives</a></li>
             <li class="nav-item"><a href="admin-settings.html"><i class="ph-fill ph-gear"></i> System Settings</a></li>
             <li class="nav-item" style="margin-top:auto;"><a onclick="window.logout()"><i class="ph ph-sign-out"></i> Logout</a></li>
         </ul>
@@ -208,6 +209,11 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 <p style="color: var(--text-muted); font-weight: 500;">Students currently using the portal</p>
             </div>
         </div>
+        <section class="glass audit-panel audit-layout" aria-label="Administrator access history">
+            <div class="audit-head"><div><h3><i class="ph-fill ph-shield-check"></i> Administrator Access Trail</h3><p>Recent sign-ins and sign-outs, including the account and exact recorded timestamp.</p></div><button class="audit-refresh" id="auditRefresh" type="button"><i class="ph-bold ph-arrow-clockwise"></i> Refresh history</button></div>
+            <div class="audit-wrap"><table class="audit-table"><thead><tr><th>Administrator</th><th>Activity</th><th>Timestamp</th></tr></thead><tbody id="accessHistoryRows"><tr><td colspan="3" class="audit-empty">Loading administrator events…</td></tr></tbody></table></div>
+            <p class="audit-note" id="auditNote">Time is shown in Philippine local time. Only authenticated administrator sessions can access this history.</p>
+        </section>
     </main>
 
     <script type="module">
@@ -222,7 +228,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
 
         window.logout = async function() {
             adminSessionGuard.stop();
-            try { await supabase.auth.signOut(); } catch (error) {}
+            try { if (user?.activeSessionToken || user?.sessionToken) await supabase.rpc('admin_log_session_event', { p_admin_session_token: user.activeSessionToken || user.sessionToken, p_action: 'logout' }); } catch (error) { console.warn('Admin logout audit unavailable', error); } try { await supabase.auth.signOut(); } catch (error) {}
             localStorage.removeItem('loggedInUser');
             window.location.href = 'index.html';
         };
@@ -251,6 +257,30 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         fetchStats();
         setInterval(fetchStats, 30 * 1000);
 
+        const auditSafe = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        async function loadAdminAccessTrail() {
+            const area = document.getElementById('accessHistoryRows');
+            const note = document.getElementById('auditNote');
+            const sessionToken = user?.activeSessionToken || user?.sessionToken || '';
+            try {
+                const { data, error } = await supabase.rpc('admin_get_session_history', {
+                    p_admin_session_token: sessionToken, p_limit: 50
+                });
+                if (error) throw error;
+                area.innerHTML = (data || []).map(event => `<tr>
+                    <td><b>${auditSafe(event.actor_name)}</b><small>${auditSafe(event.actor_email || 'Administrator')}</small></td>
+                    <td><span class="audit-pill ${event.action === 'logout' ? 'out' : ''}"><i class="ph-fill ${event.action === 'logout' ? 'ph-sign-out' : 'ph-sign-in'}"></i>${event.action === 'logout' ? 'Signed out' : 'Signed in'}</span></td>
+                    <td>${new Date(event.created_at).toLocaleString('en-PH', {timeZone:'Asia/Manila',dateStyle:'medium',timeStyle:'medium'})}</td>
+                </tr>`).join('') || '<tr><td colspan="3" class="audit-empty">No administrator events recorded yet.</td></tr>';
+                note.textContent = `Showing the ${Math.min((data||[]).length,50)} latest events · Times shown in Philippine time (UTC+8) · Logs are stored on the server.`;
+            } catch (error) {
+                console.warn('Could not load admin access log', error);
+                area.innerHTML = '<tr><td colspan="3" class="audit-empty">Access log unavailable. Apply the new Supabase migration, then refresh.</td></tr>';
+            }
+        }
+        document.getElementById('auditRefresh').addEventListener('click', loadAdminAccessTrail);
+        loadAdminAccessTrail();
+
         const themeToggleBtn = document.getElementById('themeToggle'); const themeIcon = document.getElementById('themeIcon'); const body = document.body;
         if (localStorage.getItem('theme') === 'dark') { body.classList.add('dark-theme'); themeIcon.className = 'ph-fill ph-moon'; } else { themeIcon.className = 'ph-fill ph-sun'; }
         themeToggleBtn.addEventListener('click', () => { body.classList.toggle('dark-theme'); const isDark = body.classList.contains('dark-theme'); localStorage.setItem('theme', isDark ? 'dark' : 'light'); themeIcon.style.transform = 'rotate(360deg)'; setTimeout(() => { themeIcon.className = isDark ? 'ph-fill ph-moon' : 'ph-fill ph-sun'; themeIcon.style.transform = 'rotate(0deg)'; }, 150); });
@@ -269,6 +299,7 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
             <li><a href="admin-grades.html" id="mnav-grd"><i class="ph-fill ph-exam"></i>Grades</a></li>
             <li><a href="admin-attendance.html" id="mnav-att"><i class="ph-fill ph-calendar-check"></i>Attendance</a></li>
             <li><a href="admin-recitation.html" id="mnav-rct"><i class="ph-fill ph-coin-vertical"></i>Recitation</a></li>
+            <li><a href="admin-incentives.html" id="mnav-inc"><i class="ph-fill ph-gift"></i>Incentives</a></li>
             <li><a href="admin-settings.html" id="mnav-set"><i class="ph-fill ph-gear"></i>Settings</a></li>
             <li><a href="#" onclick="window.logout()" id="mnav-out"><i class="ph ph-sign-out"></i>Logout</a></li>
         </ul>

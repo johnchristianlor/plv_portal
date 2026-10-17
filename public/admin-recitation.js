@@ -225,9 +225,10 @@ async function adjustRecitation(event) {
       const row = rows.find((item) => item.student_no === studentNo);
       if (row) row.balance = data.balance;
     });
-    showToast(`${number(amount)} chip${amount === 1 ? '' : 's'} ${reducing ? 'reduced from' : 'added to'} ${data.studentName}. New balance: ${number(data.balance)}.`);
     $('awardAmount').value = ''; $('awardNote').value = '';
     await Promise.all([loadWallets(), loadLedger()]);
+    const refreshed = walletRows.find(row => row.student_no === studentNo);
+    showToast(`${number(amount)} chip${amount === 1 ? '' : 's'} ${reducing ? 'reduced from' : 'added to'} ${data.studentName}. Available balance: ${number(refreshed?.balance ?? data.balance)}. ${!reducing ? 'Any configured automatic exam conversion has been applied.' : ''}`);
   } catch (error) { showToast(error.message, 'err'); }
   finally { button.disabled = false; updateAdjustmentMode(adjustmentMode); }
 }
@@ -296,7 +297,7 @@ function initTheme() {
   $('themeToggle').addEventListener('click', () => { const isDark = document.body.classList.toggle('dark-theme'); localStorage.setItem('theme', isDark ? 'dark' : 'light'); $('themeIcon').className = isDark ? 'ph-fill ph-moon' : 'ph-fill ph-sun'; });
 }
 
-window.logout = async () => { adminSessionGuard.stop(); try { await supabase.auth.signOut(); } catch (error) {} localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; };
+window.logout = async () => { adminSessionGuard.stop(); try { if (user?.activeSessionToken || user?.sessionToken) await supabase.rpc('admin_log_session_event', { p_admin_session_token: user.activeSessionToken || user.sessionToken, p_action: 'logout' }); } catch (error) { console.warn('Admin logout audit unavailable', error); } try { await supabase.auth.signOut(); } catch (error) {} localStorage.removeItem('loggedInUser'); window.location.href = 'index.html'; };
 
 initTheme();
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => closeModal(button.dataset.close)));

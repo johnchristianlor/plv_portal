@@ -999,6 +999,7 @@ body.dark-theme .records-card.freeze-pane-on .grid-table .col-name::after{backgr
             <li class="nav-item"><a href="admin-grades.html"><i class="ph-fill ph-exam"></i> Input Grades</a></li>
             <li class="nav-item"><a href="admin-attendance.html"><i class="ph-fill ph-calendar-check"></i> Attendance</a></li>
             <li class="nav-item"><a href="admin-recitation.html"><i class="ph-fill ph-coin-vertical"></i> Recitation</a></li>
+            <li class="nav-item"><a href="admin-incentives.html"><i class="ph-fill ph-gift"></i> Exam Incentives</a></li>
             <li class="nav-item"><a href="admin-settings.html"><i class="ph-fill ph-gear"></i> System Settings</a></li>
             <li class="nav-item" style="margin-top:auto;"><a onclick="window.logout()"><i class="ph ph-sign-out"></i> Logout</a></li>
         </ul>
@@ -1208,6 +1209,7 @@ body.dark-theme .records-card.freeze-pane-on .grid-table .col-name::after{backgr
             <li><a href="admin-grades.html" id="mnav-grd"><i class="ph-fill ph-exam"></i>Grades</a></li>
             <li><a href="admin-attendance.html" id="mnav-att"><i class="ph-fill ph-calendar-check"></i>Attendance</a></li>
             <li><a href="admin-recitation.html" id="mnav-rct"><i class="ph-fill ph-coin-vertical"></i>Recitation</a></li>
+            <li><a href="admin-incentives.html" id="mnav-inc"><i class="ph-fill ph-gift"></i>Incentives</a></li>
             <li><a href="admin-settings.html" id="mnav-set"><i class="ph-fill ph-gear"></i>Settings</a></li>
             <li><a href="#" onclick="window.logout()" id="mnav-out"><i class="ph ph-sign-out"></i>Logout</a></li>
         </ul>
@@ -1220,12 +1222,13 @@ import { startAdminSessionGuard } from "./admin-session.js";
 import { loadVendor } from "./vendor-loader.v2.js";
 import { escapeCsvCell, sortRecordRows, summarizeExamPoints, uniqueSheetName, buildActivityExportHeader, buildExamTotalHeader, formatExportMaximum, excelColumnName, excelScoreNumberFormat } from "./admin-records-utils.mjs";
 import { assignClassStanding, sortClassStanding } from "./class-standing-utils.mjs";
+import { bonusMapFromRows, examBonusKey, effectiveExamScore, fetchExamIncentiveTotals } from "./exam-incentive-utils.mjs";
 const _u=JSON.parse(localStorage.getItem('loggedInUser'));
 if(!_u||_u.role!=='admin')location.href='index.html';
 const adminSessionGuard = startAdminSessionGuard(supabase, _u);
-window.logout=async()=>{adminSessionGuard.stop();try{await supabase.auth.signOut();}catch(error){}localStorage.removeItem('loggedInUser');location.href='index.html';};
+window.logout=async()=>{adminSessionGuard.stop();try{await supabase.rpc('admin_log_session_event',{p_admin_session_token:_u.activeSessionToken || _u.sessionToken,p_action:'logout'});}catch(error){console.warn('Admin logout audit unavailable',error);}try{await supabase.auth.signOut();}catch(error){}localStorage.removeItem('loggedInUser');location.href='index.html';};
 
-let enrollments=[],activities=[],scores=[];
+let enrollments=[],activities=[],scores=[],examBonuses=new Map();
 let sortCol=null,sortDir='asc',currentView='grid',recordTableMode='overview',editCtx=null;
 // Cache for computed rows used by ranking
 let lastComputedRows=[], lastComputedActs=[];
@@ -1267,6 +1270,10 @@ async function loadAll(){
         enrollments=eRows||[];
         activities=(aRows||[]).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
         scores=sRows||[];
+        const bonusRows=await fetchExamIncentiveTotals(supabase,{
+            p_admin_session_token:_u.activeSessionToken || _u.sessionToken || null
+        });
+        examBonuses=bonusMapFromRows(bonusRows||[]);
         showStanding=settings?!!settings.showStanding:false;
         updateStandingBtn();
         buildDropdowns();applyFilters();
@@ -1332,7 +1339,13 @@ window.onSectionChange=()=>{
 // ========== SCORE MAP ==========
 function buildSMap(){
     const m={};
-    scores.forEach(s=>{m[s.activityId+'||'+s.studentNo]=s;});
+    const activitiesById=new Map(activities.map(a=>[String(a.id),a]));
+    scores.forEach(s=>{
+        const a=activitiesById.get(String(s.activityId));
+        m[s.activityId+'||'+s.studentNo]=a?.category==='exam'
+            ? {...s,score:effectiveExamScore(a,s.score,examBonuses.get(examBonusKey(a.id,s.studentNo))||0)}
+            : s;
+    });
     return m;
 }
 
@@ -1390,7 +1403,7 @@ function doSort(rows){
         return sortDir==='asc'?(av<bv?-1:av>bv?1:0):(av>bv?-1:av<bv?1:0);
     });
 }
-function getAS(row,actId){const sc=row.sba[actId];return sc?Number(sc.score):null;}
+function getAS(row,actId){const sc=row.sba[actId];const a=activities.find(x=>String(x.id)===String(actId));return sc?Number(sc.score):null;}
 
 // ========== APPLY FILTERS ==========
 window.applyFilters=()=>{

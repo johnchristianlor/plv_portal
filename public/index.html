@@ -406,6 +406,15 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
             uid: data.user.id,
             email: securedAdminData.email || data.user.email
         }));
+        // Record the verified administrator's sign-in on the server, not in localStorage.
+        if (securedAdminData.activeSessionToken) {
+            try {
+                const { error: auditError } = await supabase.rpc('admin_log_session_event', {
+                    p_admin_session_token: securedAdminData.activeSessionToken, p_action: 'login'
+                });
+                if (auditError) console.warn('Admin login audit requires the new Supabase migration.', auditError);
+            } catch (auditError) { console.warn('Admin login audit unavailable.', auditError); }
+        }
         window.showToast('Login Successful!');
         setTimeout(() => window.location.href = 'admin-dashboard.html', 1000);
     }

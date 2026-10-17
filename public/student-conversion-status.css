@@ -1,0 +1,28 @@
+/* Exam-specific, read-only status sheet in the student Recitation page. */
+.student-recitation-page .conversion-status-card{margin-top:18px;min-width:0}
+.conversion-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px}
+.conversion-heading h2{font-size:clamp(18px,2vw,22px);font-weight:800;margin:9px 0 7px;letter-spacing:-.45px}
+.conversion-heading p{font-size:12px;line-height:1.65;color:var(--text-muted);max-width:750px}
+.conversion-kicker{font-size:10px;letter-spacing:1.05px;font-weight:900;color:var(--accent-primary);display:inline-flex;gap:8px;align-items:center}
+.conversion-status-guide{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:17px}
+.conversion-clarification{font-size:11px;line-height:1.6;color:var(--text-muted);flex:1 1 210px;margin-left:4px}
+.conversion-badge{display:inline-flex;gap:7px;align-items:center;border-radius:100px;font-size:11px;font-weight:900;padding:8px 11px;white-space:nowrap;letter-spacing:.05px}
+.conversion-badge i{font-size:8px}.conversion-badge.pending{background:#fff0b3;border:1px solid #f3cc63;color:#775000}
+.conversion-badge.converted{background:#dbf7e4;border:1px solid #9edfb5;color:#125e37}
+.conversion-badge.neutral{background:#ecf0f6;border:1px solid #d4dce7;color:#5b6880}
+.conversion-table-wrap{overflow:auto;border:1px solid var(--glass-border);border-radius:15px;max-height:500px}
+.conversion-table{border-collapse:collapse;width:100%;min-width:795px;text-align:left}
+.conversion-table thead{position:sticky;top:0;z-index:1;background:var(--input-bg)}
+.conversion-table th{font-size:10px;color:var(--text-muted);font-weight:900;letter-spacing:.6px;text-transform:uppercase;padding:15px;white-space:nowrap}
+.conversion-table td{font-size:12px;color:var(--text-primary);padding:15px;border-top:1px solid var(--glass-border);vertical-align:middle}
+.conversion-table tbody tr:hover{background:var(--input-bg)}
+.conversion-table td strong,.conversion-table td small{display:block}
+.conversion-table td strong{font-size:13px;font-weight:800}.conversion-table td small{font-size:10px;color:var(--text-muted);margin-top:5px}
+.conversion-earned{color:#128450;font-size:15px}
+.conversion-state-note{max-width:230px;line-height:1.5}
+.conversion-empty{text-align:center!important;padding:35px 15px!important;color:var(--text-muted)!important}
+.conversion-footer{font-size:11px;line-height:1.6;color:var(--text-muted);margin-top:15px}
+.student-recitation-page.dark-theme .conversion-badge.pending{background:#544119;color:#ffe7a2;border-color:#826a32}
+.student-recitation-page.dark-theme .conversion-badge.converted{background:#174531;color:#9be5bb;border-color:#2c6d4b}
+.student-recitation-page.dark-theme .conversion-badge.neutral{background:#2d3746;color:#c3cedf;border-color:#4c5d71}
+@media(max-width:680px){.conversion-heading{flex-direction:column}.conversion-heading .btn{width:100%}.conversion-status-card{padding:19px 14px!important}}

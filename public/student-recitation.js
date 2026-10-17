@@ -1,3 +1,4 @@
+import { getConversionStatus } from './recitation-conversion-status.mjs';
 import { supabase } from './supabase-adapter.js';
 import { startStudentPresence } from './student-presence.js';
 import { startStudentSessionGuard } from './student-session.js';
@@ -158,6 +159,31 @@ async function loadActivity() {
   renderActivity(data || []);
 }
 
+async function loadExamConversionStatus() {
+  const table=$('studentConversionRows');
+  const { data,error }=await supabase.rpc('student_get_exam_conversion_status',{
+    p_student_no:user.studentNo,p_session_token:sessionToken
+  });
+  if(error) {
+    table.innerHTML='<tr><td colspan="6" class="conversion-empty">Conversion status is unavailable. Ask your administrator to apply the manual-conversion database update.</td></tr>';
+    throw error;
+  }
+  const rows=data||[];
+  const total=rows.reduce((sum,r)=>sum+Number(r.converted_points||0),0);
+  $('conversionFooter').textContent=`${number(total)} exam point${total===1?'':'s'} converted across ${rows.length} configured exam${rows.length===1?'':'s'}. Your wallet chips are shared across subjects; converting to one exam reduces the chips available for other exams.`;
+  table.innerHTML=rows.map(r=>{
+    const raw=r.raw_score==null?0:Number(r.raw_score);
+    const headroom=Math.max(0,Math.floor(Number(r.exam_max||0)-raw-Number(r.total_bonus||0)));
+    const state=getConversionStatus({balance:r.wallet_balance,rate:r.recitation_rate,converted:r.converted_points,headroom});
+    return `<tr><td><strong>${escapeHtml(r.exam_title||'Exam')}</strong><small>${escapeHtml(r.subject_code||'')} · ${escapeHtml(r.section||'')} · ${escapeHtml(r.term||'')}</small></td>
+      <td>${number(r.recitation_rate)} chips = 1 point</td>
+      <td><b class="conversion-earned">+${number(r.converted_points)}</b></td>
+      <td>${number(r.spent_chips)}</td>
+      <td><span class="conversion-badge ${state.kind}"><i class="ph-fill ph-circle"></i> ${escapeHtml(state.label)}</span><small class="conversion-state-note">${escapeHtml(state.description)}</small></td>
+      <td>${r.last_converted_at?escapeHtml(dateTime(r.last_converted_at)):'—'}</td></tr>`;
+  }).join('')||'<tr><td colspan="6" class="conversion-empty">Your instructor has not set up any exam conversion rules yet. Recitation chips stay in your wallet.</td></tr>';
+}
+
 function renderRecipients(rows) {
   const results = $('recipientResults');
   if (!rows.length) {
@@ -255,7 +281,7 @@ async function confirmTransfer(event) {
     closeModal('confirmTransferModal');
     showToast(`Recitation sent securely to ${data.recipientName || selectedRecipient.full_name}.`);
     selectedRecipient = null; $('transferForm').reset();
-    await Promise.all([loadWallet(), loadActivity(), loadRecipients('')]);
+    await Promise.all([loadWallet(), loadActivity(), loadRecipients(''),loadExamConversionStatus()]);
   } catch (error) { showToast(error.message, 'err'); }
   finally { button.disabled = false; button.innerHTML = '<i class="ph-bold ph-check-circle"></i> Confirm and send'; $('transferPin').value = ''; }
 }
@@ -289,6 +315,7 @@ window.logout = async () => {
 createPinInputs('new'); createPinInputs('confirm'); initTheme();
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => closeModal(button.dataset.close)));
 document.querySelectorAll('.modal-backdrop').forEach((modal) => modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(modal.id); }));
+$('refreshConversionStatus').addEventListener('click',()=>loadExamConversionStatus().catch(error=>showToast(friendlyError(error),'err')));
 $('pinAction').addEventListener('click', () => openModal(wallet.pinSet ? 'changePinModal' : 'setupPinModal'));
 $('setupPinForm').addEventListener('submit', submitSetupPin);
 $('changePinForm').addEventListener('submit', submitChangePin);
@@ -300,7 +327,7 @@ $('recipientSearch').addEventListener('input', (event) => {
 });
 ['currentPin', 'newPin', 'transferPin'].forEach((id) => $(id).addEventListener('input', (event) => { event.target.value = event.target.value.replace(/\D/g, '').slice(0, 4); }));
 
-Promise.all([loadWallet(), loadActivity(), loadRecipients('')]).catch((error) => {
+Promise.all([loadWallet(), loadActivity(), loadRecipients(''),loadExamConversionStatus()]).catch((error) => {
   showToast(friendlyError(error), 'err');
   $('activityList').innerHTML = '<div class="empty"><i class="ph ph-warning-circle"></i><b>Could not load Recitation</b><span>Please refresh after the database update is installed.</span></div>';
 });

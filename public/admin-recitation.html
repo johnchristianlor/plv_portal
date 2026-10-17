@@ -34,6 +34,7 @@
       <li class="nav-item"><a href="admin-grades.html"><i class="ph-fill ph-exam"></i> Input Grades</a></li>
       <li class="nav-item"><a href="admin-attendance.html"><i class="ph-fill ph-calendar-check"></i> Attendance</a></li>
       <li class="nav-item"><a href="admin-recitation.html" class="active"><i class="ph-fill ph-coin-vertical"></i> Recitation</a></li>
+            <li class="nav-item"><a href="admin-incentives.html"><i class="ph-fill ph-gift"></i> Exam Incentives</a></li>
       <li class="nav-item"><a href="admin-settings.html"><i class="ph-fill ph-gear"></i> System Settings</a></li>
       <li class="nav-item" style="margin-top:auto"><a onclick="window.logout()"><i class="ph ph-sign-out"></i> Logout</a></li>
     </ul>
@@ -59,6 +60,10 @@
       <div class="token-stage"><div class="token-glow"></div><img src="./recitation-token.png" alt="Blue and gold Recitation token" width="640" height="640"></div>
     </section>
 
+    <div style="margin:0 0 18px;padding:16px 18px;border:1px solid var(--glass-border);border-radius:16px;background:var(--glass-bg);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div><b style="display:block;font-size:13px;">Recitation → Exam incentives</b><span style="display:block;margin-top:5px;font-size:11px;color:var(--text-muted);">Choose an exam, review the conversion sheet, and manually approve individual students or a whole section. No automatic conversion.</span></div>
+      <a href="admin-incentives.html#recitationTracker" class="btn btn-soft" style="text-decoration:none"><i class="ph-bold ph-arrow-up-right"></i> View conversion sheet</a>
+    </div>
     <section class="content-grid">
       <article class="card glass adjustment-card">
         <div class="adjustment-accent"></div>
@@ -135,6 +140,7 @@
     <li><a href="admin-grades.html" id="mnav-grd"><i class="ph-fill ph-exam"></i>Grades</a></li>
     <li><a href="admin-attendance.html" id="mnav-att"><i class="ph-fill ph-calendar-check"></i>Attendance</a></li>
     <li><a href="admin-recitation.html" id="mnav-rct" class="active"><i class="ph-fill ph-coin-vertical"></i>Recitation</a></li>
+            <li><a href="admin-incentives.html" id="mnav-inc"><i class="ph-fill ph-gift"></i>Incentives</a></li>
     <li><a href="admin-settings.html" id="mnav-set"><i class="ph-fill ph-gear"></i>Settings</a></li>
     <li><a href="#" onclick="window.logout()" id="mnav-out"><i class="ph ph-sign-out"></i>Logout</a></li>
   </ul></nav>
