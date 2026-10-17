@@ -149,9 +149,10 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
 </style>
 <link rel="stylesheet" href="./plv-responsive.css?v=20260826global1">
+<link rel="stylesheet" href="./admin-access-trail.css?v=20261018polish3">
 <script src="./plv-navigation.v1.js" defer></script>
 </head>
-<body>
+<body class="admin-dashboard-page">
     <div class="ambient-mesh"><div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div></div>
     <aside class="sidebar">
         <div class="logo-container">
@@ -209,10 +210,22 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 <p style="color: var(--text-muted); font-weight: 500;">Students currently using the portal</p>
             </div>
         </div>
-        <section class="glass audit-panel audit-layout" aria-label="Administrator access history">
-            <div class="audit-head"><div><h3><i class="ph-fill ph-shield-check"></i> Administrator Access Trail</h3><p>Recent sign-ins and sign-outs, including the account and exact recorded timestamp.</p></div><button class="audit-refresh" id="auditRefresh" type="button"><i class="ph-bold ph-arrow-clockwise"></i> Refresh history</button></div>
-            <div class="audit-wrap"><table class="audit-table"><thead><tr><th>Administrator</th><th>Activity</th><th>Timestamp</th></tr></thead><tbody id="accessHistoryRows"><tr><td colspan="3" class="audit-empty">Loading administrator events…</td></tr></tbody></table></div>
-            <p class="audit-note" id="auditNote">Time is shown in Philippine local time. Only authenticated administrator sessions can access this history.</p>
+        <section class="glass audit-panel" aria-labelledby="auditHeading">
+            <header class="audit-head">
+                <div class="audit-head-main">
+                    <div class="audit-icon" aria-hidden="true"><i class="ph-fill ph-shield-check"></i></div>
+                    <div class="audit-intro"><span class="audit-eyebrow">SECURITY & ACCOUNTABILITY</span><h3 id="auditHeading">Administrator Access Trail</h3><p>Track administrator sign-ins and sign-outs across the portal.</p></div>
+                </div>
+                <button class="audit-refresh" id="auditRefresh" type="button"><i class="ph-bold ph-arrow-clockwise" aria-hidden="true"></i><span>Refresh history</span></button>
+            </header>
+            <div class="audit-stats" aria-label="Access activity summary">
+                <div class="audit-stat"><span class="audit-stat-icon login"><i class="ph-bold ph-sign-in" aria-hidden="true"></i></span><div><small>Sign-ins</small><strong id="auditSignins">—</strong></div></div>
+                <div class="audit-stat"><span class="audit-stat-icon logout"><i class="ph-bold ph-sign-out" aria-hidden="true"></i></span><div><small>Sign-outs</small><strong id="auditSignouts">—</strong></div></div>
+                <div class="audit-stat"><span class="audit-stat-icon events"><i class="ph-bold ph-clock-counter-clockwise" aria-hidden="true"></i></span><div><small>Recent events</small><strong id="auditEvents">—</strong></div></div>
+            </div>
+            <div class="audit-section-title"><div><strong>Recent activity</strong><span>Latest 50 records · Philippine Standard Time</span></div><span class="audit-secure"><i class="ph-fill ph-lock-key"></i> Admin only</span></div>
+            <div class="audit-wrap" role="region" aria-label="Scrollable administrator access records" tabindex="0"><table class="audit-table"><thead><tr><th>Administrator</th><th>Activity</th><th>Date & time (PH)</th></tr></thead><tbody id="accessHistoryRows"><tr><td colspan="3" class="audit-empty">Loading administrator events…</td></tr></tbody></table></div>
+            <footer class="audit-note" id="auditNote">Times are shown in Philippine Standard Time (UTC+8). Events are stored securely in the database.</footer>
         </section>
     </main>
 
@@ -267,15 +280,30 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
                     p_admin_session_token: sessionToken, p_limit: 50
                 });
                 if (error) throw error;
-                area.innerHTML = (data || []).map(event => `<tr>
-                    <td><b>${auditSafe(event.actor_name)}</b><small>${auditSafe(event.actor_email || 'Administrator')}</small></td>
-                    <td><span class="audit-pill ${event.action === 'logout' ? 'out' : ''}"><i class="ph-fill ${event.action === 'logout' ? 'ph-sign-out' : 'ph-sign-in'}"></i>${event.action === 'logout' ? 'Signed out' : 'Signed in'}</span></td>
-                    <td>${new Date(event.created_at).toLocaleString('en-PH', {timeZone:'Asia/Manila',dateStyle:'medium',timeStyle:'medium'})}</td>
-                </tr>`).join('') || '<tr><td colspan="3" class="audit-empty">No administrator events recorded yet.</td></tr>';
-                note.textContent = `Showing the ${Math.min((data||[]).length,50)} latest events · Times shown in Philippine time (UTC+8) · Logs are stored on the server.`;
+                const records = Array.isArray(data) ? data : [];
+                document.getElementById('auditSignins').textContent = records.filter(event => event.action === 'login').length.toLocaleString('en-PH');
+                document.getElementById('auditSignouts').textContent = records.filter(event => event.action === 'logout').length.toLocaleString('en-PH');
+                document.getElementById('auditEvents').textContent = records.length.toLocaleString('en-PH');
+                const dateFormatter = new Intl.DateTimeFormat('en-PH', {timeZone:'Asia/Manila',month:'short',day:'numeric',year:'numeric'});
+                const timeFormatter = new Intl.DateTimeFormat('en-PH', {timeZone:'Asia/Manila',hour:'numeric',minute:'2-digit',second:'2-digit'});
+                area.innerHTML = records.map(event => {
+                    const signedOut = event.action === 'logout';
+                    const date = new Date(event.created_at);
+                    const validDate = !Number.isNaN(date.getTime());
+                    const name = String(event.actor_name || 'Administrator');
+                    const initials = name.trim().split(/\s+/).slice(0,2).map(part=>part[0]||'').join('').toUpperCase();
+                    return `<tr>
+                      <td><div class="audit-person"><span class="audit-avatar" aria-hidden="true">${auditSafe(initials)}</span><span class="audit-identity"><b>${auditSafe(name)}</b><small>${auditSafe(event.actor_email || 'Administrator')}</small></span></div></td>
+                      <td><span class="audit-pill ${signedOut ? 'out' : 'in'}"><i class="ph-bold ${signedOut ? 'ph-sign-out' : 'ph-sign-in'}" aria-hidden="true"></i>${signedOut ? 'Signed out' : 'Signed in'}</span></td>
+                      <td><div class="audit-datetime"><strong>${validDate ? auditSafe(dateFormatter.format(date)) : 'Date unavailable'}</strong><small>${validDate ? auditSafe(timeFormatter.format(date)) : '—'} PHT</small></div></td>
+                    </tr>`;
+                }).join('') || '<tr><td colspan="3" class="audit-empty">No administrator events recorded yet.</td></tr>';
+                note.textContent = `Showing ${records.length} most recent administrator event${records.length === 1 ? '' : 's'} · Philippine Standard Time (UTC+8) · Stored securely on the server.`;
             } catch (error) {
                 console.warn('Could not load admin access log', error);
-                area.innerHTML = '<tr><td colspan="3" class="audit-empty">Access log unavailable. Apply the new Supabase migration, then refresh.</td></tr>';
+                ['auditSignins','auditSignouts','auditEvents'].forEach(id => { document.getElementById(id).textContent = '—'; });
+                area.innerHTML = '<tr><td colspan="3" class="audit-empty">Access history is currently unavailable. Check administrator permissions and the Supabase migration.</td></tr>';
+                note.textContent = 'No records were changed. Refresh after confirming database access.';
             }
         }
         document.getElementById('auditRefresh').addEventListener('click', loadAdminAccessTrail);

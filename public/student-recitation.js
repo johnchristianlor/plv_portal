@@ -165,7 +165,7 @@ async function loadExamConversionStatus() {
     p_student_no:user.studentNo,p_session_token:sessionToken
   });
   if(error) {
-    table.innerHTML='<tr><td colspan="6" class="conversion-empty">Conversion status is unavailable. Ask your administrator to apply the manual-conversion database update.</td></tr>';
+    table.innerHTML='<div class="conversion-empty">Conversion status is unavailable. Ask your administrator to apply the manual-conversion database update.</div>';
     throw error;
   }
   const rows=data||[];
@@ -175,13 +175,20 @@ async function loadExamConversionStatus() {
     const raw=r.raw_score==null?0:Number(r.raw_score);
     const headroom=Math.max(0,Math.floor(Number(r.exam_max||0)-raw-Number(r.total_bonus||0)));
     const state=getConversionStatus({balance:r.wallet_balance,rate:r.recitation_rate,converted:r.converted_points,headroom});
-    return `<tr><td><strong>${escapeHtml(r.exam_title||'Exam')}</strong><small>${escapeHtml(r.subject_code||'')} · ${escapeHtml(r.section||'')} · ${escapeHtml(r.term||'')}</small></td>
-      <td>${number(r.recitation_rate)} chips = 1 point</td>
-      <td><b class="conversion-earned">+${number(r.converted_points)}</b></td>
-      <td>${number(r.spent_chips)}</td>
-      <td><span class="conversion-badge ${state.kind}"><i class="ph-fill ph-circle"></i> ${escapeHtml(state.label)}</span><small class="conversion-state-note">${escapeHtml(state.description)}</small></td>
-      <td>${r.last_converted_at?escapeHtml(dateTime(r.last_converted_at)):'—'}</td></tr>`;
-  }).join('')||'<tr><td colspan="6" class="conversion-empty">Your instructor has not set up any exam conversion rules yet. Recitation chips stay in your wallet.</td></tr>';
+    const balance=Math.max(0,Math.floor(Number(r.wallet_balance)||0));
+    const rate=Math.max(1,Math.floor(Number(r.recitation_rate)||1));
+    const converted=Math.max(0,Number(r.converted_points)||0);
+    const spent=Math.max(0,Number(r.spent_chips)||0);
+    const eligibleChips=state.convertible*rate;
+    const retained=balance-eligibleChips;
+    const subject=[r.subject_code,r.section,r.term].filter(Boolean).join(' · ');
+    return `<article class="conversion-item ${state.kind}" role="listitem" aria-label="${escapeHtml(r.exam_title||'Exam')}: ${escapeHtml(state.label)}">
+      <header class="conversion-item-head"><span class="conversion-exam-icon" aria-hidden="true"><i class="ph-fill ph-exam"></i></span><div class="conversion-exam"><strong>${escapeHtml(r.exam_title||'Exam')}</strong><small>${escapeHtml(subject)}</small></div><span class="conversion-badge ${state.kind}"><i class="ph-fill ${state.kind==='converted'?'ph-check-circle':'ph-circle'}"></i> ${escapeHtml(state.label)}</span></header>
+      <div class="conversion-item-body"><div class="conversion-chip-summary"><span class="conversion-chip-badge"><i class="ph-fill ph-coin-vertical" aria-hidden="true"></i><strong>${number(balance)}</strong><small>wallet chips</small></span><div class="conversion-rate"><span>CONVERSION RATE</span><strong>${number(rate)} chips <i class="ph-bold ph-arrow-right" aria-hidden="true"></i> +1 exam point</strong><small>${escapeHtml(state.description)}</small></div></div>
+      <div class="conversion-item-metrics"><div><small>Exam points received</small><strong class="conversion-earned">+${number(converted)}</strong></div><div><small>Chips previously spent</small><strong>${number(spent)}</strong></div><div><small>Ready for approval</small><strong>+${number(state.convertible)}</strong></div></div></div>
+      <footer class="conversion-item-foot"><span><i class="ph-bold ph-shield-check" aria-hidden="true"></i> ${number(retained)} chip${retained===1?'':'s'} remain if eligible points are converted</span><span>${r.last_converted_at?'Last approved: '+escapeHtml(dateTime(r.last_converted_at)):'No approved conversion yet'}</span></footer>
+    </article>`;
+  }).join('')||'<div class="conversion-empty">Your instructor has not set up any exam conversion rules yet. Recitation chips stay in your wallet.</div>';
 }
 
 function renderRecipients(rows) {

@@ -2,6 +2,7 @@ import { supabase } from './supabase-adapter.js';
 import { startAdminSessionGuard } from './admin-session.js';
 import { bonusMapFromRows, effectiveExamScore, examBonusKey, fetchExamIncentiveTotals } from './exam-incentive-utils.mjs';
 import { getConversionStatus } from './recitation-conversion-status.mjs';
+import { planRecitationConversion } from './recitation-conversion-math.mjs';
 
 const user = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
 if (!user || user.role !== 'admin') window.location.replace('index.html');
@@ -73,7 +74,8 @@ function updateStudentDetails() {
   const balance=Number(wallet?.balance)||0;
   const rate=Number(currentRule()?.recitation_rate ?? $('ruleRate').value);
   const headroom=Math.max(0,Math.floor((Number(exam?.perfectScore)||0)-(raw === null || raw === undefined ? 0 : Number(raw))-bonus));
-  const convert=rate>0&&Number.isInteger(rate)?Math.min(headroom,Math.floor(Math.max(0,balance)/rate)):0;
+  const plan=planRecitationConversion({balance,rate,headroom});
+  const convert=plan.points;
   $('rawScore').textContent=raw===null||raw===undefined?'Pending':`${fmt(raw)} / ${fmt(exam.perfectScore)}`;
   $('bonusScore').textContent=e?`+${fmt(bonus)}`:'—';
   $('effectiveScore').textContent=effective===null?'Pending':`${fmt(effective)} / ${fmt(exam.perfectScore)}`;
@@ -81,7 +83,9 @@ function updateStudentDetails() {
   $('bonusButton').disabled=submitting||!e||headroom<1;
   $('redeemButton').disabled=submitting||!e||!currentRule()||convert<1;
   $('redeemPoints').textContent=e?`+${fmt(convert)} exam pt${convert===1?'':'s'}`:'—';
-  $('redeemDescription').textContent=e?`${fmt(balance)} available chips · ${fmt(rate||0)} per exam point. Manual approval deducts ${fmt(convert*(rate||0))} chips. Nothing happens automatically.`:'Choose an exam and student to preview available conversion.';
+  const spend=plan.spent;
+  $('redeemDescription').textContent=e?`${fmt(balance)} wallet chips · ${fmt(rate||0)} chips per point. Only ${fmt(spend)} eligible chips will be spent after your approval.`:'Choose an exam and student to preview available conversion.';
+  $('redeemPreserved').textContent=e?`${fmt(plan.retained)} chip${plan.retained===1?'':'s'} will remain in the wallet${convert<1?' — no deduction can occur until eligible.':'.'}`:'Insufficient or unused chips are never deducted.';
 }
 function renderHistory() {
   const query=$('historySearch').value.trim().toLowerCase(), type=$('historyType').value;
@@ -134,7 +138,7 @@ function renderRoster() {
     <td class="chip-cell">${fmt(r.balance)}</td><td><b>${fmt(r.state.convertible)}</b><small>${r.state.convertible?`${fmt(r.state.convertible*currentRule().recitation_rate)} chips to spend`:'—'}</small></td>
     <td class="positive">+${fmt(r.converted)}</td><td>${fmt(r.spent)}</td>
     <td><span class="status-dot ${r.state.kind}">${safe(r.state.label)}</span><small>${safe(r.state.description)}</small></td>
-    <td><button type="button" class="btn outline row-action" data-convert-student="${safe(r.e.studentNo)}" ${submitting||!currentRule()||r.state.convertible<1?'disabled':''}>Convert</button></td>
+    <td><button type="button" class="btn outline row-action" data-convert-student="${safe(r.e.studentNo)}" title="Convert eligible chips for ${safe(r.e.studentName||r.e.studentNo)}" ${submitting||!currentRule()||r.state.convertible<1?'disabled':''}><i class="ph-bold ph-arrows-clockwise" aria-hidden="true"></i><span class="button-text">Convert</span></button></td>
   </tr>`).join('') || `<tr><td colspan="7" class="empty">${exam?'No students match these filters.':'Choose an exam to view the roster.'}</td></tr>`;
   body.querySelectorAll('[data-convert-student]').forEach(btn=>btn.addEventListener('click',()=>{
     $('studentSelect').value=btn.dataset.convertStudent;
@@ -230,11 +234,20 @@ async function grantBonus(event) {
 }
 async function redeem() {
   if(submitting)return;const exam=chosenExam(),student=chosenStudent();if(!exam||!student||!currentRule())return;
-  if(!confirm(`Convert ${student.studentName}'s eligible recitation chips into ${exam.title}? Chips will be permanently deducted and the original conversion rate stored.`))return;
+  const wallet=wallets.find(w=>w.student_no===student.studentNo);
+  const balance=Math.max(0,Number(wallet?.balance)||0);
+  const rate=Number(currentRule().recitation_rate);
+  const bonus=Number(bonusMap.get(examBonusKey(exam.id,student.studentNo))||0);
+  const raw=scores.find(s=>String(s.activityId)===String(exam.id)&&s.studentNo===student.studentNo);
+  const headroom=Math.max(0,Math.floor(Number(exam.perfectScore||0)-Number(raw?.score||0)-bonus));
+  const plan=planRecitationConversion({balance,rate,headroom});
+  const {points,spent}=plan;
+  if(!points)return showToast('No eligible chips to convert. Your student keeps the full wallet balance.',true);
+  if(!confirm(`Convert ${spent} chips into +${points} exam point${points===1?'':'s'} for ${student.studentName} (${exam.title})?\n\n${plan.retained} unspent chip${plan.retained===1?'':'s'} will remain in the wallet. The final result will be rechecked securely before any deduction.`))return;
   submitting=true;updateStudentDetails();renderRoster();
   try{
     const result=assertResult(await supabase.rpc('admin_convert_recitation_to_exam',{p_admin_session_token:token,p_activity_id:String(exam.id),p_student_no:student.studentNo}));
-    await refreshLedger();showToast(`Converted ${fmt(result.spent)} chips into +${fmt(result.points)} exam points.`);
+    await refreshLedger();showToast(`Converted ${fmt(result.spent)} chips into +${fmt(result.points)} exam points. ${fmt(result.retained ?? result.balance)} chips remain in the wallet.`);
   }catch(e){showToast(e.message,true);}finally{submitting=false;updateStudentDetails();renderRoster();}
 }
 $('sectionFilter').addEventListener('change',()=>{const selected=$('subjectFilter').value;fillSelect($('subjectFilter'),[...new Set(activities.filter(a=>!$('sectionFilter').value||a.section===$('sectionFilter').value).map(a=>a.subjectCode))].sort().map(v=>({value:v,label:v})),'All subjects');if([...$('subjectFilter').options].some(o=>o.value===selected))$('subjectFilter').value=selected;updateExams();});

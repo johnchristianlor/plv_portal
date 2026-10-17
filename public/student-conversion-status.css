@@ -1,28 +1,50 @@
-/* Exam-specific, read-only status sheet in the student Recitation page. */
+/* Student conversion tracker · approachable subject cards, chip badges and clear state. */
 .student-recitation-page .conversion-status-card{margin-top:18px;min-width:0}
-.conversion-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px}
-.conversion-heading h2{font-size:clamp(18px,2vw,22px);font-weight:800;margin:9px 0 7px;letter-spacing:-.45px}
-.conversion-heading p{font-size:12px;line-height:1.65;color:var(--text-muted);max-width:750px}
+.conversion-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px}
+.conversion-heading h2{font-size:clamp(19px,2vw,24px);font-weight:800;margin:9px 0 7px;letter-spacing:-.45px}
+.conversion-heading p{font-size:12px;line-height:1.7;color:var(--text-muted);max-width:760px}
 .conversion-kicker{font-size:10px;letter-spacing:1.05px;font-weight:900;color:var(--accent-primary);display:inline-flex;gap:8px;align-items:center}
-.conversion-status-guide{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:17px}
-.conversion-clarification{font-size:11px;line-height:1.6;color:var(--text-muted);flex:1 1 210px;margin-left:4px}
-.conversion-badge{display:inline-flex;gap:7px;align-items:center;border-radius:100px;font-size:11px;font-weight:900;padding:8px 11px;white-space:nowrap;letter-spacing:.05px}
-.conversion-badge i{font-size:8px}.conversion-badge.pending{background:#fff0b3;border:1px solid #f3cc63;color:#775000}
-.conversion-badge.converted{background:#dbf7e4;border:1px solid #9edfb5;color:#125e37}
-.conversion-badge.neutral{background:#ecf0f6;border:1px solid #d4dce7;color:#5b6880}
-.conversion-table-wrap{overflow:auto;border:1px solid var(--glass-border);border-radius:15px;max-height:500px}
-.conversion-table{border-collapse:collapse;width:100%;min-width:795px;text-align:left}
-.conversion-table thead{position:sticky;top:0;z-index:1;background:var(--input-bg)}
-.conversion-table th{font-size:10px;color:var(--text-muted);font-weight:900;letter-spacing:.6px;text-transform:uppercase;padding:15px;white-space:nowrap}
-.conversion-table td{font-size:12px;color:var(--text-primary);padding:15px;border-top:1px solid var(--glass-border);vertical-align:middle}
-.conversion-table tbody tr:hover{background:var(--input-bg)}
-.conversion-table td strong,.conversion-table td small{display:block}
-.conversion-table td strong{font-size:13px;font-weight:800}.conversion-table td small{font-size:10px;color:var(--text-muted);margin-top:5px}
-.conversion-earned{color:#128450;font-size:15px}
-.conversion-state-note{max-width:230px;line-height:1.5}
-.conversion-empty{text-align:center!important;padding:35px 15px!important;color:var(--text-muted)!important}
-.conversion-footer{font-size:11px;line-height:1.6;color:var(--text-muted);margin-top:15px}
-.student-recitation-page.dark-theme .conversion-badge.pending{background:#544119;color:#ffe7a2;border-color:#826a32}
-.student-recitation-page.dark-theme .conversion-badge.converted{background:#174531;color:#9be5bb;border-color:#2c6d4b}
+.conversion-status-guide{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:20px}
+.conversion-clarification{font-size:11px;line-height:1.65;color:var(--text-muted);flex:1 1 220px;margin-left:4px}
+.conversion-badge{display:inline-flex;gap:7px;align-items:center;border-radius:100px;font-size:11px;font-weight:850;padding:8px 12px;white-space:normal;line-height:1.25}
+.conversion-badge i{font-size:12px}.conversion-badge.pending{background:#fff2bf;border:1px solid #eed17a;color:#805000}
+.conversion-badge.converted{background:#dff6e8;border:1px solid #9ddbb7;color:#126039}
+.conversion-badge.neutral{background:#edf1f7;border:1px solid #d4dce7;color:#526175}
+.conversion-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,390px),1fr));align-items:stretch;gap:16px}
+.conversion-item{display:flex;flex-direction:column;min-width:0;border:1px solid var(--glass-border);border-left:5px solid #b2c1d5;border-radius:19px;background:var(--glass-bg);overflow:hidden;box-shadow:0 10px 30px rgba(0,30,85,.045)}
+.conversion-item.pending{border-left-color:#e6aa29;background:linear-gradient(145deg,rgba(255,237,179,.2),var(--glass-bg) 45%)}
+.conversion-item.converted{border-left-color:#23a76d;background:linear-gradient(145deg,rgba(188,245,213,.22),var(--glass-bg) 45%)}
+.conversion-item-head{display:flex;align-items:center;gap:11px;padding:18px 18px 12px;min-width:0}
+.conversion-exam-icon{width:42px;height:42px;flex:none;display:grid;place-items:center;border-radius:14px;background:var(--accent-light);color:var(--accent-primary);font-size:21px}
+.conversion-exam{min-width:0;flex:1}.conversion-exam strong{display:block;font-size:14px;font-weight:850;line-height:1.4;overflow-wrap:anywhere}.conversion-exam small{display:block;color:var(--text-muted);font-size:11px;font-weight:600;margin-top:4px;line-height:1.5}
+.conversion-item-head .conversion-badge{flex:none;max-width:42%;text-align:center;justify-content:center}
+.conversion-item-body{padding:0 18px 16px;flex:1}
+.conversion-chip-summary{display:flex;gap:12px;align-items:stretch;background:var(--input-bg);border:1px solid var(--glass-border);border-radius:15px;padding:12px;min-width:0}
+.conversion-chip-badge{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex:0 0 92px;min-height:87px;border-radius:12px;background:#fff2c3;color:#805000;border:1px solid #eed790}
+.conversion-chip-badge>i{font-size:21px}.conversion-chip-badge strong{font-size:23px;font-weight:900;line-height:1.2;font-variant-numeric:tabular-nums}.conversion-chip-badge small{font-size:10px;font-weight:850;text-align:center}
+.conversion-rate{display:flex;flex-direction:column;justify-content:center;min-width:0;gap:5px}
+.conversion-rate>span{font-size:9px;font-weight:850;letter-spacing:.8px;color:var(--text-muted)}
+.conversion-rate strong{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:12px;font-weight:850;line-height:1.4;color:var(--text-main)}
+.conversion-rate strong i{color:var(--accent-primary)}.conversion-rate small{color:var(--text-muted);font-size:11px;line-height:1.5;font-weight:650}
+.conversion-item-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:13px}
+.conversion-item-metrics>div{min-width:0;background:var(--input-bg);border:1px solid var(--glass-border);border-radius:12px;padding:10px}
+.conversion-item-metrics small{display:block;color:var(--text-muted);font-size:10px;line-height:1.45;min-height:30px;font-weight:700}
+.conversion-item-metrics strong{display:block;font-size:19px;font-weight:850;margin-top:5px;font-variant-numeric:tabular-nums;line-height:1.2}
+.conversion-item-metrics .conversion-earned{color:#148052}
+.conversion-item-foot{display:grid;gap:6px;padding:13px 18px;background:var(--input-bg);border-top:1px solid var(--glass-border)}
+.conversion-item-foot span{font-size:10px;font-weight:700;line-height:1.65;color:var(--text-muted)}
+.conversion-item-foot i{font-size:13px;vertical-align:middle;color:var(--accent-primary)}
+.conversion-empty{grid-column:1/-1;text-align:center;padding:33px 15px;color:var(--text-muted);font-size:12px;line-height:1.6;font-weight:700;border:1px dashed var(--glass-border);border-radius:16px}
+.conversion-footer{font-size:11px;line-height:1.65;color:var(--text-muted);margin-top:15px}
+.student-recitation-page.dark-theme .conversion-badge.pending{background:#57421b;color:#ffe6a2;border-color:#896b36}
+.student-recitation-page.dark-theme .conversion-badge.converted{background:#1b4531;color:#aeedc6;border-color:#397652}
 .student-recitation-page.dark-theme .conversion-badge.neutral{background:#2d3746;color:#c3cedf;border-color:#4c5d71}
-@media(max-width:680px){.conversion-heading{flex-direction:column}.conversion-heading .btn{width:100%}.conversion-status-card{padding:19px 14px!important}}
+.student-recitation-page.dark-theme .conversion-chip-badge{background:#4e3e20;color:#ffe9af;border-color:#826839}
+.student-recitation-page.dark-theme .conversion-item-metrics .conversion-earned{color:#9eebc5}
+@media(max-width:680px){.conversion-heading{flex-direction:column}.conversion-heading .btn{width:100%}.conversion-status-card{padding:19px 14px!important}.conversion-cards{grid-template-columns:1fr}}
+@media(max-width:390px){.conversion-item-head{flex-wrap:wrap}.conversion-item-head .conversion-badge{margin-left:53px;max-width:calc(100% - 53px)}.conversion-chip-badge{flex-basis:72px}.conversion-item-metrics strong{font-size:16px}}
+/* On phones keep the exam title readable instead of squeezing it beside a badge. */
+@media(max-width:680px){
+  .conversion-item-head{flex-wrap:wrap}
+  .conversion-item-head .conversion-badge{flex:0 0 auto;max-width:calc(100% - 53px);margin-left:53px;justify-content:flex-start}
+}

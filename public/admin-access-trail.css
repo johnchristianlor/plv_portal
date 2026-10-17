@@ -1,0 +1,37 @@
+/* PLV Dashboard · native glass card visual language for the administrator access log */
+.admin-dashboard-page .audit-panel{padding:30px 32px;min-width:0;max-width:100%;overflow:hidden}
+.admin-dashboard-page .audit-head{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-bottom:22px;border-bottom:1px solid var(--glass-border)}
+.admin-dashboard-page .audit-head-main{display:flex;align-items:center;gap:15px;min-width:0}
+.admin-dashboard-page .audit-icon{width:52px;height:52px;flex:none;display:grid;place-items:center;border-radius:17px;background:var(--accent-light);color:var(--accent-primary);font-size:25px}
+.admin-dashboard-page .audit-intro{min-width:0}
+.admin-dashboard-page .audit-eyebrow{color:var(--accent-primary);font-size:10px;font-weight:800;letter-spacing:1px}
+.admin-dashboard-page .audit-intro h3{font-size:19px;line-height:1.35;font-weight:800;letter-spacing:-.4px;margin:5px 0 5px}
+.admin-dashboard-page .audit-intro p{font-size:12px;font-weight:600;line-height:1.6;color:var(--text-muted)}
+.admin-dashboard-page .audit-refresh{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:44px;flex:none;padding:10px 15px;background:var(--accent-light);color:var(--accent-primary);font-weight:800;font-size:12px;border:1px solid var(--glass-border);border-radius:13px;cursor:pointer;white-space:nowrap}
+.admin-dashboard-page .audit-refresh:hover{background:var(--accent-primary);color:#fff}.admin-dashboard-page .audit-refresh i{font-size:18px}
+.admin-dashboard-page .audit-refresh:focus-visible,.admin-dashboard-page .audit-wrap:focus-visible{outline:3px solid var(--accent-primary);outline-offset:3px}
+.admin-dashboard-page .audit-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:21px 0 26px}
+.admin-dashboard-page .audit-stat{display:flex;align-items:center;gap:14px;background:var(--accent-light);border:1px solid var(--glass-border);border-radius:18px;padding:17px;min-width:0}
+.admin-dashboard-page .audit-stat-icon{width:43px;height:43px;flex:none;display:grid;place-items:center;border-radius:13px;font-size:19px}
+.admin-dashboard-page .audit-stat-icon.login{color:#097747;background:#ddf7e8}.admin-dashboard-page .audit-stat-icon.logout{color:#ad4b35;background:#ffe8dc}.admin-dashboard-page .audit-stat-icon.events{color:var(--accent-primary);background:var(--glass-bg)}
+.admin-dashboard-page .audit-stat small{display:block;font-size:11px;color:var(--text-muted);font-weight:700;margin-bottom:5px;line-height:1.4}.admin-dashboard-page .audit-stat strong{font-size:25px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.admin-dashboard-page .audit-section-title{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.admin-dashboard-page .audit-section-title strong{font-size:14px;font-weight:800;display:block;margin-bottom:4px}.admin-dashboard-page .audit-section-title span{font-size:11px;color:var(--text-muted);font-weight:650}
+.admin-dashboard-page .audit-secure{display:inline-flex;align-items:center;gap:6px;background:var(--accent-light);color:var(--accent-primary)!important;padding:8px 12px;border-radius:999px;white-space:nowrap}
+.admin-dashboard-page .audit-wrap{overflow:auto;max-width:100%;max-height:460px;border:1px solid var(--glass-border);border-radius:18px;background:var(--glass-bg);scrollbar-width:thin}
+.admin-dashboard-page .audit-table{width:100%;min-width:565px;text-align:left;border-collapse:separate;border-spacing:0;table-layout:fixed}
+.admin-dashboard-page .audit-table th:nth-child(1){width:43%}.admin-dashboard-page .audit-table th:nth-child(2){width:25%}.admin-dashboard-page .audit-table th:nth-child(3){width:32%}
+.admin-dashboard-page .audit-table thead th{position:sticky;top:0;background:var(--bg-body);z-index:2;color:var(--text-muted);font-size:10px;letter-spacing:.7px;font-weight:800;text-transform:uppercase;padding:16px 19px;border-bottom:1px solid var(--glass-border)}
+.admin-dashboard-page .audit-table tbody td{padding:15px 19px;font-size:12px;border-bottom:1px solid var(--glass-border);font-weight:650;vertical-align:middle}.admin-dashboard-page .audit-table tbody tr:last-child td{border-bottom:0}.admin-dashboard-page .audit-table tbody tr:hover{background:var(--accent-light)}
+.admin-dashboard-page .audit-person{display:flex;align-items:center;gap:12px;min-width:0}
+.admin-dashboard-page .audit-avatar{display:grid;place-items:center;width:39px;height:39px;flex:none;border:1px solid var(--glass-border);background:var(--accent-light);border-radius:13px;color:var(--accent-primary);font-size:12px;font-weight:800}
+.admin-dashboard-page .audit-identity{min-width:0}.admin-dashboard-page .audit-identity b{display:block;font-size:12px;font-weight:800;overflow-wrap:anywhere}.admin-dashboard-page .audit-identity small{display:block;font-size:11px;font-weight:600;color:var(--text-muted);margin-top:5px;overflow-wrap:anywhere}
+.admin-dashboard-page .audit-pill{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;border-radius:999px;font-size:11px;font-weight:800;padding:8px 11px;border:1px solid transparent}
+.admin-dashboard-page .audit-pill.in{background:#dff7e9;color:#17653e;border-color:#b6e7c7}.admin-dashboard-page .audit-pill.out{background:#fff0e6;color:#944521;border-color:#f7d0b4}
+.admin-dashboard-page .audit-datetime strong{display:block;font-size:12px;font-weight:800;font-variant-numeric:tabular-nums}.admin-dashboard-page .audit-datetime small{display:block;color:var(--text-muted);font-size:11px;font-weight:650;margin-top:5px;font-variant-numeric:tabular-nums}
+.admin-dashboard-page .audit-empty{padding:42px 18px!important;text-align:center;color:var(--text-muted);font-weight:700}
+.admin-dashboard-page .audit-note{margin-top:15px;color:var(--text-muted);font-size:11px;font-weight:650;line-height:1.65}
+.admin-dashboard-page.dark-theme .audit-stat-icon.login{background:#173b2b;color:#9be8bc}.admin-dashboard-page.dark-theme .audit-stat-icon.logout{background:#4b2c21;color:#ffbe9f}
+.admin-dashboard-page.dark-theme .audit-pill.in{background:#1a4230;color:#a4edc1;border-color:#2e6f4d}.admin-dashboard-page.dark-theme .audit-pill.out{background:#4b3025;color:#ffd0b2;border-color:#7b4c36}
+@media(max-width:900px){.admin-dashboard-page .audit-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.admin-dashboard-page .audit-panel{padding:24px}}
+@media(max-width:600px){.admin-dashboard-page .audit-panel{padding:19px 15px;border-radius:22px}.admin-dashboard-page .audit-head{flex-wrap:wrap;align-items:flex-start}.admin-dashboard-page .audit-refresh{width:100%}.admin-dashboard-page .audit-stats{gap:7px}.admin-dashboard-page .audit-stat{flex-direction:column;align-items:flex-start;padding:13px 9px;gap:8px;border-radius:13px}.admin-dashboard-page .audit-stat-icon{width:33px;height:33px;font-size:16px;border-radius:10px}.admin-dashboard-page .audit-stat strong{font-size:23px}.admin-dashboard-page .audit-stat small{font-size:10px}.admin-dashboard-page .audit-section-title{align-items:flex-start}.admin-dashboard-page .audit-table{min-width:535px}}
