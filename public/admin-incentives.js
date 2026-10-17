@@ -58,12 +58,12 @@ function updateExamDetails() {
   const exam=chosenExam(), rule=currentRule();
   $('saveRule').disabled=!exam;
   $('ruleRate').value=rule?.recitation_rate ?? 3;
-  $('examInfo').innerHTML=exam?`<strong>${safe(exam.title)} / ${fmt(exam.perfectScore)} pts</strong>${safe(exam.subjectCode)} · ${safe(exam.section)} · ${exam.term==='final'?'Final term':'Midterm'} · The exam score remains untouched. Named extra credits are separate and included only in totals.`:'Choose a saved exam to configure incentives.';
+  $('examInfo').innerHTML=exam?`<strong>${safe(exam.subjectCode)} · ${safe(exam.section)} · ${exam.term==='final'?'Final term':'Midterm'}</strong>Reference exam: ${safe(exam.title)} (/${fmt(exam.perfectScore)}). Conversion creates an independent score entry; nothing is inserted into the original exam.`:'Select a class and period using a saved major exam. Its score will not be edited.';
   fillSelect($('studentSelect'),exam?enrollments.filter(e=>e.section===exam.section&&e.subjectCode===exam.subjectCode)
     .sort((a,b)=>String(a.studentName).localeCompare(String(b.studentName))).map(e=>({value:e.studentNo,label:`${e.studentName} · ${e.studentNo}`})):[],'Choose enrolled student');
   updateRulePreview(); updateStudentDetails(); renderRoster();
 }
-function conversionTitle(){ return $('conversionTitle').value.trim() || 'Recitation Conversion'; }
+function conversionTitle(){ return $('conversionTitle').value.trim(); }
 function updateRulePreview() { const n=Number($('ruleRate').value); $('rulePreview').textContent=Number.isInteger(n)&&n>0?`${fmt(n)} chips = +1 separate bonus point`:'Enter a valid conversion rate'; }
 function updateStudentDetails() {
   const exam=chosenExam(), e=chosenStudent();
@@ -85,7 +85,7 @@ function updateStudentDetails() {
   $('redeemButton').disabled=submitting||!e||!currentRule()||convert<1;
   $('redeemPoints').textContent=e?`+${fmt(convert)} bonus pt${convert===1?'':'s'}`:'—';
   const spend=plan.spent;
-  $('redeemDescription').textContent=e?`${fmt(balance)} wallet chips · ${fmt(rate||0)} chips per point. Only ${fmt(spend)} whole-group chips will be spent after your approval; the raw exam mark will not change.`:'Choose an exam and student to preview separate extra-credit conversion.';
+  $('redeemDescription').textContent=e?`${fmt(balance)} wallet chips · ${fmt(rate||0)} chips per point. Approval will create a NEW score item worth +${fmt(convert)}. Exactly ${fmt(spend)} chips will be spent; the original exam mark will not change.`:'Choose a class, period and student to create a separate extra-credit score item.';
   $('redeemPreserved').textContent=e?`${fmt(plan.retained)} chip${plan.retained===1?'':'s'} will remain in the wallet${convert<1?' — no deduction can occur until eligible.':'.'}`:'Insufficient or unused chips are never deducted.';
 }
 function renderHistory() {
@@ -94,7 +94,7 @@ function renderHistory() {
   $('historyBody').innerHTML=matched.map(row=>{
     const converted=row.source!=='manual';
     const label=row.source==='recitation_auto'?'Legacy conversion':row.source==='recitation_manual'?'Manual conversion':'Extra credit';
-    return `<tr><td><strong>${safe(row.student_name)}</strong><small>${safe(row.student_no)} · ${safe(row.exam_title||row.activity_id)}<small><b>${safe(row.entry_title||'Exam Incentive')}</b></small></small></td><td><span class="pill ${converted?(row.source==='recitation_auto'?'green':'amber'):''}">${label}</span>${row.reason?`<small>${safe(row.reason)}</small>`:''}</td><td><span class="positive">+${fmt(row.bonus_points)}</span></td><td>${converted?`${fmt(row.recitation_spent)} chips<small>${fmt(row.conversion_rate)} : 1 rate</small>`:'<span class="pill">No chips used</span>'}</td><td>${safe(row.admin_name||'System')}</td><td>${formatDate(row.created_at)}</td></tr>`;
+    return `<tr><td><strong>${safe(row.student_name)}</strong><small>${safe(row.student_no)} · ${safe(row.exam_title||row.activity_id)}</small><small><b><i class="ph-fill ph-gift"></i> ${safe(row.entry_title||'Extra Credit')}</b></small></td><td><span class="pill ${converted?(row.source==='recitation_auto'?'green':'amber'):''}">${label}</span>${row.reason?`<small>${safe(row.reason)}</small>`:''}</td><td><span class="positive">+${fmt(row.bonus_points)}</span></td><td>${converted?`${fmt(row.recitation_spent)} chips<small>${fmt(row.conversion_rate)} : 1 rate</small>`:'<span class="pill">No chips used</span>'}</td><td>${safe(row.admin_name||'System')}</td><td>${formatDate(row.created_at)}</td></tr>`;
   }).join('')||'<tr><td colspan="6" class="empty">No matching incentive activity.</td></tr>';
   $('historyCount').textContent=`Showing ${matched.length} of ${history.length} most recent transactions. Older entries are retained in the database.`;
   $('issuedCount').textContent=fmt(history.reduce((n,r)=>n+Number(r.bonus_points||0),0));
@@ -130,7 +130,7 @@ function renderRoster() {
   $('rosterPending').textContent=fmt(pending);
   $('rosterConverted').textContent=fmt(converted);
   $('rosterReady').textContent=fmt(ready);
-  $('rosterContext').textContent=exam?`${exam.subjectCode} / ${exam.section} · ${exam.title} · ${currentRule()?`${currentRule().recitation_rate} chips per bonus point`:'Save a conversion rate before redeeming'} · Shared wallet balances update after an admin conversion.`:'Choose the parent exam to locate the class; bonuses appear as separate named entries.';
+  $('rosterContext').textContent=exam?`${exam.subjectCode} / ${exam.section} · ${exam.term==='final'?'Final':'Midterm'} · ${currentRule()?`${currentRule().recitation_rate} chips per bonus point`:'Save a conversion rate before redeeming'} · Each conversion creates its own independently titled extra-credit score item.`:'Choose a major exam to locate its section and term. The raw exam is never edited.';
   $('convertSectionButton').disabled=submitting||!exam||!currentRule()||ready<1;
   const search=$('rosterSearch').value.trim().toLowerCase(),status=$('rosterStatus').value;
   const visible=rows.filter(r=>(status==='all'||r.state.kind===status)&&(!search||[r.e.studentName,r.e.studentNo].some(v=>String(v||'').toLowerCase().includes(search))));
@@ -172,12 +172,12 @@ function openBatch() {
   const exam=chosenExam(); if(!exam||!currentRule()||submitting)return;
   const candidates=examStudents(exam).map(e=>studentConversion(e,exam));
   const ready=candidates.filter(r=>r.state.convertible>0),points=ready.reduce((t,r)=>t+r.state.convertible,0);
-  if(!conversionTitle() || conversionTitle().length>100)return showToast('Enter a conversion title up to 100 characters.',true);
+  if(conversionTitle().length>100)return showToast('The optional entry title must be at most 100 characters.',true);
   if(!ready.length)return showToast('No enrolled students have convertible chips for this exam.',true);
   $('batchStudents').textContent=fmt(ready.length);
   $('batchPoints').textContent=`+${fmt(points)}`;
   $('batchChips').textContent=fmt(points*currentRule().recitation_rate);
-  $('batchDetails').textContent=`Approve “${conversionTitle()}” as a separate bonus for ${exam.section} · ${exam.subjectCode}, linked to “${exam.title}”, at ${currentRule().recitation_rate} chips per bonus point. All enrolled students will be checked, but only eligible balances will be deducted. This cannot be undone automatically.`;
+  $('batchDetails').textContent=`Create a NEW extra-credit item “${conversionTitle()||'Recitation Bonus # (auto-numbered)'}” for ${exam.section} · ${exam.subjectCode}, using ${currentRule().recitation_rate} chips per point. The selected exam is only used to identify the grading period; its original score will not change. Only eligible balances are deducted.`;
   $('batchAcknowledged').checked=false;
   $('confirmBatch').disabled=true;
   $('batchModal').hidden=false;
@@ -194,7 +194,7 @@ async function convertSection() {
     }));
     $('batchModal').hidden=true;
     await refreshLedger();
-    showToast(`Converted ${result.converted} student(s): +${fmt(result.points)} bonus points, ${fmt(result.spent)} chips used. ${result.skipped} skipped.`);
+    showToast(`Created “${result.title}” as a separate credit item for ${result.converted} student(s): +${fmt(result.points)} total points; ${fmt(result.spent)} chips spent; ${result.skipped} skipped.`);
   }catch(e){showToast(e.message,true);}finally{submitting=false;renderRoster();updateStudentDetails();}
 }
 async function refreshLedger() {
@@ -243,13 +243,13 @@ async function redeem() {
   const headroom=100000;
   const plan=planRecitationConversion({balance,rate,headroom});
   const {points,spent}=plan;
-  if(!conversionTitle() || conversionTitle().length>100)return showToast('Enter a conversion title up to 100 characters.',true);
+  if(conversionTitle().length>100)return showToast('The optional entry title must be at most 100 characters.',true);
   if(!points)return showToast('No complete chip groups available. The wallet balance will not be deducted.',true);
-  if(!confirm(`Convert ${spent} chips into +${points} extra-credit point${points===1?'':'s'} for ${student.studentName} (${exam.title})?\n\n${plan.retained} unspent chip${plan.retained===1?'':'s'} will remain in the wallet. The final result will be rechecked securely before any deduction.`))return;
+  if(!confirm(`Create a NEW ${conversionTitle()||'automatically titled recitation'} score item worth +${points} for ${student.studentName}?\n\nOnly ${spent} chips will be deducted (${plan.retained} remain). The original exam (${exam.title}) will NOT change. The server will verify this balance again before committing.`))return;
   submitting=true;updateStudentDetails();renderRoster();
   try{
     const result=assertResult(await supabase.rpc('admin_convert_named_recitation',{p_admin_session_token:token,p_activity_id:String(exam.id),p_student_no:student.studentNo,p_title:conversionTitle()}));
-    await refreshLedger();showToast(`Converted ${fmt(result.spent)} chips into +${fmt(result.points)} bonus points. ${fmt(result.retained ?? result.balance)} chips remain in the wallet.`);
+    await refreshLedger();showToast(`Created “${result.title}” as a new score item (+${fmt(result.points)}). Spent ${fmt(result.spent)} chips; ${fmt(result.retained ?? result.balance)} remain. Exam mark unchanged.`);
   }catch(e){showToast(e.message,true);}finally{submitting=false;updateStudentDetails();renderRoster();}
 }
 $('sectionFilter').addEventListener('change',()=>{const selected=$('subjectFilter').value;fillSelect($('subjectFilter'),[...new Set(activities.filter(a=>!$('sectionFilter').value||a.section===$('sectionFilter').value).map(a=>a.subjectCode))].sort().map(v=>({value:v,label:v})),'All subjects');if([...$('subjectFilter').options].some(o=>o.value===selected))$('subjectFilter').value=selected;updateExams();});

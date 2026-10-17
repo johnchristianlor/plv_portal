@@ -1959,7 +1959,7 @@ function addStyledRecordsSheet(workbook,group,options){
         push(header,a.term==='midterm'?'mid':'fin',Math.min(34,Math.max(16,header.length+2)));
     });
     const namedIndices=[];
-    if(incE||incA)namedCols.forEach(col=>{namedIndices.push(headings.length+1);push('BONUS · '+col.title+' ('+(col.source==='manual'?'PLUS POINTS':'RECITATION')+')','bonus',Math.min(40,Math.max(22,col.title.length+12)));});
+    if(incE||incA)namedCols.forEach(col=>{namedIndices.push(headings.length+1);push('BONUS · '+(col.displayTitle||col.title)+' ('+(col.source==='manual'?'PLUS POINTS':'RECITATION')+')','bonus',Math.min(40,Math.max(22,col.title.length+12)));});
     const examTotalIndex=incE?headings.length+1:null;
     if(incE)push('EXAMS + BONUS TOTAL (/'+formatExportMaximum(examMax)+')','total',25);
     const activityTotalIndex=incP?headings.length+1:null;
@@ -2106,7 +2106,7 @@ window.doExport=async(fmt)=>{
         if(incR)headers.unshift('Rank');
         if(incA)allA.forEach(a=>headers.push('['+a.section+' / '+a.subjectCode+'] '+buildActivityExportHeader(a)));
         const exportNamedCols=namedIncentiveColumns(namedBonusEntries,allA.filter(a=>a.category==='exam').map(a=>a.id));
-        if(incE||incA)exportNamedCols.forEach(col=>headers.push('['+col.activityId+'] '+col.title+' ('+(col.source==='manual'?'PLUS POINTS':'RECITATION')+')'));
+        if(incE||incA)exportNamedCols.forEach(col=>headers.push('BONUS · '+(col.displayTitle||col.title)+' ('+(col.source==='manual'?'PLUS POINTS':'RECITATION')+')'));
         if(incE)headers.push(groups.size===1?'EXAMS + BONUS TOTAL (/'+examFor(rows[0]).combined.max+')':'EXAMS + BONUS TOTAL (max varies by class)');
         if(incP)headers.push('ALL ACTIVITIES','Score %');
         if(incG)headers.push('Midterm Grade','Final Grade','Average');

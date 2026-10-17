@@ -271,7 +271,7 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         import { startStudentPresence } from "./student-presence.js";
         import { startStudentSessionGuard } from "./student-session.js";
         import { getStudentEnrollments, getSubject } from "./student-data.js";
-        import { bonusMapFromRows, examBonusKey, effectiveExamScore, fetchExamIncentiveTotals, fetchNamedIncentiveEntries } from "./exam-incentive-utils.mjs";
+        import { effectiveExamScore, fetchNamedIncentiveEntries } from "./exam-incentive-utils.mjs";
         import { getAttendanceStatusByDate, normalizeDateKey } from "./attendance-utils.mjs";
 
         const user = JSON.parse(localStorage.getItem('loggedInUser'));
@@ -299,11 +299,10 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         }
 
         const namedStyle = document.createElement('style');
-        namedStyle.textContent='.named-incentive-lines{display:grid;gap:6px;margin:9px 0}.named-credit{display:flex;gap:8px;align-items:center;padding:8px 12px;border:1px solid #d4e6b6;background:#f2f8e7;color:#205c35;border-radius:10px;font-size:12px;flex-wrap:wrap}.named-credit strong{flex:1;min-width:100px}.named-credit span{font-weight:800}.dark-theme .named-credit{background:#1b362c;color:#a3e8c4;border-color:#406f50}';
+        namedStyle.textContent='.standalone-credit{border:1px solid #bfdfc8!important;background:#f1faf2!important;border-left:5px solid #21a46f!important}.standalone-credit .credit-label{display:inline-flex;align-items:center;gap:6px;color:#166846;font-weight:800;font-size:10px;letter-spacing:.5px;text-transform:uppercase;background:#dff3e6;padding:5px 9px;border-radius:20px;margin-top:6px}.standalone-credit .credit-value{font-size:21px;font-weight:900;color:#137b50}.standalone-credit .credit-subtitle{display:block;color:#52735e;font-size:11px;margin-top:5px}.dark-theme .standalone-credit{background:#18342b!important;border-color:#366e53!important}.dark-theme .standalone-credit .credit-label{background:#26583d;color:#baf3ce}.dark-theme .standalone-credit .credit-subtitle{color:#adcfb9}';
         document.head.appendChild(namedStyle);
         let scoresData = { midterm: { written: [], perf: [], exam: [] }, final: { written: [], perf: [], exam: [] } };
         let scoresMap = {};
-        let incentiveTotals = new Map();
         let incentiveEntries = [];
         let attendanceByDate = new Map();
         let currentTerm = 'midterm';
@@ -316,12 +315,11 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
 
                 const enroll = enrollments[0];
                 const studentSection = enroll.section; // Get Student's Section
-                const [subject, scoresResult, activitiesResult, attendanceResult, incentiveResult, namedResult] = await Promise.all([
+                const [subject, scoresResult, activitiesResult, attendanceResult, namedResult] = await Promise.all([
                     getSubject(supabase, enroll.subjectCode),
                     supabase.from("scores").select("activityId,score").eq("studentNo", user.studentNo),
                     supabase.from("activities").select("id,term,category,title,date,perfectScore").eq("subjectCode", enroll.subjectCode).eq("section", studentSection),
                     supabase.from("attendance").select("date,status").eq("studentNo", user.studentNo).eq("subjectCode", enroll.subjectCode).eq("section", studentSection),
-                    fetchExamIncentiveTotals(supabase, { p_student_no: user.studentNo, p_student_session_token: user.activeSessionToken || user.sessionToken || null }),
                     fetchNamedIncentiveEntries(supabase, { p_student_no: user.studentNo, p_student_session_token: user.activeSessionToken || user.sessionToken || null })
                 ]);
                 if(subject) document.getElementById('hSubject').innerText = `${subject.subjectCode}: ${subject.subjectName}`;
@@ -334,7 +332,6 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                 if (activitiesError) throw activitiesError;
                 const { data: attendance, error: attendanceError } = attendanceResult;
                 if (attendanceError) throw attendanceError;
-                incentiveTotals = bonusMapFromRows(incentiveResult || []);
                 incentiveEntries = namedResult || [];
                 attendanceByDate = getAttendanceStatusByDate(attendance || []);
 
@@ -388,23 +385,35 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                     const dateKey = normalizeDateKey(act.date);
                     const attendanceStatus = attendanceByDate.get(dateKey);
                     const hasScore = scoresMap[act.id] !== undefined && scoresMap[act.id] !== null;
-                    const bonus = cat === 'exam' ? incentiveTotals.get(examBonusKey(act.id,user.studentNo)) || 0 : 0;
                     const myScore = hasScore ? effectiveExamScore(act, scoresMap[act.id]) : 0;
-                    // The original exam score remains untouched. Extra credits count separately.
-                    totalScore += myScore + bonus;
+                    // Raw score only: extra credits are rendered as independent score items below.
+                    totalScore += myScore;
                     totalPerfect += Number(act.perfectScore) || 0;
 
                     const pct = act.perfectScore > 0 ? Math.min(100, Math.max(0, myScore / act.perfectScore * 100)) : 0;
                     const dStr = dateKey ? new Date(`${dateKey}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Date unavailable';
                     const attendanceNote = attendanceStatus === 'A' ? '<span class="absence-note"><i class="ph-fill ph-user-minus"></i> Absent on this date' + (hasScore ? ' · Completion score recorded' : ' · Score pending') + '</span>' : attendanceStatus === 'E' ? '<span class="absence-note excused-note"><i class="ph-fill ph-info"></i> Excused on this date' + (hasScore ? ' · Score recorded' : ' · Score pending') + '</span>' : '';
-                    const incentiveLines = cat === 'exam' ? incentiveEntries.filter(r=>String(r.activity_id)===String(act.id)) : [];
-                    const incentiveNote = incentiveLines.length ? `<div class="named-incentive-lines">${incentiveLines.map(r=>`<div class="named-credit"><i class="ph-fill ph-gift"></i><strong>${String(r.entry_title||'Exam Incentive').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}</strong><span>+${Number(r.bonus_points||0)}</span></div>`).join('')}</div>` : ''; 
                     const scoreDisplay = `<div class="act-score-area">${hasScore ? `<span class="score-num">${myScore}</span>` : '<span class="score-num" style="font-size:12px;">Pending</span>'}<span class="score-div">/</span><span class="score-total">${act.perfectScore}</span></div>`;
                     const safeTitle = String(act.title || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
-                    container.innerHTML += `<div class="activity-item ${cat}${attendanceStatus === 'A' ? ' absent' : attendanceStatus === 'E' ? ' excused' : ''}"><div class="act-top"><div class="act-title-area"><h4>${safeTitle}</h4><span class="act-date"><i class="ph-fill ph-calendar-blank"></i> ${dStr}</span>${attendanceNote}${incentiveNote}</div>${scoreDisplay}</div><div class="progress-wrapper"><div class="progress-fill" style="width: ${pct}%;"></div></div></div>`;
+                    container.innerHTML += `<div class="activity-item ${cat}${attendanceStatus === 'A' ? ' absent' : attendanceStatus === 'E' ? ' excused' : ''}"><div class="act-top"><div class="act-title-area"><h4>${safeTitle}</h4><span class="act-date"><i class="ph-fill ph-calendar-blank"></i> ${dStr}</span>${attendanceNote}</div>${scoreDisplay}</div><div class="progress-wrapper"><div class="progress-fill" style="width: ${pct}%;"></div></div></div>`;
                 });
 
-                if(list.length === 0) container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No scores yet.</p>';
+                // A conversion creates a NEW named score item, NOT part of any exam card.
+                // Match only the current subject/section/term through the selected exam reference.
+                let extraCredits = [];
+                if (cat === 'exam') {
+                    const examIds = new Set(list.map(a=>String(a.id)));
+                    extraCredits = incentiveEntries.filter(entry=>
+                        String(entry.student_no)===String(user.studentNo) && examIds.has(String(entry.activity_id)));
+                    const escapeText = v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+                    extraCredits.forEach(entry=>{
+                        const points = Number(entry.bonus_points) || 0;
+                        totalScore += points;
+                        const type=entry.source==='manual'?'Plus points':'Recitation conversion';
+                        container.innerHTML += `<div class="activity-item standalone-credit" data-extra-credit-id="${escapeText(entry.entry_id||entry.entry_title)}"><div class="act-top"><div class="act-title-area"><h4>${escapeText(entry.entry_title||'Extra Credit')}</h4><span class="credit-label"><i class="ph-fill ph-gift"></i> New separate score item · ${type}</span><span class="credit-subtitle">Extra credit • Counts toward total, not the original examination mark</span></div><div class="act-score-area"><span class="credit-value">+${points}</span></div></div></div>`;
+                    });
+                }
+                if(list.length === 0 && extraCredits.length === 0) container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No scores yet.</p>';
 
                 let rating = 0;
                 if(totalPerfect > 0) { rating = (totalScore / totalPerfect) * 60 + 40; }

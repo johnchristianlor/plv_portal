@@ -19,34 +19,49 @@ export function effectiveExamScore(activity, rawScore, bonus = 0) {
   return Number.isFinite(raw) ? raw : null;
 }
 
-// A bonus line belongs to an existing exam class, but is not part of the raw exam.
+// Each approval creates its own virtual extra-credit score item, independent of raw exam scores.
+// A section-wide approval shares one entry_id, so it appears as ONE column for all students.
 export function namedIncentiveColumns(rows = [], activityIds = []) {
   const allowed = new Set(activityIds.map(String));
   const values = new Map();
-  for (const r of rows) {
+  for (const r of rows || []) {
     if (!allowed.has(String(r.activity_id))) continue;
-    const title = String(r.entry_title || 'Exam Incentive').trim();
+    const title = String(r.entry_title || 'Extra Credit').trim();
     const source = String(r.source || 'manual');
-    const key = `${r.activity_id}||${source}||${title}`;
-    if (!values.has(key)) values.set(key, {key,activityId:String(r.activity_id),title,source});
+    const entryId = r.entry_id ? String(r.entry_id) : null;
+    const key = entryId || `${r.activity_id}||${source}||${title}`;
+    if (!values.has(key)) values.set(key, {key,entryId,activityId:String(r.activity_id),title,source});
   }
-  return [...values.values()].sort((a,b)=> a.title.localeCompare(b.title)||a.activityId.localeCompare(b.activityId));
+  const columns=[...values.values()].sort((a,b)=> a.title.localeCompare(b.title)||a.key.localeCompare(b.key));
+  const seen=new Map(),counts=new Map();
+  for(const column of columns){
+    const normalized=`${column.source}||${column.title}`;
+    counts.set(normalized,(counts.get(normalized)||0)+1);
+  }
+  for(const column of columns){
+    const normalized=`${column.source}||${column.title}`;
+    const index=(seen.get(normalized)||0)+1;
+    seen.set(normalized,index);
+    column.displayTitle=counts.get(normalized)>1 ? `${column.title} · entry ${index}` : column.title;
+  }
+  return columns;
 }
 export function namedIncentiveValue(rows, studentNo, column) {
   return (rows || []).filter(r=>String(r.student_no)===String(studentNo) &&
+    (column.entryId ? String(r.entry_id)===column.entryId :
     String(r.activity_id)===column.activityId && String(r.source)===column.source &&
-    String(r.entry_title || 'Exam Incentive').trim()===column.title)
+    String(r.entry_title || 'Extra Credit').trim()===column.title))
     .reduce((sum,r)=>sum+(Number(r.bonus_points)||0),0);
 }
 export async function fetchNamedIncentiveEntries(supabase, params) {
   const rows=[];
   for(let start=0;start<100000;start+=1000){
-    const {data,error}=await supabase.rpc('get_named_exam_incentive_entries',params).range(start,start+999);
+    const {data,error}=await supabase.rpc('get_standalone_exam_incentive_entries',params).range(start,start+999);
     if(error)throw error;
     rows.push(...(data||[]));
     if(!data||data.length<1000)return rows;
   }
-  throw new Error('Named incentive report too large to export safely.');
+  throw new Error('Standalone credit report too large to export safely.');
 }
 
 // Supabase/PostgREST commonly limits a single response to 1,000 rows.

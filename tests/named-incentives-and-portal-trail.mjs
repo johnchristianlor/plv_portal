@@ -51,7 +51,7 @@ test('separate named score entries visible on student screens and excel exports'
  assert.match(exportHtml,/BONUS · /);
  assert.match(exportHtml,/namedIncentiveValue/);
  assert.match(exportHtml,/EXAMS \+ BONUS TOTAL/);
- assert.match(studentScores,/named-incentive-lines/);
+ assert.match(studentScores,/standalone-credit/);
  assert.match(studentScores,/fetchNamedIncentiveEntries/);
  assert.match(read('public/student-recitation.js'),/named-incentive-list/);
  const admin=read('public/admin-incentives.js');

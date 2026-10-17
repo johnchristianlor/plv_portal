@@ -189,3 +189,7 @@
 .admin-incentives-page .btn .ph-bold{flex-shrink:0;line-height:1}
 .admin-incentives-page .redeem-preserved{display:block;margin-top:10px;font-size:11px;line-height:1.65;font-weight:700;color:var(--text-muted)}
 @media(max-width:720px){.admin-incentives-page .tracker-tools #convertSectionButton{flex:1 1 100%;min-height:49px}}
+
+/* Standalone score item creation hint; follows existing PLV palette. */
+.admin-incentives-page .new-entry-assurance{display:flex;align-items:flex-start;gap:10px;border-radius:12px;background:var(--success-bg);border:1px solid color-mix(in srgb,var(--success) 26%,transparent);color:var(--text-main);padding:11px 12px;font-size:11px;line-height:1.5;margin:0 0 14px;font-weight:650}
+.new-entry-assurance i{font-size:19px;color:var(--success);flex:none}.new-entry-assurance strong{font-weight:800;color:var(--success)}
