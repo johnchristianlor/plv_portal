@@ -170,28 +170,32 @@ async function loadExamConversionStatus() {
     throw error;
   }
   const rows=data||[];
-  const named = await fetchNamedIncentiveEntries(supabase, {p_student_no:user.studentNo,p_student_session_token:sessionToken});
-  const total=rows.reduce((sum,r)=>sum+Number(r.converted_points||0),0);
-  $('conversionFooter').textContent=`${number(total)} exam point${total===1?'':'s'} converted as separate credits across ${rows.length} configured exam${rows.length===1?'':'s'}. Your wallet chips are shared across subjects; converting to one exam reduces the chips available for other exams.`;
+  const named=await fetchNamedIncentiveEntries(supabase,{p_student_no:user.studentNo,p_student_session_token:sessionToken});
+  const walletBalance=Math.max(0,Math.floor(Number(wallet.balance)||0));
+  const total=rows.reduce((sum,r)=>sum+Math.max(0,Number(r.converted_points)||0),0);
+  $('conversionOverviewChips').textContent=number(walletBalance);
+  $('conversionOverviewPoints').textContent=`+${number(total)}`;
+  $('conversionOverviewExams').textContent=number(rows.length);
   table.innerHTML=rows.map(r=>{
-    const raw=r.raw_score==null?0:Number(r.raw_score);
-    const headroom=100000; // Conversion adds independent bonus lines, not raw exam marks.
-    const state=getConversionStatus({balance:r.wallet_balance,rate:r.recitation_rate,converted:r.converted_points,headroom});
-    const balance=Math.max(0,Math.floor(Number(r.wallet_balance)||0));
+    const state=getConversionStatus({balance:walletBalance,rate:r.recitation_rate,converted:r.converted_points,headroom:100000});
     const rate=Math.max(1,Math.floor(Number(r.recitation_rate)||1));
     const converted=Math.max(0,Number(r.converted_points)||0);
-    const spent=Math.max(0,Number(r.spent_chips)||0);
-    const eligibleChips=state.convertible*rate;
-    const retained=balance-eligibleChips;
+    const credits=named.filter(entry=>String(entry.activity_id)===String(r.activity_id) && String(entry.source||'').startsWith('recitation_'));
     const subject=[r.subject_code,r.section,r.term].filter(Boolean).join(' · ');
-    return `<article class="conversion-item ${state.kind}" role="listitem" aria-label="${escapeHtml(r.exam_title||'Exam')}: ${escapeHtml(state.label)}">
-      <header class="conversion-item-head"><span class="conversion-exam-icon" aria-hidden="true"><i class="ph-fill ph-exam"></i></span><div class="conversion-exam"><strong>${escapeHtml(r.exam_title||'Exam')}</strong><small>${escapeHtml(subject)}</small></div><span class="conversion-badge ${state.kind}"><i class="ph-fill ${state.kind==='converted'?'ph-check-circle':'ph-circle'}"></i> ${escapeHtml(state.label)}</span></header>
-      <div class="conversion-item-body"><div class="conversion-chip-summary"><span class="conversion-chip-badge"><i class="ph-fill ph-coin-vertical" aria-hidden="true"></i><strong>${number(balance)}</strong><small>wallet chips</small></span><div class="conversion-rate"><span>CONVERSION RATE</span><strong>${number(rate)} chips <i class="ph-bold ph-arrow-right" aria-hidden="true"></i> +1 extra-credit point</strong><small>${escapeHtml(state.description)}</small></div></div>
-      <div class="conversion-item-metrics"><div><small>Separate recitation bonus</small><strong class="conversion-earned">+${number(converted)}</strong></div><div><small>Chips previously spent</small><strong>${number(spent)}</strong></div><div><small>Ready for approval</small><strong>+${number(state.convertible)}</strong></div></div></div>
-      <div class="named-incentive-list"><small>SEPARATE SCORE ITEMS · NOT PART OF YOUR EXAM MARK</small>${named.filter(entry=>String(entry.activity_id)===String(r.activity_id)).map(entry=>`<div class="named-incentive-row"><span><i class="ph-fill ph-gift"></i> ${escapeHtml(entry.entry_title)}</span><strong>+${number(entry.bonus_points)}</strong></div>`).join('') || '<small>No separate credits created yet.</small>'}</div>
-      <footer class="conversion-item-foot"><span><i class="ph-bold ph-shield-check" aria-hidden="true"></i> ${number(retained)} chip${retained===1?'':'s'} remain if eligible points are converted</span><span>${r.last_converted_at?'Last approved: '+escapeHtml(dateTime(r.last_converted_at)):'No approved conversion yet'}</span></footer>
+    const pending=state.convertible>0;
+    const stateText=pending ? (converted>0?'More available':'Awaiting conversion') : converted>0?'Converted' : state.kind==='neutral'?'No chips yet':'Awaiting conversion';
+    const labelKind=pending?'pending':converted>0?'converted':state.kind;
+    const hint=pending?'Available for instructor approval':(converted>0?'Approved bonus recorded':`Earn ${number(Math.max(0,rate-walletBalance))} more chips for a bonus point`);
+    const rateDescription=`${number(rate)} chip${rate===1?'':'s'} = 1 point`;
+    const creditsMarkup=credits.length?`<div class="named-incentive-list"><div class="named-incentive-heading"><i class="ph-fill ph-check-circle" aria-hidden="true"></i><span>Bonus history</span></div>${credits.map(entry=>`<div class="named-incentive-row"><span>${escapeHtml(entry.entry_title||'Recitation bonus')}</span><strong>+${number(entry.bonus_points)} <small>pts</small></strong></div>`).join('')}</div>`:'';
+    const latest=r.last_converted_at?`<div class="conversion-item-foot"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> Last converted ${escapeHtml(dateTime(r.last_converted_at))}</div>`:'';
+    return `<article class="conversion-item ${state.kind}" role="listitem" aria-label="${escapeHtml(r.exam_title||'Exam')}: ${escapeHtml(stateText)}">
+      <header class="conversion-item-head"><span class="conversion-exam-icon" aria-hidden="true"><i class="ph-fill ph-book-open-text"></i></span><div class="conversion-exam"><strong>${escapeHtml(r.exam_title||'Exam')}</strong><small>${escapeHtml(subject)}</small></div><span class="conversion-badge ${labelKind}"><i class="ph-fill ${labelKind==='converted'?'ph-check-circle':labelKind==='pending'?'ph-clock':'ph-circle'}" aria-hidden="true"></i> ${escapeHtml(stateText)}</span></header>
+      <div class="conversion-item-body"><div class="conversion-chip-summary"><span class="conversion-chip-badge"><i class="ph-fill ph-coin-vertical" aria-hidden="true"></i><strong>${number(walletBalance)}</strong><small>chips</small></span><div class="conversion-rate"><span>EXCHANGE RATE</span><strong>${escapeHtml(rateDescription)}</strong><small>${escapeHtml(hint)}</small></div></div>
+      <div class="conversion-item-metrics"><div><small>Earned</small><strong class="conversion-earned">+${number(converted)}<em> pts</em></strong></div><div><small>Ready to convert</small><strong>${pending?'+'+number(state.convertible):'—'}${pending?'<em> pts</em>':''}</strong></div></div></div>
+      ${creditsMarkup}${latest}
     </article>`;
-  }).join('')||'<div class="conversion-empty">Your instructor has not set up any exam conversion rules yet. Recitation chips stay in your wallet.</div>';
+  }).join('')||'<div class="conversion-empty"><i class="ph ph-coin-vertical" aria-hidden="true"></i><strong>No bonus rules yet</strong><span>Your available chips are safe in your wallet.</span></div>';
 }
 
 function renderRecipients(rows) {
@@ -291,7 +295,8 @@ async function confirmTransfer(event) {
     closeModal('confirmTransferModal');
     showToast(`Recitation sent securely to ${data.recipientName || selectedRecipient.full_name}.`);
     selectedRecipient = null; $('transferForm').reset();
-    await Promise.all([loadWallet(), loadActivity(), loadRecipients(''),loadExamConversionStatus()]);
+    await loadWallet();
+    await Promise.all([loadActivity(), loadRecipients(''), loadExamConversionStatus()]);
   } catch (error) { showToast(error.message, 'err'); }
   finally { button.disabled = false; button.innerHTML = '<i class="ph-bold ph-check-circle"></i> Confirm and send'; $('transferPin').value = ''; }
 }
@@ -326,7 +331,7 @@ window.logout = async () => {
 createPinInputs('new'); createPinInputs('confirm'); initTheme();
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => closeModal(button.dataset.close)));
 document.querySelectorAll('.modal-backdrop').forEach((modal) => modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(modal.id); }));
-$('refreshConversionStatus').addEventListener('click',()=>loadExamConversionStatus().catch(error=>showToast(friendlyError(error),'err')));
+$('refreshConversionStatus').addEventListener('click',()=>loadWallet().then(loadExamConversionStatus).catch(error=>showToast(friendlyError(error),'err')));
 $('pinAction').addEventListener('click', () => openModal(wallet.pinSet ? 'changePinModal' : 'setupPinModal'));
 $('setupPinForm').addEventListener('submit', submitSetupPin);
 $('changePinForm').addEventListener('submit', submitChangePin);
@@ -338,7 +343,7 @@ $('recipientSearch').addEventListener('input', (event) => {
 });
 ['currentPin', 'newPin', 'transferPin'].forEach((id) => $(id).addEventListener('input', (event) => { event.target.value = event.target.value.replace(/\D/g, '').slice(0, 4); }));
 
-Promise.all([loadWallet(), loadActivity(), loadRecipients(''),loadExamConversionStatus()]).catch((error) => {
+Promise.all([loadWallet().then(loadExamConversionStatus), loadActivity(), loadRecipients('')]).catch((error) => {
   showToast(friendlyError(error), 'err');
   $('activityList').innerHTML = '<div class="empty"><i class="ph ph-warning-circle"></i><b>Could not load Recitation</b><span>Please refresh after the database update is installed.</span></div>';
 });

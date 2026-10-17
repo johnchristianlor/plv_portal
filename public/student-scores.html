@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/style.css">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/fill/style.css">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.2/src/bold/style.css">
+    <link rel="stylesheet" href="./student-score-bonuses.css?v=20261018clean1">
         <style>
         :root { --bg-body: #f0f4f8; --text-main: #0f172a; --text-muted: #64748b; --glass-bg: rgba(255, 255, 255, 0.75); --glass-border: rgba(255, 255, 255, 0.9); --glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.9); --glass-shadow: 0 24px 48px -12px rgba(0, 35, 102, 0.08); --accent-primary: #003DA5; --accent-light: rgba(0, 61, 165, 0.08); --accent-gold: #D4AF37; --accent-gold-light: rgba(212, 175, 55, 0.15); --hero-bg: linear-gradient(135deg, #001f5c 0%, #003DA5 100%); --hero-text: #ffffff; --blob-1: #cce0ff; --blob-2: #ffeb99; --blob-3: #e0ebff; --cat-written: #10b981; --cat-perf: #3b82f6; --cat-exam: #e11d48; --item-bg: rgba(255, 255, 255, 0.8); --item-hover: rgba(255, 255, 255, 1); --item-border: rgba(0, 0, 0, 0.06); --score-bg: rgba(0, 0, 0, 0.03); --success: #10b981; --danger: #e11d48; }
         .dark-theme { --bg-body: #040914; --text-main: #f8fafc; --text-muted: #94a3b8; --glass-bg: rgba(10, 15, 30, 0.6); --glass-border: rgba(255, 255, 255, 0.06); --glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.04); --glass-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.8); --accent-primary: #3b82f6; --accent-light: rgba(59, 130, 246, 0.15); --accent-gold: #FCD34D; --accent-gold-light: rgba(252, 211, 77, 0.15); --hero-bg: linear-gradient(135deg, #020617 0%, #0f172a 100%); --hero-text: #ffffff; --blob-1: #001f5c; --blob-2: #422b00; --blob-3: #001233; --cat-written: #34d399; --cat-perf: #60a5fa; --cat-exam: #fb7185; --item-bg: rgba(0, 0, 0, 0.3); --item-hover: rgba(0, 0, 0, 0.5); --item-border: rgba(255, 255, 255, 0.08); --score-bg: rgba(0, 0, 0, 0.4); --success: #34d399; --danger: #fb7185; }
@@ -298,9 +299,6 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000);
         }
 
-        const namedStyle = document.createElement('style');
-        namedStyle.textContent='.standalone-credit{border:1px solid #bfdfc8!important;background:#f1faf2!important;border-left:5px solid #21a46f!important}.standalone-credit .credit-label{display:inline-flex;align-items:center;gap:6px;color:#166846;font-weight:800;font-size:10px;letter-spacing:.5px;text-transform:uppercase;background:#dff3e6;padding:5px 9px;border-radius:20px;margin-top:6px}.standalone-credit .credit-value{font-size:21px;font-weight:900;color:#137b50}.standalone-credit .credit-subtitle{display:block;color:#52735e;font-size:11px;margin-top:5px}.dark-theme .standalone-credit{background:#18342b!important;border-color:#366e53!important}.dark-theme .standalone-credit .credit-label{background:#26583d;color:#baf3ce}.dark-theme .standalone-credit .credit-subtitle{color:#adcfb9}';
-        document.head.appendChild(namedStyle);
         let scoresData = { midterm: { written: [], perf: [], exam: [] }, final: { written: [], perf: [], exam: [] } };
         let scoresMap = {};
         let incentiveEntries = [];
@@ -409,8 +407,11 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
                     extraCredits.forEach(entry=>{
                         const points = Number(entry.bonus_points) || 0;
                         totalScore += points;
-                        const type=entry.source==='manual'?'Plus points':'Recitation conversion';
-                        container.innerHTML += `<div class="activity-item standalone-credit" data-extra-credit-id="${escapeText(entry.entry_id||entry.entry_title)}"><div class="act-top"><div class="act-title-area"><h4>${escapeText(entry.entry_title||'Extra Credit')}</h4><span class="credit-label"><i class="ph-fill ph-gift"></i> New separate score item · ${type}</span><span class="credit-subtitle">Extra credit • Counts toward total, not the original examination mark</span></div><div class="act-score-area"><span class="credit-value">+${points}</span></div></div></div>`;
+                        const isManual = entry.source === 'manual';
+                        const type = isManual ? 'Plus points' : 'Recitation';
+                        const icon = isManual ? 'ph-fill ph-sparkle' : 'ph-fill ph-coin-vertical';
+                        const variant = isManual ? 'bonus-manual' : 'bonus-recitation';
+                        container.innerHTML += `<div class="activity-item standalone-credit ${variant}" data-extra-credit-id="${escapeText(entry.entry_id||entry.entry_title)}"><div class="act-top"><div class="bonus-credit-main"><span class="bonus-credit-icon" aria-hidden="true"><i class="${icon}"></i></span><div class="act-title-area"><span class="credit-label">${type}</span><h4>${escapeText(entry.entry_title||'Bonus points')}</h4></div></div><div class="act-score-area bonus-credit-amount" aria-label="${points} bonus points"><span class="credit-value">+${points}</span><span class="credit-unit">pts</span></div></div></div>`;
                     });
                 }
                 if(list.length === 0 && extraCredits.length === 0) container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No scores yet.</p>';

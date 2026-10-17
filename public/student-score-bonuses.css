@@ -1,0 +1,25 @@
+/* Named score credits | student-facing cards | PLV palette */
+.standalone-credit{
+  --bonus-edge:#d2a43b;--bonus-ink:#896317;--bonus-tint:rgba(212,175,55,.12);
+  background:linear-gradient(111deg,var(--bonus-tint),var(--item-bg) 64%)!important;
+  border:1px solid var(--item-border)!important;
+  border-left:4px solid var(--bonus-edge)!important;
+  border-radius:18px;
+  padding:19px 20px;
+  gap:0;
+  box-shadow:0 6px 20px rgba(0,35,102,.035);
+}
+.standalone-credit.bonus-manual{--bonus-edge:#3b82f6;--bonus-ink:#1254a9;--bonus-tint:rgba(59,130,246,.09)}
+.standalone-credit .act-top{align-items:center;gap:14px;min-width:0}
+.standalone-credit .bonus-credit-main{display:flex;align-items:center;gap:13px;min-width:0;flex:1}
+.standalone-credit .bonus-credit-icon{width:43px;height:43px;display:grid;place-items:center;flex:none;border-radius:13px;color:var(--bonus-ink);background:var(--bonus-tint);font-size:21px}
+.standalone-credit .act-title-area{min-width:0;flex:1}
+.standalone-credit .act-title-area h4{font-size:14px;line-height:1.45;letter-spacing:-.15px;font-weight:800;margin:4px 0 0;overflow-wrap:anywhere}
+.standalone-credit .credit-label{display:inline-block;color:var(--bonus-ink);font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.standalone-credit .bonus-credit-amount{display:flex;align-items:baseline;gap:5px;min-width:91px;padding:11px 13px;background:var(--score-bg);border:1px solid var(--item-border);border-radius:13px;box-shadow:none}
+.standalone-credit .credit-value{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.7px;color:#148058}
+.standalone-credit .credit-unit{font-size:11px;font-weight:750;color:var(--text-muted)}
+.dark-theme .standalone-credit{--bonus-edge:#ebc568;--bonus-ink:#f1d17b;--bonus-tint:rgba(252,211,77,.09)}
+.dark-theme .standalone-credit.bonus-manual{--bonus-edge:#7ca9f6;--bonus-ink:#a3c5ff;--bonus-tint:rgba(96,165,250,.12)}
+.dark-theme .standalone-credit .credit-value{color:#74dfb3}
+@media(max-width:540px){.standalone-credit{padding:15px 13px}.standalone-credit .bonus-credit-main{gap:10px}.standalone-credit .bonus-credit-icon{width:38px;height:38px;border-radius:11px;font-size:19px}.standalone-credit .bonus-credit-amount{min-width:70px;padding:9px}.standalone-credit .credit-value{font-size:20px}.standalone-credit .act-title-area h4{font-size:13px}}
