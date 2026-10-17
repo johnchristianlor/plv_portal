@@ -250,7 +250,8 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
         window.logout = async function() {
             studentSessionGuard.stop();
             await studentPresence.stop();
-            try { await supabase.auth.signOut(); } catch (error) {}
+            try { await supabase.rpc('student_log_portal_session_event',{p_student_no:user.studentNo,p_session_token:user.activeSessionToken||user.sessionToken||'',p_action:'logout'}); } catch (auditError) { console.warn('Student sign-out history unavailable',auditError); }
+        try { await supabase.auth.signOut(); } catch (error) {}
             localStorage.removeItem('loggedInUser');
             window.location.href = 'index.html';
         };

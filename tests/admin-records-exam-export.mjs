@@ -6,6 +6,7 @@ import {
   summarizeExamPoints, uniqueSheetName, sortRecordRows, escapeCsvCell,
   buildActivityExportHeader, buildExamTotalHeader, formatExportMaximum, excelColumnName, excelScoreNumberFormat,
 } from '../public/admin-records-utils.mjs';
+import {namedIncentiveColumns,namedIncentiveValue} from '../public/exam-incentive-utils.mjs';
 
 const activities = [
   {id:'lab-mid',section:'A',subjectCode:'IT101',term:'midterm',category:'exam',perfectScore:50,title:'L-EXAM'},
@@ -93,7 +94,7 @@ class Workbook {
   constructor(){this.worksheets=[];this.xlsx={writeBuffer:async()=>new Uint8Array([80,75,3,4])};}
   addWorksheet(name,opts){const sh=new Sheet(name,opts);this.worksheets.push(sh);return sh;}
 }
-function setupExport({format='xlsx',includeExam=true,includeActivities=true,includePercent=false,includeGrades=false,section='',subject='' }={}){
+function setupExport({format='xlsx',includeExam=true,includeActivities=true,includePercent=false,includeGrades=false,section='',subject='',namedEntries=[] }={}){
   const opts={expSection:section,expSubject:subject,expOrder:'name_asc',
     expRanking:false,expActivities:includeActivities,expGrades:includeGrades,
     expStatus:false,expPercent:includePercent,expExamTotals:includeExam};
@@ -119,6 +120,7 @@ function setupExport({format='xlsx',includeExam=true,includeActivities=true,incl
       rank:1,status:'Passed'})),
     assignRanks:x=>x,sortRecordRows,escapeCsvCell,summarizeExamPoints,uniqueSheetName,
     buildActivityExportHeader,buildExamTotalHeader,formatExportMaximum,excelColumnName,excelScoreNumberFormat,
+    namedIncentiveColumns,namedIncentiveValue,namedBonusEntries:namedEntries,
     setTimeout:()=>{},console,Date,
   };
   // Keep track of the created workbook without opening a real browser.
@@ -139,7 +141,7 @@ test('Styled Excel has one class sheet, colored headers, four exams and one comp
     'Student No.','Student Name',
     '[MID] L-EXAM (/50)','[MID] Written Exam (/100)',
     '[FIN] Lab Final (/40)','[FIN] Written Final (/60)',
-    '[FIN] Homework (/30)','EXAMS TOTAL (/250)',
+    '[FIN] Homework (/30)','EXAMS + BONUS TOTAL (/250)',
   ]);
   assert.equal(h.filter(header=>/Exam Max|Exam Points|Pending|Combined Exam %/.test(header)).length,0);
   assert.equal(ws.getRow(1).getCell(3).fill.fgColor.argb,'FF174EA6');
@@ -168,14 +170,14 @@ test('Exported subject/section sheets never mix class exam maxima',async()=>{
   assert.equal(workbook.worksheets.length,2);  // no duplicate "Exam Totals" sheet
   assert.match(workbook.worksheets[0].name,/IT101 - A/);
   assert.match(workbook.worksheets[1].name,/IT101 - B/);
-  assert.equal(workbook.worksheets[1].getRow(1).getCell(4).value,'EXAMS TOTAL (/200)');
+  assert.equal(workbook.worksheets[1].getRow(1).getCell(4).value,'EXAMS + BONUS TOTAL (/200)');
   assert.equal(workbook.worksheets[1].getRow(2).getCell(4).value.result,190);
 });
 
 test('Combined exam score works without individual score columns',async()=>{
   const {workbook}=await setupExport({includeActivities:false,section:'A'});
   const ws=workbook.worksheets[0];
-  assert.deepEqual(Array.from(ws.getRow(1).cells,c=>c.value),['Student No.','Student Name','EXAMS TOTAL (/250)']);
+  assert.deepEqual(Array.from(ws.getRow(1).cells,c=>c.value),['Student No.','Student Name','EXAMS + BONUS TOTAL (/250)']);
   assert.equal(ws.getRow(2).getCell(3).value,169);
 });
 
@@ -203,7 +205,29 @@ test('CSV stays numeric and compact, with section columns to distinguish classes
   assert.ok(blob[0].startsWith('\uFEFF'));
   const lines=blob[0].slice(1).split('\r\n');
   assert.equal(lines.length,4);
-  assert.ok(lines[0].includes('EXAMS TOTAL (max varies by class)'));
+  assert.ok(lines[0].includes('EXAMS + BONUS TOTAL (max varies by class)'));
   assert.match(lines[1],/s1,Ana,A,IT101,169$/);
   assert.match(lines[3],/s2,Ben,A,IT101,0$/);
+});
+
+test('Titled recitation and plus-point entries occupy distinct Excel columns without changing raw exam cells',async()=>{
+ const namedEntries=[
+ {activity_id:'lab-mid',student_no:'s1',entry_title:'Attendance Incentive',source:'manual',bonus_points:2},
+ {activity_id:'lab-mid',student_no:'s1',entry_title:'Recitation Bonus',source:'recitation_manual',bonus_points:3},
+ {activity_id:'lab-mid',student_no:'s2',entry_title:'Recitation Bonus',source:'recitation_manual',bonus_points:1},
+ {activity_id:'other-class',student_no:'s1',entry_title:'Not this class',source:'manual',bonus_points:99},
+ ];
+ const {workbook}=await setupExport({section:'A',subject:'IT101',namedEntries});
+ const ws=workbook.worksheets[0];
+ const headers=ws.getRow(1).cells.map(c=>c.value);
+ assert.ok(headers.some(h=>h.includes('Attendance Incentive')&&h.includes('PLUS POINTS')));
+ assert.ok(headers.some(h=>h.includes('Recitation Bonus')&&h.includes('RECITATION')));
+ assert.equal(ws.getRow(2).getCell(3).value,40); // unchanged raw exam
+ assert.equal(ws.getRow(2).getCell(headers.findIndex(h=>h.includes('Attendance Incentive'))+1).value,2);
+ assert.equal(ws.getRow(2).getCell(headers.findIndex(h=>h.includes('Recitation Bonus'))+1).value,3);
+ const total=ws.getRow(2).getCell(headers.findIndex(h=>h.startsWith('EXAMS + BONUS TOTAL'))+1).value;
+ assert.equal(total.result,174); // raw 169 + manual 2 + recitation 3
+ assert.match(total.formula,/SUM\(/);
+ const ben=ws.getRow(3).getCell(headers.findIndex(h=>h.startsWith('EXAMS + BONUS TOTAL'))+1).value;
+ assert.equal(ben.result,1); // pending raw exam marks must not erase earned bonus
 });

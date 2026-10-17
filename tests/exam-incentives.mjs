@@ -17,11 +17,11 @@ test('bonuses are summed per student and per activity without mixing sections',(
   assert.equal(map.get(examBonusKey('lab-01','B')),5);
   assert.equal(map.get(examBonusKey('lab-02','A')),9);
 });
-test('exam effective points are capped; the raw mark remains unmodified',()=>{
+test('raw exam marks are never adjusted by named extras',()=>{
   const raw={activityId:'lab-01',studentNo:'A',score:37};
-  assert.equal(effectiveExamScore(exam,raw.score,5),40);
+  assert.equal(effectiveExamScore(exam,raw.score,5),37);
   assert.equal(raw.score,37);
-  assert.equal(effectiveExamScore(exam,0,3),3);
+  assert.equal(effectiveExamScore(exam,0,3),0);
   assert.equal(effectiveExamScore(exam,null,5),null);
   assert.equal(effectiveExamScore(written,8,9),8);
   assert.equal(effectiveExamScore(exam,38,0),38);
@@ -33,11 +33,14 @@ test('combined exam totals correctly reflect bonuses but preserve pending entrie
     [{studentNo:'A',studentName:'Ana'},{studentNo:'B',studentName:'Ben'}],
     [{activity_id:'lab-01',student_no:'A',bonus_points:5},{activity_id:'written-01',student_no:'B',bonus_points:3}]
   );
-  assert.equal(rows.rows[0].earned,40);
+  assert.equal(rows.rows[0].earned,43);
+  assert.equal(rows.rows[0].rawEarned,38);
+  assert.equal(rows.rows[0].bonusEarned,5);
   assert.equal(rows.rows[0].pending,1);
   assert.equal(rows.rows[0].components[0].rawScore,38);
   assert.equal(rows.rows[0].components[0].bonus,5);
-  assert.equal(rows.rows[1].earned,0);
+  assert.equal(rows.rows[1].earned,3);
+  assert.equal(rows.rows[1].rawEarned,0);
   assert.equal(rows.rows[1].pending,1);
   assert.equal(rows.rows[1].components[1].bonus,3);
 });

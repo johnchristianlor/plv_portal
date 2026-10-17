@@ -469,6 +469,11 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
 
             await updateUserByStudentNo(userData.studentNo, { isOnline: true });
             localStorage.setItem('loggedInUser', JSON.stringify(userData));
+            if(userData.activeSessionToken || userData.sessionToken){
+                try { await supabase.rpc('student_log_portal_session_event',{
+                    p_student_no:userData.studentNo,p_session_token:userData.activeSessionToken||userData.sessionToken,p_action:'login'
+                }); } catch(auditError){ console.warn('Student login audit unavailable',auditError); }
+            }
             window.showToast('Login Successful!');
             setTimeout(() => window.location.href = 'student-dashboard.html', 1000);
         } catch (error) {
@@ -544,6 +549,9 @@ body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; heigh
             pendingUser.password = newPass;
             pendingUser.isFirstLogin = false;
             localStorage.setItem('loggedInUser', JSON.stringify(pendingUser));
+            try { await supabase.rpc('student_log_portal_session_event',{
+                p_student_no:pendingUser.studentNo,p_session_token:pendingUser.activeSessionToken,p_action:'login'
+            }); } catch(auditError){ console.warn('First login audit unavailable',auditError); }
             setTimeout(() => window.location.href = 'student-dashboard.html', 1500);
         } catch (err) {
             console.error(err);

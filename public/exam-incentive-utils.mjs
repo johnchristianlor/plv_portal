@@ -13,16 +13,40 @@ export function bonusMapFromRows(rows = []) {
   return map;
 }
 export function effectiveExamScore(activity, rawScore, bonus = 0) {
-  // A pending raw score stays pending even if an incentive has already been earned.
+  // Raw examination marks MUST stay independent of named extra credits.
   if (rawScore === null || rawScore === undefined || rawScore === '') return null;
   const raw = Number(rawScore);
-  if (!Number.isFinite(raw)) return null;
-  if (activity?.category !== 'exam') return raw;
-  const maximum = Number(activity.perfectScore);
-  const extra = Math.max(0, Number(bonus) || 0);
-  return Number.isFinite(maximum) && maximum >= 0
-    ? Math.min(maximum, Math.max(0, raw + extra))
-    : raw + extra;
+  return Number.isFinite(raw) ? raw : null;
+}
+
+// A bonus line belongs to an existing exam class, but is not part of the raw exam.
+export function namedIncentiveColumns(rows = [], activityIds = []) {
+  const allowed = new Set(activityIds.map(String));
+  const values = new Map();
+  for (const r of rows) {
+    if (!allowed.has(String(r.activity_id))) continue;
+    const title = String(r.entry_title || 'Exam Incentive').trim();
+    const source = String(r.source || 'manual');
+    const key = `${r.activity_id}||${source}||${title}`;
+    if (!values.has(key)) values.set(key, {key,activityId:String(r.activity_id),title,source});
+  }
+  return [...values.values()].sort((a,b)=> a.title.localeCompare(b.title)||a.activityId.localeCompare(b.activityId));
+}
+export function namedIncentiveValue(rows, studentNo, column) {
+  return (rows || []).filter(r=>String(r.student_no)===String(studentNo) &&
+    String(r.activity_id)===column.activityId && String(r.source)===column.source &&
+    String(r.entry_title || 'Exam Incentive').trim()===column.title)
+    .reduce((sum,r)=>sum+(Number(r.bonus_points)||0),0);
+}
+export async function fetchNamedIncentiveEntries(supabase, params) {
+  const rows=[];
+  for(let start=0;start<100000;start+=1000){
+    const {data,error}=await supabase.rpc('get_named_exam_incentive_entries',params).range(start,start+999);
+    if(error)throw error;
+    rows.push(...(data||[]));
+    if(!data||data.length<1000)return rows;
+  }
+  throw new Error('Named incentive report too large to export safely.');
 }
 
 // Supabase/PostgREST commonly limits a single response to 1,000 rows.

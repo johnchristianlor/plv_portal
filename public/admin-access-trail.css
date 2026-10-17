@@ -35,3 +35,16 @@
 .admin-dashboard-page.dark-theme .audit-pill.in{background:#1a4230;color:#a4edc1;border-color:#2e6f4d}.admin-dashboard-page.dark-theme .audit-pill.out{background:#4b3025;color:#ffd0b2;border-color:#7b4c36}
 @media(max-width:900px){.admin-dashboard-page .audit-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.admin-dashboard-page .audit-panel{padding:24px}}
 @media(max-width:600px){.admin-dashboard-page .audit-panel{padding:19px 15px;border-radius:22px}.admin-dashboard-page .audit-head{flex-wrap:wrap;align-items:flex-start}.admin-dashboard-page .audit-refresh{width:100%}.admin-dashboard-page .audit-stats{gap:7px}.admin-dashboard-page .audit-stat{flex-direction:column;align-items:flex-start;padding:13px 9px;gap:8px;border-radius:13px}.admin-dashboard-page .audit-stat-icon{width:33px;height:33px;font-size:16px;border-radius:10px}.admin-dashboard-page .audit-stat strong{font-size:23px}.admin-dashboard-page .audit-stat small{font-size:10px}.admin-dashboard-page .audit-section-title{align-items:flex-start}.admin-dashboard-page .audit-table{min-width:535px}}
+
+/* All-account audit filters share the existing dashboard glass-card language. */
+.admin-dashboard-page .audit-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:22px 0 18px;align-items:end}
+.admin-dashboard-page .audit-filters label{display:flex;flex-direction:column;gap:7px;font-weight:750;font-size:11px;color:var(--text-muted);min-width:0}
+.admin-dashboard-page .audit-filters input,.admin-dashboard-page .audit-filters select{min-width:0;width:100%;min-height:43px;border-radius:12px;border:1px solid var(--glass-border);background:var(--glass-bg);color:var(--text-main);padding:9px 12px;font:inherit;font-size:12px}
+.admin-dashboard-page .audit-filters .audit-search-label{grid-column:span 3}
+.admin-dashboard-page .audit-filters .audit-clear{height:43px}
+.admin-dashboard-page .audit-role{display:inline-flex;margin-top:5px;font-size:10px;font-weight:800;border-radius:7px;padding:3px 7px;background:var(--accent-light);color:var(--accent-primary)}
+.admin-dashboard-page .audit-role.student{color:#705200;background:#fff0b6}.admin-dashboard-page.dark-theme .audit-role.student{background:#51421d;color:#ffe093}
+.admin-dashboard-page .audit-pagination{display:flex;justify-content:flex-end;align-items:center;gap:12px;padding-top:14px;flex-wrap:wrap;font-weight:800;font-size:11px;color:var(--text-muted)}
+.admin-dashboard-page .audit-pagination button:disabled{opacity:.35;cursor:not-allowed}
+@media(max-width:850px){.admin-dashboard-page .audit-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-dashboard-page .audit-filters .audit-search-label{grid-column:span 1}}
+@media(max-width:540px){.admin-dashboard-page .audit-filters{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.admin-dashboard-page .audit-filters .audit-search-label{grid-column:span 2}.admin-dashboard-page .audit-filters .audit-clear{grid-column:span 2;width:100%}}

@@ -1,4 +1,5 @@
 import { getConversionStatus } from './recitation-conversion-status.mjs';
+import { fetchNamedIncentiveEntries } from './exam-incentive-utils.mjs';
 import { supabase } from './supabase-adapter.js';
 import { startStudentPresence } from './student-presence.js';
 import { startStudentSessionGuard } from './student-session.js';
@@ -169,11 +170,12 @@ async function loadExamConversionStatus() {
     throw error;
   }
   const rows=data||[];
+  const named = await fetchNamedIncentiveEntries(supabase, {p_student_no:user.studentNo,p_student_session_token:sessionToken});
   const total=rows.reduce((sum,r)=>sum+Number(r.converted_points||0),0);
-  $('conversionFooter').textContent=`${number(total)} exam point${total===1?'':'s'} converted across ${rows.length} configured exam${rows.length===1?'':'s'}. Your wallet chips are shared across subjects; converting to one exam reduces the chips available for other exams.`;
+  $('conversionFooter').textContent=`${number(total)} exam point${total===1?'':'s'} converted as separate credits across ${rows.length} configured exam${rows.length===1?'':'s'}. Your wallet chips are shared across subjects; converting to one exam reduces the chips available for other exams.`;
   table.innerHTML=rows.map(r=>{
     const raw=r.raw_score==null?0:Number(r.raw_score);
-    const headroom=Math.max(0,Math.floor(Number(r.exam_max||0)-raw-Number(r.total_bonus||0)));
+    const headroom=100000; // Conversion adds independent bonus lines, not raw exam marks.
     const state=getConversionStatus({balance:r.wallet_balance,rate:r.recitation_rate,converted:r.converted_points,headroom});
     const balance=Math.max(0,Math.floor(Number(r.wallet_balance)||0));
     const rate=Math.max(1,Math.floor(Number(r.recitation_rate)||1));
@@ -184,8 +186,9 @@ async function loadExamConversionStatus() {
     const subject=[r.subject_code,r.section,r.term].filter(Boolean).join(' · ');
     return `<article class="conversion-item ${state.kind}" role="listitem" aria-label="${escapeHtml(r.exam_title||'Exam')}: ${escapeHtml(state.label)}">
       <header class="conversion-item-head"><span class="conversion-exam-icon" aria-hidden="true"><i class="ph-fill ph-exam"></i></span><div class="conversion-exam"><strong>${escapeHtml(r.exam_title||'Exam')}</strong><small>${escapeHtml(subject)}</small></div><span class="conversion-badge ${state.kind}"><i class="ph-fill ${state.kind==='converted'?'ph-check-circle':'ph-circle'}"></i> ${escapeHtml(state.label)}</span></header>
-      <div class="conversion-item-body"><div class="conversion-chip-summary"><span class="conversion-chip-badge"><i class="ph-fill ph-coin-vertical" aria-hidden="true"></i><strong>${number(balance)}</strong><small>wallet chips</small></span><div class="conversion-rate"><span>CONVERSION RATE</span><strong>${number(rate)} chips <i class="ph-bold ph-arrow-right" aria-hidden="true"></i> +1 exam point</strong><small>${escapeHtml(state.description)}</small></div></div>
-      <div class="conversion-item-metrics"><div><small>Exam points received</small><strong class="conversion-earned">+${number(converted)}</strong></div><div><small>Chips previously spent</small><strong>${number(spent)}</strong></div><div><small>Ready for approval</small><strong>+${number(state.convertible)}</strong></div></div></div>
+      <div class="conversion-item-body"><div class="conversion-chip-summary"><span class="conversion-chip-badge"><i class="ph-fill ph-coin-vertical" aria-hidden="true"></i><strong>${number(balance)}</strong><small>wallet chips</small></span><div class="conversion-rate"><span>CONVERSION RATE</span><strong>${number(rate)} chips <i class="ph-bold ph-arrow-right" aria-hidden="true"></i> +1 extra-credit point</strong><small>${escapeHtml(state.description)}</small></div></div>
+      <div class="conversion-item-metrics"><div><small>Separate recitation bonus</small><strong class="conversion-earned">+${number(converted)}</strong></div><div><small>Chips previously spent</small><strong>${number(spent)}</strong></div><div><small>Ready for approval</small><strong>+${number(state.convertible)}</strong></div></div></div>
+      <div class="named-incentive-list">${named.filter(entry=>String(entry.activity_id)===String(r.activity_id)).map(entry=>`<div class="named-incentive-row"><span><i class="ph-fill ph-gift"></i> ${escapeHtml(entry.entry_title)}</span><strong>+${number(entry.bonus_points)}</strong></div>`).join('') || '<small>No separately named bonuses recorded yet.</small>'}</div>
       <footer class="conversion-item-foot"><span><i class="ph-bold ph-shield-check" aria-hidden="true"></i> ${number(retained)} chip${retained===1?'':'s'} remain if eligible points are converted</span><span>${r.last_converted_at?'Last approved: '+escapeHtml(dateTime(r.last_converted_at)):'No approved conversion yet'}</span></footer>
     </article>`;
   }).join('')||'<div class="conversion-empty">Your instructor has not set up any exam conversion rules yet. Recitation chips stay in your wallet.</div>';
@@ -315,7 +318,8 @@ function initTheme() {
 
 window.logout = async () => {
   studentSessionGuard.stop(); await studentPresence.stop();
-  try { await supabase.auth.signOut(); } catch (error) {}
+  try { await supabase.rpc('student_log_portal_session_event',{p_student_no:user.studentNo,p_session_token:user.activeSessionToken||user.sessionToken||'',p_action:'logout'}); } catch (auditError) { console.warn('Student sign-out history unavailable',auditError); }
+        try { await supabase.auth.signOut(); } catch (error) {}
   localStorage.removeItem('loggedInUser'); window.location.href = 'index.html';
 };
 
@@ -338,3 +342,5 @@ Promise.all([loadWallet(), loadActivity(), loadRecipients(''),loadExamConversion
   showToast(friendlyError(error), 'err');
   $('activityList').innerHTML = '<div class="empty"><i class="ph ph-warning-circle"></i><b>Could not load Recitation</b><span>Please refresh after the database update is installed.</span></div>';
 });
+
+/* Named extra-credit history is rendered in each student recitation card. */

@@ -18,16 +18,17 @@ export function aggregateExamTotals(exams, scores, students, bonusRows = []) {
     activities,
     rows: (students || []).map(student => {
       const studentNo = String(student.studentNo || '').trim();
-      let earned = 0, pending = 0;
+      let earned = 0, bonusEarned = 0, pending = 0;
       const components = activities.map(activity => {
         const raw = keyed.get(`${activity.id}|${studentNo}`);
         const bonus = bonuses.get(examBonusKey(activity.id, studentNo)) || 0;
-        const score = effectiveExamScore(activity, raw, bonus);
+        const score = effectiveExamScore(activity, raw);
+        bonusEarned += bonus;
         if (score === null) pending++;
         else earned += score;
         return { id: activity.id, title: activity.title, score, rawScore: raw ?? null, bonus, maximum: Number(activity.perfectScore) };
       });
-      return { studentNo, studentName: student.studentName || '', earned, maxScore, pending, percentage: maxScore ? earned / maxScore * 100 : null, components };
+      return { studentNo, studentName: student.studentName || '', earned:earned+bonusEarned, rawEarned:earned, bonusEarned, maxScore, pending, percentage: maxScore ? (earned+bonusEarned) / maxScore * 100 : null, components };
     })
   };
 }

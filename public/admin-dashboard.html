@@ -214,17 +214,26 @@ body.dark-theme .theme-toggle::after{background:radial-gradient(circle, rgba(96,
             <header class="audit-head">
                 <div class="audit-head-main">
                     <div class="audit-icon" aria-hidden="true"><i class="ph-fill ph-shield-check"></i></div>
-                    <div class="audit-intro"><span class="audit-eyebrow">SECURITY & ACCOUNTABILITY</span><h3 id="auditHeading">Administrator Access Trail</h3><p>Track administrator sign-ins and sign-outs across the portal.</p></div>
+                    <div class="audit-intro"><span class="audit-eyebrow">SECURITY & ACCOUNTABILITY</span><h3 id="auditHeading">Portal Access Trail</h3><p>Track administrator and student sign-ins and sign-outs, with searchable records and date filters.</p></div>
                 </div>
                 <button class="audit-refresh" id="auditRefresh" type="button"><i class="ph-bold ph-arrow-clockwise" aria-hidden="true"></i><span>Refresh history</span></button>
             </header>
             <div class="audit-stats" aria-label="Access activity summary">
-                <div class="audit-stat"><span class="audit-stat-icon login"><i class="ph-bold ph-sign-in" aria-hidden="true"></i></span><div><small>Sign-ins</small><strong id="auditSignins">—</strong></div></div>
-                <div class="audit-stat"><span class="audit-stat-icon logout"><i class="ph-bold ph-sign-out" aria-hidden="true"></i></span><div><small>Sign-outs</small><strong id="auditSignouts">—</strong></div></div>
-                <div class="audit-stat"><span class="audit-stat-icon events"><i class="ph-bold ph-clock-counter-clockwise" aria-hidden="true"></i></span><div><small>Recent events</small><strong id="auditEvents">—</strong></div></div>
+                <div class="audit-stat"><span class="audit-stat-icon login"><i class="ph-bold ph-sign-in" aria-hidden="true"></i></span><div><small>Sign-ins on page</small><strong id="auditSignins">—</strong></div></div>
+                <div class="audit-stat"><span class="audit-stat-icon logout"><i class="ph-bold ph-sign-out" aria-hidden="true"></i></span><div><small>Sign-outs on page</small><strong id="auditSignouts">—</strong></div></div>
+                <div class="audit-stat"><span class="audit-stat-icon events"><i class="ph-bold ph-clock-counter-clockwise" aria-hidden="true"></i></span><div><small>Matching events</small><strong id="auditEvents">—</strong></div></div>
             </div>
-            <div class="audit-section-title"><div><strong>Recent activity</strong><span>Latest 50 records · Philippine Standard Time</span></div><span class="audit-secure"><i class="ph-fill ph-lock-key"></i> Admin only</span></div>
-            <div class="audit-wrap" role="region" aria-label="Scrollable administrator access records" tabindex="0"><table class="audit-table"><thead><tr><th>Administrator</th><th>Activity</th><th>Date & time (PH)</th></tr></thead><tbody id="accessHistoryRows"><tr><td colspan="3" class="audit-empty">Loading administrator events…</td></tr></tbody></table></div>
+            <form class="audit-filters" id="auditFilters" autocomplete="off" aria-label="Filter account access history">
+              <label>From date<input id="auditFrom" type="date"></label>
+              <label>To date<input id="auditTo" type="date"></label>
+              <label>Account type<select id="auditRole"><option value="">All accounts</option><option value="student">Students</option><option value="admin">Administrators</option></select></label>
+              <label>Activity<select id="auditAction"><option value="">All activity</option><option value="login">Sign-in</option><option value="logout">Sign-out</option></select></label>
+              <label class="audit-search-label">Name or email<input id="auditSearch" type="search" placeholder="Search account…"></label>
+              <button type="button" id="auditClear" class="audit-refresh audit-clear">Reset filters</button>
+            </form>
+            <div class="audit-section-title"><div><strong>Recent activity</strong><span>All accounts · Philippine Standard Time</span></div><span class="audit-secure"><i class="ph-fill ph-lock-key"></i> Visible to administrators</span></div>
+            <div class="audit-wrap" role="region" aria-label="Scrollable account access records" tabindex="0"><table class="audit-table"><thead><tr><th>Account & role</th><th>Activity</th><th>Date & time (PH)</th></tr></thead><tbody id="accessHistoryRows"><tr><td colspan="3" class="audit-empty">Loading portal events…</td></tr></tbody></table></div>
+            <div class="audit-pagination"><button id="auditPrevious" class="audit-refresh" type="button">Previous</button><span id="auditPage">Page 1</span><button id="auditNext" class="audit-refresh" type="button">Next</button></div>
             <footer class="audit-note" id="auditNote">Times are shown in Philippine Standard Time (UTC+8). Events are stored securely in the database.</footer>
         </section>
     </main>
@@ -271,42 +280,58 @@ const user = JSON.parse(localStorage.getItem('loggedInUser'));
         setInterval(fetchStats, 30 * 1000);
 
         const auditSafe = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        async function loadAdminAccessTrail() {
-            const area = document.getElementById('accessHistoryRows');
-            const note = document.getElementById('auditNote');
-            const sessionToken = user?.activeSessionToken || user?.sessionToken || '';
-            try {
-                const { data, error } = await supabase.rpc('admin_get_session_history', {
-                    p_admin_session_token: sessionToken, p_limit: 50
-                });
-                if (error) throw error;
-                const records = Array.isArray(data) ? data : [];
-                document.getElementById('auditSignins').textContent = records.filter(event => event.action === 'login').length.toLocaleString('en-PH');
-                document.getElementById('auditSignouts').textContent = records.filter(event => event.action === 'logout').length.toLocaleString('en-PH');
-                document.getElementById('auditEvents').textContent = records.length.toLocaleString('en-PH');
-                const dateFormatter = new Intl.DateTimeFormat('en-PH', {timeZone:'Asia/Manila',month:'short',day:'numeric',year:'numeric'});
-                const timeFormatter = new Intl.DateTimeFormat('en-PH', {timeZone:'Asia/Manila',hour:'numeric',minute:'2-digit',second:'2-digit'});
-                area.innerHTML = records.map(event => {
-                    const signedOut = event.action === 'logout';
-                    const date = new Date(event.created_at);
-                    const validDate = !Number.isNaN(date.getTime());
-                    const name = String(event.actor_name || 'Administrator');
-                    const initials = name.trim().split(/\s+/).slice(0,2).map(part=>part[0]||'').join('').toUpperCase();
-                    return `<tr>
-                      <td><div class="audit-person"><span class="audit-avatar" aria-hidden="true">${auditSafe(initials)}</span><span class="audit-identity"><b>${auditSafe(name)}</b><small>${auditSafe(event.actor_email || 'Administrator')}</small></span></div></td>
-                      <td><span class="audit-pill ${signedOut ? 'out' : 'in'}"><i class="ph-bold ${signedOut ? 'ph-sign-out' : 'ph-sign-in'}" aria-hidden="true"></i>${signedOut ? 'Signed out' : 'Signed in'}</span></td>
-                      <td><div class="audit-datetime"><strong>${validDate ? auditSafe(dateFormatter.format(date)) : 'Date unavailable'}</strong><small>${validDate ? auditSafe(timeFormatter.format(date)) : '—'} PHT</small></div></td>
-                    </tr>`;
-                }).join('') || '<tr><td colspan="3" class="audit-empty">No administrator events recorded yet.</td></tr>';
-                note.textContent = `Showing ${records.length} most recent administrator event${records.length === 1 ? '' : 's'} · Philippine Standard Time (UTC+8) · Stored securely on the server.`;
-            } catch (error) {
-                console.warn('Could not load admin access log', error);
-                ['auditSignins','auditSignouts','auditEvents'].forEach(id => { document.getElementById(id).textContent = '—'; });
-                area.innerHTML = '<tr><td colspan="3" class="audit-empty">Access history is currently unavailable. Check administrator permissions and the Supabase migration.</td></tr>';
-                note.textContent = 'No records were changed. Refresh after confirming database access.';
-            }
+        let auditPage=0;
+        let auditTotal=0;
+        let auditRequest=0;
+        const auditSize=50;
+        const auditDateFormatter = new Intl.DateTimeFormat('en-PH',{timeZone:'Asia/Manila',month:'short',day:'numeric',year:'numeric'});
+        const auditTimeFormatter = new Intl.DateTimeFormat('en-PH',{timeZone:'Asia/Manila',hour:'numeric',minute:'2-digit',second:'2-digit'});
+        async function loadAdminAccessTrail(){
+          const request=++auditRequest;
+          const area=document.getElementById('accessHistoryRows');
+          const note=document.getElementById('auditNote');
+          const values=id=>document.getElementById(id).value.trim()||null;
+          const from=values('auditFrom'), to=values('auditTo');
+          if(from&&to&&from>to){note.textContent='The start date must not be later than the end date.';return;}
+          area.innerHTML='<tr><td colspan="3" class="audit-empty">Loading activity…</td></tr>';
+          try{
+            const {data,error}=await supabase.rpc('admin_get_portal_access_trail',{
+              p_admin_session_token:user?.activeSessionToken||user?.sessionToken||'',
+              p_date_from:from,p_date_to:to,p_role:values('auditRole'),p_action:values('auditAction'),
+              p_search:values('auditSearch'),p_limit:auditSize,p_offset:auditPage*auditSize
+            });
+            if(request!==auditRequest)return;
+            if(error)throw error;
+            const records=Array.isArray(data)?data:[];
+            auditTotal=Number(records[0]?.total_count||0);
+            document.getElementById('auditSignins').textContent=String(records.filter(e=>e.action==='login').length);
+            document.getElementById('auditSignouts').textContent=String(records.filter(e=>e.action==='logout').length);
+            document.getElementById('auditEvents').textContent=auditTotal.toLocaleString('en-PH');
+            area.innerHTML=records.map(e=>{
+              const name=String(e.actor_name||'Unknown');
+              const initials=name.split(/\s+/).slice(0,2).map(v=>v[0]||'').join('').toUpperCase();
+              const date=new Date(e.created_at), valid=!Number.isNaN(date.getTime());
+              const signedOut=e.action==='logout';
+              return `<tr><td><div class="audit-person"><span class="audit-avatar" aria-hidden="true">${auditSafe(initials)}</span><span class="audit-identity"><b>${auditSafe(name)}</b><small>${auditSafe(e.actor_email||'—')}</small><span class="audit-role ${e.actor_role==='student'?'student':'admin'}">${e.actor_role==='student'?'Student':'Administrator'}</span></span></div></td><td><span class="audit-pill ${signedOut?'out':'in'}"><i class="ph-bold ${signedOut?'ph-sign-out':'ph-sign-in'}"></i>${signedOut?'Signed out':'Signed in'}</span></td><td><div class="audit-datetime"><strong>${valid?auditSafe(auditDateFormatter.format(date)):'Date unavailable'}</strong><small>${valid?auditSafe(auditTimeFormatter.format(date)):'—'} PHT</small></div></td></tr>`;
+            }).join('')||'<tr><td colspan="3" class="audit-empty">No account activity matches these filters.</td></tr>';
+            document.getElementById('auditPrevious').disabled=auditPage===0;
+            document.getElementById('auditNext').disabled=(auditPage+1)*auditSize>=auditTotal;
+            document.getElementById('auditPage').textContent=`Page ${auditPage+1}${auditTotal?' · '+auditTotal.toLocaleString('en-PH')+' matching':''}`;
+            note.textContent=`${records.length} events on this page · ${auditTotal.toLocaleString('en-PH')} matching records · Philippine Standard Time (UTC+8). Sign-outs require use of the Logout button; browser/tab closure is not a recorded sign-out.`;
+          }catch(error){
+            console.warn('Portal trail unavailable',error);
+            area.innerHTML='<tr><td colspan="3" class="audit-empty">Access history unavailable. Apply the named-incentives and all-user audit SQL upgrade.</td></tr>';
+            note.textContent='No audit records were changed.';
+          }
         }
-        document.getElementById('auditRefresh').addEventListener('click', loadAdminAccessTrail);
+        let auditSearchTimer;
+        document.getElementById('auditFilters').addEventListener('submit',e=>e.preventDefault());
+        ['auditFrom','auditTo','auditRole','auditAction'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{auditPage=0;loadAdminAccessTrail();}));
+        document.getElementById('auditSearch').addEventListener('input',()=>{clearTimeout(auditSearchTimer);auditSearchTimer=setTimeout(()=>{auditPage=0;loadAdminAccessTrail();},300);});
+        document.getElementById('auditClear').addEventListener('click',()=>{document.getElementById('auditFilters').reset();auditPage=0;loadAdminAccessTrail();});
+        document.getElementById('auditPrevious').addEventListener('click',()=>{if(auditPage>0){auditPage--;loadAdminAccessTrail();}});
+        document.getElementById('auditNext').addEventListener('click',()=>{if((auditPage+1)*auditSize<auditTotal){auditPage++;loadAdminAccessTrail();}});
+        document.getElementById('auditRefresh').addEventListener('click',loadAdminAccessTrail);
         loadAdminAccessTrail();
 
         const themeToggleBtn = document.getElementById('themeToggle'); const themeIcon = document.getElementById('themeIcon'); const body = document.body;

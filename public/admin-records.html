@@ -1222,13 +1222,13 @@ import { startAdminSessionGuard } from "./admin-session.js";
 import { loadVendor } from "./vendor-loader.v2.js";
 import { escapeCsvCell, sortRecordRows, summarizeExamPoints, uniqueSheetName, buildActivityExportHeader, buildExamTotalHeader, formatExportMaximum, excelColumnName, excelScoreNumberFormat } from "./admin-records-utils.mjs";
 import { assignClassStanding, sortClassStanding } from "./class-standing-utils.mjs";
-import { bonusMapFromRows, examBonusKey, effectiveExamScore, fetchExamIncentiveTotals } from "./exam-incentive-utils.mjs";
+import { bonusMapFromRows, examBonusKey, effectiveExamScore, fetchExamIncentiveTotals, fetchNamedIncentiveEntries, namedIncentiveColumns, namedIncentiveValue } from "./exam-incentive-utils.mjs";
 const _u=JSON.parse(localStorage.getItem('loggedInUser'));
 if(!_u||_u.role!=='admin')location.href='index.html';
 const adminSessionGuard = startAdminSessionGuard(supabase, _u);
 window.logout=async()=>{adminSessionGuard.stop();try{await supabase.rpc('admin_log_session_event',{p_admin_session_token:_u.activeSessionToken || _u.sessionToken,p_action:'logout'});}catch(error){console.warn('Admin logout audit unavailable',error);}try{await supabase.auth.signOut();}catch(error){}localStorage.removeItem('loggedInUser');location.href='index.html';};
 
-let enrollments=[],activities=[],scores=[],examBonuses=new Map();
+let enrollments=[],activities=[],scores=[],examBonuses=new Map(),namedBonusEntries=[];
 let sortCol=null,sortDir='asc',currentView='grid',recordTableMode='overview',editCtx=null;
 // Cache for computed rows used by ranking
 let lastComputedRows=[], lastComputedActs=[];
@@ -1274,6 +1274,7 @@ async function loadAll(){
             p_admin_session_token:_u.activeSessionToken || _u.sessionToken || null
         });
         examBonuses=bonusMapFromRows(bonusRows||[]);
+        namedBonusEntries=await fetchNamedIncentiveEntries(supabase,{p_admin_session_token:_u.activeSessionToken||_u.sessionToken||null});
         showStanding=settings?!!settings.showStanding:false;
         updateStandingBtn();
         buildDropdowns();applyFilters();
@@ -1343,7 +1344,7 @@ function buildSMap(){
     scores.forEach(s=>{
         const a=activitiesById.get(String(s.activityId));
         m[s.activityId+'||'+s.studentNo]=a?.category==='exam'
-            ? {...s,score:effectiveExamScore(a,s.score,examBonuses.get(examBonusKey(a.id,s.studentNo))||0)}
+            ? {...s,score:effectiveExamScore(a,s.score)}
             : s;
     });
     return m;
@@ -1367,6 +1368,9 @@ function computeRows(enList,acList,sm){
             totalMax+=Number(a.perfectScore)||0;
             if(sc)totalScore+=Number(sc.score)||0;
         });
+        const classExamIds=new Set(relevantActivities.filter(a=>a.category==='exam').map(a=>String(a.id)));
+        const bonusExtra=namedBonusEntries.filter(b=>b.student_no===e.studentNo&&classExamIds.has(String(b.activity_id))).reduce((sum,b)=>sum+Number(b.bonus_points||0),0);
+        totalScore+=bonusExtra;
         const scorePercent=totalMax>0?(totalScore/totalMax*100):0;
 
         return{
@@ -1934,6 +1938,7 @@ function addStyledRecordsSheet(workbook,group,options){
     const selectedActs=[...acts.filter(a=>a.term==='midterm'),...acts.filter(a=>a.term==='final')];
     const exams=selectedActs.filter(a=>a.category==='exam'&&Number(a.perfectScore)>0);
     const examMax=exams.reduce((sum,a)=>sum+Number(a.perfectScore),0);
+    const namedCols=namedIncentiveColumns(namedBonusEntries,exams.map(a=>a.id));
     const activityMax=selectedActs.reduce((sum,a)=>sum+(Number(a.perfectScore)||0),0);
     const headings=[];
     const kind=[];
@@ -1953,8 +1958,10 @@ function addStyledRecordsSheet(workbook,group,options){
         activityColumns.push({activity:a,index:i});
         push(header,a.term==='midterm'?'mid':'fin',Math.min(34,Math.max(16,header.length+2)));
     });
+    const namedIndices=[];
+    if(incE||incA)namedCols.forEach(col=>{namedIndices.push(headings.length+1);push('BONUS · '+col.title+' ('+(col.source==='manual'?'PLUS POINTS':'RECITATION')+')','bonus',Math.min(40,Math.max(22,col.title.length+12)));});
     const examTotalIndex=incE?headings.length+1:null;
-    if(incE)push(buildExamTotalHeader(examMax),'total',22);
+    if(incE)push('EXAMS + BONUS TOTAL (/'+formatExportMaximum(examMax)+')','total',25);
     const activityTotalIndex=incP?headings.length+1:null;
     if(incP){push('ALL ACTIVITIES (/'+formatExportMaximum(activityMax)+')','total',25);push('Score %','total',13);}
     if(incG){push('Midterm Grade','grade',17);push('Final Grade','grade',17);push('Average','grade',13);}
@@ -1971,14 +1978,14 @@ function addStyledRecordsSheet(workbook,group,options){
     worksheet.autoFilter={from:{row:1,column:1},to:{row:Math.max(1,group.rows.length+1),column:headings.length}};
     worksheet.getRow(1).eachCell((cell,i)=>{
         const type=kind[i-1];
-        const color=type==='total'?EXCEL_PALETTE.total:type==='mid'?EXCEL_PALETTE.mid:type==='fin'?EXCEL_PALETTE.fin:EXCEL_PALETTE.ink;
+        const color=type==='total'?EXCEL_PALETTE.total:type==='bonus'?'FF17724E':type==='mid'?EXCEL_PALETTE.mid:type==='fin'?EXCEL_PALETTE.fin:EXCEL_PALETTE.ink;
         cell.fill=excelSolid(color);
         cell.font={name:'Aptos',size:11,bold:true,color:{argb:EXCEL_PALETTE.white}};
         cell.alignment={vertical:'middle',horizontal:i<= (incR?3:2)?'left':'center',wrapText:true,indent:i<= (incR?3:2)?1:0};
         cell.border={bottom:{style:'medium',color:{argb:EXCEL_PALETTE.border}}};
     });
     if(examTotalIndex){
-        worksheet.getRow(1).getCell(examTotalIndex).note='Combined earned points for all major exams. The maximum in the header includes every exam in this class. Amber cells indicate one or more scores are still pending. A recorded 0 remains a numeric zero.';
+        worksheet.getRow(1).getCell(examTotalIndex).note='Raw exam scores plus separately named bonus entries. Bonus can make earned points exceed the combined raw exam maximum. Raw marks are never overwritten.';
     }
     group.rows.forEach((r,idx)=>{
         const totals=examFor(r);
@@ -1986,7 +1993,8 @@ function addStyledRecordsSheet(workbook,group,options){
         if(incR)values.push(r.rank??'');
         values.push(r.studentNo,r.studentName);
         if(incA)selectedActs.forEach(a=>values.push(activityScore(a,r,scoreMap)));
-        if(incE)values.push(examTotalValue(totals));
+        if(incE||incA)namedCols.forEach(col=>values.push(namedIncentiveValue(namedBonusEntries,r.studentNo,col)));
+        if(incE)values.push(examTotalValue(totals)+namedCols.reduce((sum,col)=>sum+namedIncentiveValue(namedBonusEntries,r.studentNo,col),0));
         if(incP)values.push(r.totalScore??'',r.totalMax>0?r.scorePercent/100:'');
         if(incG)values.push(
             r.midGrade==null?'':Number(r.midGrade.toFixed(2)),
@@ -2013,12 +2021,12 @@ function addStyledRecordsSheet(workbook,group,options){
         if(examTotalIndex){
             const cell=row.getCell(examTotalIndex);
             if(examScoreColumns.length&&examMax>0){
-                const formula='SUM('+examScoreColumns.map(i=>excelColumnName(i)+row.number).join(',')+')';
-                cell.value={formula,result:totals.combined.earned};
+                const formula='SUM('+[...examScoreColumns,...namedIndices].map(i=>excelColumnName(i)+row.number).join(',')+')';
+                cell.value={formula,result:totals.combined.earned+namedCols.reduce((sum,col)=>sum+namedIncentiveValue(namedBonusEntries,r.studentNo,col),0)};
             }
             cell.fill=excelSolid(totals.combined.pending>0?EXCEL_PALETTE.amber:EXCEL_PALETTE.totalPale);
             cell.font={name:'Aptos',size:11,bold:true,color:{argb:totals.combined.pending>0?EXCEL_PALETTE.amberText:EXCEL_PALETTE.total}};
-            cell.numFmt=excelScoreNumberFormat(totals.combined.earned);
+            cell.numFmt=excelScoreNumberFormat(totals.combined.earned+namedCols.reduce((sum,col)=>sum+namedIncentiveValue(namedBonusEntries,r.studentNo,col),0));
             if(totals.combined.pending>0)cell.note=totals.combined.pending+' exam score(s) pending. This is a partial earned total; the header maximum includes all exams.';
         }
         if(activityTotalIndex){
@@ -2097,7 +2105,9 @@ window.doExport=async(fmt)=>{
         const headers=['Student No.','Student Name','Section','Subject'];
         if(incR)headers.unshift('Rank');
         if(incA)allA.forEach(a=>headers.push('['+a.section+' / '+a.subjectCode+'] '+buildActivityExportHeader(a)));
-        if(incE)headers.push(groups.size===1?buildExamTotalHeader(examFor(rows[0]).combined.max):'EXAMS TOTAL (max varies by class)');
+        const exportNamedCols=namedIncentiveColumns(namedBonusEntries,allA.filter(a=>a.category==='exam').map(a=>a.id));
+        if(incE||incA)exportNamedCols.forEach(col=>headers.push('['+col.activityId+'] '+col.title+' ('+(col.source==='manual'?'PLUS POINTS':'RECITATION')+')'));
+        if(incE)headers.push(groups.size===1?'EXAMS + BONUS TOTAL (/'+examFor(rows[0]).combined.max+')':'EXAMS + BONUS TOTAL (max varies by class)');
         if(incP)headers.push('ALL ACTIVITIES','Score %');
         if(incG)headers.push('Midterm Grade','Final Grade','Average');
         if(incS)headers.push('Status');
@@ -2106,7 +2116,15 @@ window.doExport=async(fmt)=>{
             const row=[r.studentNo,r.studentName,r.section,r.subjectCode];
             if(incR)row.unshift(r.rank??'');
             if(incA)allA.forEach(a=>row.push(activityScore(a,r,sm)));
-            if(incE)row.push(examTotalValue(examFor(r)));
+            if(incE||incA)exportNamedCols.forEach(col=>{
+                const exam=allA.find(a=>String(a.id)===col.activityId);
+                row.push(exam&&exam.section===r.section&&exam.subjectCode===r.subjectCode?namedIncentiveValue(namedBonusEntries,r.studentNo,col):'');
+            });
+            if(incE){
+                const ids=new Set(allA.filter(a=>a.category==='exam'&&a.section===r.section&&a.subjectCode===r.subjectCode).map(a=>String(a.id)));
+                const bonus=namedBonusEntries.filter(b=>b.student_no===r.studentNo&&ids.has(String(b.activity_id))).reduce((sum,b)=>sum+Number(b.bonus_points||0),0);
+                row.push(examTotalValue(examFor(r))+bonus);
+            }
             if(incP)row.push(r.totalScore,r.totalMax>0?r.scorePercent.toFixed(2)+'%':'');
             if(incG)row.push(r.midGrade??'',r.finGrade??'',r.avg??'');
             if(incS)row.push(r.status||'');

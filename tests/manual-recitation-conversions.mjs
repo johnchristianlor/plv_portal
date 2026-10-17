@@ -28,8 +28,8 @@ test('individual and section conversion require an explicit administrator action
   assert.match(manual,/public\.exam_redeem_wallet\(p_activity_id,v_student\.student_no/i);
   assert.match(admin,/p_auto_convert:false/);
   assert.match(admin,/\$\('batchAcknowledged'\)\.checked/);
-  assert.match(admin,/admin_convert_recitation_section/);
-  assert.match(admin,/admin_convert_recitation_to_exam/);
+  assert.match(admin,/admin_convert_named_recitation_section/);
+  assert.match(admin,/admin_convert_named_recitation/);
 });
 test('yellow, green and neutral states are clearly differentiated',()=>{
   assert.deepEqual(getConversionStatus({balance:8,rate:3,converted:0,headroom:10}),{
